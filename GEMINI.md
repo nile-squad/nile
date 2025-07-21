@@ -1,4 +1,4 @@
-Please Always follow these rules:
+# Please Always follow these rules when working on this project
 
 1. Please don't make unnecessary changes, always try to mantain current code and build upon it as much as possible.
 
