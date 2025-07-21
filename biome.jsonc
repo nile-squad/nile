@@ -1,0 +1,25 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.1.1/schema.json",
+  "extends": ["ultracite"],
+  "files": {
+    "includes": ["**", "!**/dist/**", "!**/*.test.ts"]
+  },
+  "linter": {
+    "rules": {
+      "suspicious": {
+        "noExplicitAny": "off",
+        "noConsole": "off",
+        "useGuardForIn": "off"
+      },
+      "performance": {
+        "noNamespaceImport": "off"
+      },
+      "correctness": {
+        "noUnusedFunctionParameters": "off"
+      },
+      "complexity": {
+        "noForEach": "off"
+      }
+    }
+  }
+}
