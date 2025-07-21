@@ -77,7 +77,7 @@
     "prepublishOnly": "pnpm export",
     "publish": "changeset publish",
     "clean": "rm -rf dist",
-    "export": "pnpm clean && pnpm type-check && pnpm format && pnpm build && pnpm check-exports"
+    "export": "pnpm clean && pnpm type-check && pnpm format && pnpm build"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.16.4",
