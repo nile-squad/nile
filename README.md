@@ -3,5 +3,5 @@
 The Nile Backend Framework
 
 ```bash
-pnpm install @nilesquad/nile
+pnpm install @nile-squad/nile
 ```

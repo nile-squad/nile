@@ -1,6 +1,6 @@
 {
   "name": "@nile-squad/nile",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Nile Squad Team",
   "type": "module",
   "sideEffects": false,
@@ -35,6 +35,11 @@
       "import": "./dist/src/utils/index.js",
       "require": "./dist/src/utils/index.cjs",
       "types": "./dist/src/utils/index.d.ts"
+    },
+    "./types": {
+      "import": "./dist/src/types/index.js",
+      "require": "./dist/src/types/index.cjs",
+      "types": "./dist/src/types/index.d.ts"
     }
   },
   "engines": {
