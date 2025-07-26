@@ -58,9 +58,8 @@ export function getValidationSchema(
   }
 
   // Step 4: Apply validation mode with auto-detection
-  if (validation.validationMode) {
-    schema = handleValidationMode(schema, validation.validationMode, operation);
-  }
+  const mode = validation.validationMode ?? 'auto';
+  schema = handleValidationMode(schema, mode, operation);
 
   return schema;
 }
