@@ -1,11 +1,11 @@
-import { z as zod, type ZodError } from "zod";
-import { fromError, createErrorMap } from "zod-validation-error";
+import { type ZodError, z as zod } from 'zod';
+import { createErrorMap, fromError } from 'zod-validation-error';
 
 zod.config({
-	customError: createErrorMap(),
+  customError: createErrorMap(),
 });
 
 export const formatError = (error: ZodError) => {
-	const validationError = fromError(error);
-	return validationError;
+  const validationError = fromError(error);
+  return validationError;
 };

@@ -8,9 +8,12 @@ import {
 } from '@nile/src/utils/validation-utils';
 import {
   and,
+  asc,
+  desc,
   eq,
   type InferInsertModel,
   type InferSelectModel,
+  type SQL,
   type Table,
 } from 'drizzle-orm';
 import type { ZodObject } from 'zod';
@@ -77,6 +80,34 @@ export type Model = {
   deleteOne: (args: SelectArgs) => Promise<ModelReturn>;
   getMany: (args: SelectArgs) => Promise<ModelReturn>;
   getOneWithStrictly: (args: StrictSelectArgs) => Promise<ModelReturn>;
+  getManyWith: (options?: {
+    filters?: Record<string, any>;
+    sort?: { field: string; direction: 'asc' | 'desc' }[];
+    page?: number;
+    perPage?: number;
+  }) => Promise<{
+    data:
+      | {
+          items: Record<string, any>[];
+          meta: {
+            totalItems: number;
+            totalPages: number;
+            currentPage: number;
+            perPage: number;
+          };
+        }
+      | Record<string, any>[]
+      | null;
+    errors: string[];
+  }>;
+  getOneWith: (options: {
+    filters: Record<string, any>;
+  }) => Promise<ModelReturn>;
+  getOneWithRelations: (options: {
+    id: any;
+    tableName: string;
+    with: Record<string, any>;
+  }) => Promise<ModelReturn>;
   table: Table;
 };
 
@@ -504,6 +535,150 @@ export const createModel = ({
     }
   };
 
+  const getManyWith = async (
+    options: {
+      filters?: Record<string, any>;
+      sort?: { field: string; direction: 'asc' | 'desc' }[];
+      page?: number;
+      perPage?: number;
+    } = {}
+  ): Promise<{
+    data:
+      | {
+          items: SelectType[];
+          meta: {
+            totalItems: number;
+            totalPages: number;
+            currentPage: number;
+            perPage: number;
+          };
+        }
+      | SelectType[]
+      | null;
+    errors: string[];
+  }> => {
+    const { page, perPage, sort = [], filters = {} } = options;
+    const errors: string[] = [];
+
+    try {
+      const whereClauses: SQL[] = [];
+      for (const field in filters) {
+        if (Object.hasOwn(filters, field)) {
+          if (table[field]) {
+            whereClauses.push(eq(table[field], filters[field]));
+          } else {
+            errors.push(`Invalid filter field: ${field}`);
+          }
+        }
+      }
+
+      if (errors.length > 0) {
+        return { data: null, errors };
+      }
+
+      const query = db.select(returnShape || undefined).from(table);
+
+      if (whereClauses.length > 0) {
+        query.where(and(...whereClauses));
+      }
+
+      const totalItems = (await query.execute()).length;
+
+      if (page && perPage) {
+        const offset = (page - 1) * perPage;
+        query.limit(perPage).offset(offset);
+      }
+
+      sort.forEach((s) => {
+        const direction = s.direction === 'desc' ? desc : asc;
+        if (table[s.field]) {
+          query.orderBy(direction(table[s.field]));
+        }
+      });
+
+      const data = await query.execute();
+      const parsed = data?.map(parseOtherColumn) ?? null;
+
+      if (page && perPage) {
+        return {
+          data: {
+            items: parsed,
+            meta: {
+              totalItems,
+              totalPages: Math.ceil(totalItems / perPage),
+              currentPage: page,
+              perPage,
+            },
+          },
+          errors: [],
+        };
+      }
+
+      return { data: parsed, errors: [] };
+    } catch (error) {
+      return { data: null, errors: [`Error in getManyWith: ${error}`] };
+    }
+  };
+
+  const getOneWith = async (options: {
+    filters: Record<string, any>;
+  }): Promise<{ data: SelectType | null; errors: string[] }> => {
+    const { filters } = options;
+    const errors: string[] = [];
+
+    try {
+      const whereClauses: SQL[] = [];
+      for (const field in filters) {
+        if (Object.hasOwn(filters, field)) {
+          if (table[field]) {
+            whereClauses.push(eq(table[field], filters[field]));
+          } else {
+            errors.push(`Invalid filter field: ${field}`);
+          }
+        }
+      }
+
+      if (errors.length > 0) {
+        return { data: null, errors };
+      }
+
+      if (whereClauses.length === 0) {
+        return { data: null, errors: ['No filters provided'] };
+      }
+
+      const result = await db
+        .select()
+        .from(table)
+        .where(and(...whereClauses))
+        .limit(1);
+
+      const data = result[0] ? parseOtherColumn(result[0]) : null;
+      return { data, errors };
+    } catch (error) {
+      return { data: null, errors: [`Error in getOneWith: ${error}`] };
+    }
+  };
+
+  const getOneWithRelations = async (options: {
+    id: any;
+    tableName: string;
+    with: Record<string, any>;
+  }): Promise<{ data: SelectType | null; errors: string[] }> => {
+    const { id, with: withRelations, tableName } = options;
+    const errors: string[] = [];
+
+    try {
+      const data = await (db.query as any)[tableName].findFirst({
+        where: eq(table.id, id),
+        with: withRelations,
+      });
+
+      return { data, errors };
+    } catch (error) {
+      return { data: null, errors: [`Error in getOneWithRelations: ${error}`] };
+    }
+  };
+
   return {
     table,
     getAll,
@@ -514,5 +689,8 @@ export const createModel = ({
     deleteAll,
     getMany,
     getOneWithStrictly,
+    getManyWith,
+    getOneWith,
+    getOneWithRelations,
   };
 };

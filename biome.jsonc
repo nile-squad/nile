@@ -18,7 +18,13 @@
         "noUnusedFunctionParameters": "off"
       },
       "complexity": {
-        "noForEach": "off"
+        "noForEach": "off",
+        "noExcessiveCognitiveComplexity": {
+          "level": "error",
+          "options": {
+            "maxAllowedComplexity": 25
+          }
+        }
       }
     }
   }

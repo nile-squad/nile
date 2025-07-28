@@ -37,19 +37,36 @@ export const newServiceActionsFactory = (
   const newUpdateAction = generateUpdateAction(sub, tableName, table, model);
   const newDeleteAction = generateDeleteAction(sub, tableName, table, model);
   const newEveryAction = generateGetEveryAction(sub, tableName, table, model);
-  // const newDeleteAllAction = generateDeleteAllAction(
-  //   sub,
-  //   tableName,
-  //   table,
-  //   model,
-  // );
+  const newGetManyWithAction = generateGetManyWithAction(
+    sub,
+    tableName,
+    table,
+    model
+  );
+  const newGetOneWithAction = generateGetOneWithAction(
+    sub,
+    tableName,
+    table,
+    model
+  );
+
   actions.push(newCreateAction);
   actions.push(newGetAllAction);
   actions.push(newGetOneAction);
   actions.push(newUpdateAction);
   actions.push(newDeleteAction);
   actions.push(newEveryAction);
-  // actions.push(newDeleteAllAction);
+  actions.push(newGetManyWithAction);
+  actions.push(newGetOneWithAction);
+  const newGetOneWithRelationsAction = generateGetOneWithRelationsAction(
+    sub,
+    tableName,
+    table,
+    model
+  );
+
+  actions.push(newGetOneWithRelationsAction);
+
   return returnValue;
 };
 
@@ -365,6 +382,122 @@ export const generateDeleteAllAction = (
     description: `Delete all records from ${sub.tableName}`,
     isProtected: sub.protectedActions?.includes('deleteAll') ?? false,
     handler: deleteAllActionHandler,
+    validation: {},
+  };
+
+  return newAction;
+};
+
+const generateGetManyWithAction = (
+  sub: SubService,
+  tableName: string,
+  table: any,
+  model: Model
+) => {
+  const getManyWithActionHandler: ActionHandler = async (data) => {
+    const { page, perPage, sort, filters } = data;
+
+    const { data: result, errors } = await model.getManyWith({
+      page,
+      perPage,
+      sort,
+      filters,
+    });
+    if (errors.length) {
+      const error_id = createLog({
+        message: `Error getting all records from ${tableName}`,
+        data: errors,
+        type: 'error',
+        atFunction: 'getManyWithActionHandler',
+        appName: 'main',
+      });
+      return Error(`Error getting all records from ${tableName}`, error_id);
+    }
+    return Ok(result as any);
+  };
+
+  // create action
+  const newAction: Action = {
+    name: 'getManyWith',
+    description: `Get all records from ${sub.tableName}`,
+    isProtected: sub.protectedActions?.includes('getManyWith') ?? false,
+    handler: getManyWithActionHandler,
+    validation: {},
+  };
+
+  return newAction;
+};
+
+const generateGetOneWithAction = (
+  sub: SubService,
+  tableName: string,
+  table: any,
+  model: Model
+) => {
+  const getOneWithActionHandler: ActionHandler = async (data) => {
+    const { filters } = data;
+
+    const { data: result, errors } = await model.getOneWith({
+      filters,
+    });
+    if (errors.length) {
+      const error_id = createLog({
+        message: `Error getting record from ${tableName}`,
+        data: errors,
+        type: 'error',
+        atFunction: 'getOneWithActionHandler',
+        appName: 'main',
+      });
+      return Error(`Error getting record from ${tableName}`, error_id);
+    }
+    return Ok(result as any);
+  };
+
+  // create action
+  const newAction: Action = {
+    name: 'getOneWith',
+    description: `Get one record from ${sub.tableName}`,
+    isProtected: sub.protectedActions?.includes('getOneWith') ?? false,
+    handler: getOneWithActionHandler,
+    validation: {},
+  };
+
+  return newAction;
+};
+
+const generateGetOneWithRelationsAction = (
+  sub: SubService,
+  tableName: string,
+  table: any,
+  model: Model
+) => {
+  const getOneWithRelationsActionHandler: ActionHandler = async (data) => {
+    const { id, with: withRelations } = data;
+
+    const { data: result, errors } = await model.getOneWithRelations({
+      id,
+      tableName,
+      with: withRelations,
+    });
+    if (errors.length) {
+      const error_id = createLog({
+        message: `Error getting record from ${tableName}`,
+        data: errors,
+        type: 'error',
+        atFunction: 'getOneWithRelationsActionHandler',
+        appName: 'main',
+      });
+      return Error(`Error getting record from ${tableName}`, error_id);
+    }
+    return Ok(result as any);
+  };
+
+  // create action
+  const newAction: Action = {
+    name: 'getOneWithRelations',
+    description: `Get one record from ${sub.tableName} with relations`,
+    isProtected: sub.protectedActions?.includes('getOneWithRelations') ?? false,
+    handler: getOneWithRelationsActionHandler,
     validation: {},
   };
 

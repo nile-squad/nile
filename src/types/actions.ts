@@ -30,7 +30,12 @@ type ProtectedAction =
   | 'deleteAll'
   | 'getOne'
   | 'getAll'
-  | 'getEvery';
+  | 'getEvery'
+  | 'getMany'
+  | 'getOneWithStrictly'
+  | 'getOneWith'
+  | 'getOneWithRelations'
+  | 'getManyWith';
 
 export type SubService = {
   name: string;
