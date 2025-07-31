@@ -1,6 +1,8 @@
 // type Data = Record<string, any> | Record<string, any>[];
 /** biome-ignore-all lint/suspicious/noShadowRestrictedNames: <shall fix this in coming versions> */
 
+import { createLog } from '../logging';
+
 /**
  * Represents a successful operation result.
  */
@@ -99,3 +101,44 @@ export const safeTry = async <T>(
 // https://github.com/supermacro/neverthrow
 // idea: add pattern matching?
 // ok and error - result pattern
+
+type checkOptions = {
+  target: string;
+  message: string;
+  atFunction: string;
+  appName: string;
+};
+
+export function checkIfEmptyOrErrors(
+  result: SafeResult<any>,
+  options: checkOptions
+) {
+  const target = options.target || 'Unknown';
+  const message = options.message || 'Operation failed!';
+  const appName = options.appName || 'main';
+  const atFunction = options.atFunction;
+  const notFoundMessage = `${target} not found!`;
+
+  if (isError(result)) {
+    const error_id = createLog({
+      message,
+      data: result,
+      type: 'error',
+      atFunction,
+      appName,
+    });
+    return Error(message, error_id);
+  }
+
+  if (!result.data) {
+    const error_id = createLog({
+      message: notFoundMessage,
+      data: result,
+      type: 'error',
+      atFunction,
+      appName,
+    });
+    return Error(notFoundMessage, error_id);
+  }
+  return null;
+}

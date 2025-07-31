@@ -13,6 +13,9 @@ export const createLog = (log: Log) => {
   if (mode !== 'dev' && db) {
     return logger.addLog(log, db);
   }
+  if (mode === 'agentic') {
+    return JSON.stringify(log);
+  }
   console.log(log);
   return 'dev-mode, see your dev console!';
 };

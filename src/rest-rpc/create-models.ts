@@ -312,13 +312,33 @@ export const createModel = ({
   };
 
   const prepareUpdateData = (currentData: any, newData: any) => {
-    const otherWithChanges = mergeTwoObjects(currentData.other, newData.other);
+    let otherWithChanges: any;
+    const currentOther = currentData?.other;
+    const newOther = newData?.other;
+
+    // Only merge if at least one is a non-null object
+    if (
+      (currentOther && typeof currentOther === 'object') ||
+      (newOther && typeof newOther === 'object')
+    ) {
+      otherWithChanges = mergeTwoObjects(currentOther || {}, newOther || {});
+    } else if (typeof newOther !== 'undefined') {
+      // If newOther is explicitly set (even null), use it
+      otherWithChanges = newOther;
+    } else if (typeof currentOther !== 'undefined') {
+      otherWithChanges = currentOther;
+    } else {
+      otherWithChanges = undefined; // Omit from update
+    }
+
     const mainChanges = getChanges(currentData, newData);
-    let dataChanges = { ...mainChanges, other: otherWithChanges };
+    let dataChanges = { ...mainChanges };
+    if (typeof otherWithChanges !== 'undefined') {
+      dataChanges.other = otherWithChanges;
+    }
     dataChanges = stringifyOtherColumn(dataChanges);
     return dataChanges;
   };
-
   const executeUpdate = async (
     args: updateArgs,
     dataChanges: any,
