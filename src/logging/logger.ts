@@ -1,29 +1,29 @@
-import type { Log } from "./logger-storage";
-import * as logger from "./logger-storage";
-import "dotenv/config";
+import type { Log } from './logger-storage';
+import * as logger from './logger-storage';
+import 'dotenv/config';
 
-const mode = process.env.MODE || "dev";
+const mode = process.env.MODE || 'dev';
 
 export const createLog = (log: Log) => {
-	const dbName = log.appName;
-	let db: ReturnType<typeof logger.createDB> | null = null;
-	if (dbName) {
-		db = logger.createDB(dbName);
-	}
+  const dbName = log.appName;
+  let db: ReturnType<typeof logger.createDB> | null = null;
+  if (dbName) {
+    db = logger.createDB(dbName);
+  }
 
-	if (mode === "prod" && db) {
-		return logger.addLog(log, db);
-	}
-	if (mode === "agentic") {
-		return JSON.stringify(log);
-	}
-	console.log(log);
-	return "dev-mode, see your dev console!";
+  if (mode === 'prod' && db) {
+    return logger.addLog(log, db);
+  }
+  if (mode === 'agentic') {
+    return JSON.stringify(log);
+  }
+  console.log(log);
+  return 'dev-mode, see your dev console!';
 };
 
 export const getAllLogs = (appName: string) => {
-	const db = logger.createDB(appName);
-	return logger.getLogs(db);
+  const db = logger.createDB(appName);
+  return logger.getLogs(db);
 };
 
 // createLog({
