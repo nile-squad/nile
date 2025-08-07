@@ -1,26 +1,26 @@
 // type Data = Record<string, any> | Record<string, any>[];
 /** biome-ignore-all lint/suspicious/noShadowRestrictedNames: <shall fix this in coming versions> */
 
-import { createLog } from '../logging';
+import { createLogger } from "../logging";
 
 /**
  * Represents a successful operation result.
  */
 export type _Ok<T> = {
-  status: true;
-  message: string;
-  data: T;
+	status: true;
+	message: string;
+	data: T;
 };
 
 /**
  * Represents an unsuccessful operation result.
  */
 export type _Error = {
-  status: false;
-  message: string;
-  data: {
-    error_id: string;
-  };
+	status: false;
+	message: string;
+	data: {
+		error_id: string;
+	};
 };
 
 export type SafeResult<T> = _Ok<T> | _Error;
@@ -45,10 +45,10 @@ export const isError = <T>(obj: _Ok<T> | _Error): obj is _Error => !obj.status;
  * @param message - An optional message, defaults to 'Success'.
  * @returns An _Ok type object.
  */
-export const Ok = <T>(data: T, message = 'Success'): _Ok<T> => ({
-  status: true,
-  message,
-  data,
+export const Ok = <T>(data: T, message = "Success"): _Ok<T> => ({
+	status: true,
+	message,
+	data,
 });
 
 /**
@@ -58,17 +58,17 @@ export const Ok = <T>(data: T, message = 'Success'): _Ok<T> => ({
  * @param other - Optional additional data to include in the error.
  * @returns An _Error type object.
  */
-export const Error = (
-  message: string,
-  error_id: string,
-  other?: Record<string, any>
+export const safeError = (
+	message: string,
+	error_id: string,
+	other?: Record<string, any>,
 ): _Error => ({
-  status: false,
-  message,
-  data: {
-    error_id,
-    ...other,
-  },
+	status: false,
+	message,
+	data: {
+		error_id,
+		...other,
+	},
 });
 
 /**
@@ -78,22 +78,22 @@ export const Error = (
  * @returns An object containing the result or error.
  */
 export const safeTry = async <T>(
-  fn: () => Promise<T>,
-  throwTheError = false
+	fn: () => Promise<T>,
+	throwTheError = false,
 ) => {
-  let result: T | null = null;
-  let error: any = null;
-  try {
-    result = await fn();
-  } catch (e) {
-    console.error(e);
-    if (throwTheError) {
-      throw e;
-    }
-    error = e;
-  }
+	let result: T | null = null;
+	let error: any = null;
+	try {
+		result = await fn();
+	} catch (e) {
+		console.error(e);
+		if (throwTheError) {
+			throw e;
+		}
+		error = e;
+	}
 
-  return { result, error };
+	return { result, error };
 };
 
 // references
@@ -103,42 +103,38 @@ export const safeTry = async <T>(
 // ok and error - result pattern
 
 type checkOptions = {
-  target: string;
-  message: string;
-  atFunction: string;
-  appName: string;
+	target: string;
+	message: string;
+	atFunction: string;
 };
 
+const logger = createLogger("nile-utils");
+
 export function checkIfEmptyOrErrors(
-  result: SafeResult<any>,
-  options: checkOptions
+	result: SafeResult<any>,
+	options: checkOptions,
 ) {
-  const target = options.target || 'Unknown';
-  const message = options.message || 'Operation failed!';
-  const appName = options.appName || 'main';
-  const atFunction = options.atFunction;
-  const notFoundMessage = `${target} not found!`;
+	const target = options.target || "Unknown";
+	const message = options.message || "Operation failed!";
+	const atFunction = options.atFunction;
+	const notFoundMessage = `${target} not found!`;
 
-  if (isError(result)) {
-    const error_id = createLog({
-      message,
-      data: result,
-      type: 'error',
-      atFunction,
-      appName,
-    });
-    return Error(message, error_id);
-  }
+	if (isError(result)) {
+		const error_id = logger.error({
+			message,
+			data: result,
+			atFunction,
+		});
+		return safeError(message, error_id);
+	}
 
-  if (!result.data) {
-    const error_id = createLog({
-      message: notFoundMessage,
-      data: result,
-      type: 'error',
-      atFunction,
-      appName,
-    });
-    return Error(notFoundMessage, error_id);
-  }
-  return null;
+	if (!result.data) {
+		const error_id = logger.error({
+			message: notFoundMessage,
+			data: result,
+			atFunction,
+		});
+		return safeError(notFoundMessage, error_id);
+	}
+	return null;
 }

@@ -1,11 +1,11 @@
-import { createLog } from '@nile/src/logging';
-import { formatError } from '@nile/src/utils/erorr-formatter';
-import { getChanges } from '@nile/src/utils/get-changes';
-import { mergeTwoObjects } from '@nile/src/utils/merge-two-objects';
+import { createLog } from '../logging';
+import { formatError } from '../utils/erorr-formatter';
+import { getChanges } from '../utils/get-changes';
+import { mergeTwoObjects } from '../utils/merge-two-objects';
 import {
   getValidationSchema,
   type Validation,
-} from '@nile/src/utils/validation-utils';
+} from '../utils/validation-utils';
 import {
   and,
   asc,

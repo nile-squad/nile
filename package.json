@@ -1,6 +1,6 @@
 {
   "name": "@nile-squad/nile",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "author": "Nile Squad Team",
   "type": "module",
   "sideEffects": false,
@@ -12,34 +12,29 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/index.cjs",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.cjs"
     },
     "./logging": {
+      "types": "./dist/src/logging/index.d.ts",
       "import": "./dist/src/logging/index.js",
-      "require": "./dist/src/logging/index.cjs",
-      "types": "./dist/src/logging/index.d.ts"
-    },
-    "./integrations": {
-      "import": "./dist/src/integrations/index.js",
-      "require": "./dist/src/integrations/index.cjs",
-      "types": "./dist/src/integrations/index.d.ts"
+      "require": "./dist/src/logging/index.cjs"
     },
     "./rest-rpc": {
+      "types": "./dist/src/rest-rpc/index.d.ts",
       "import": "./dist/src/rest-rpc/index.js",
-      "require": "./dist/src/rest-rpc/index.cjs",
-      "types": "./dist/src/rest-rpc/index.d.ts"
+      "require": "./dist/src/rest-rpc/index.cjs"
     },
     "./utils": {
+      "types": "./dist/src/utils/index.d.ts",
       "import": "./dist/src/utils/index.js",
-      "require": "./dist/src/utils/index.cjs",
-      "types": "./dist/src/utils/index.d.ts"
+      "require": "./dist/src/utils/index.cjs"
     },
     "./types": {
+      "types": "./dist/src/types/index.d.ts",
       "import": "./dist/src/types/index.js",
-      "require": "./dist/src/types/index.cjs",
-      "types": "./dist/src/types/index.d.ts"
+      "require": "./dist/src/types/index.cjs"
     }
   },
   "engines": {

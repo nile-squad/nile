@@ -1,36 +1,135 @@
-import type { Log } from './logger-storage';
-import * as logger from './logger-storage';
-import 'dotenv/config';
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { nanoid } from "nanoid";
+import pino, { type Logger } from "pino";
 
-const mode = process.env.MODE || 'dev';
+export type Log = {
+	atFunction: string;
+	appName: string;
+	message: string;
+	data?: any;
+	type?: "info" | "warn" | "error";
+	log_id?: string;
+};
 
+const mode = process.env.MODE || "dev";
+const logDir = join(process.cwd(), "logs");
+const logFile = join(logDir, "app.log");
+
+if (!existsSync(logDir)) {
+	mkdirSync(logDir);
+}
+
+const transport = pino.transport({
+	targets: [
+		{
+			level: "info",
+			target: "pino/file",
+			options: {
+				destination: logFile,
+				mkdir: true,
+			},
+		},
+	],
+});
+
+const logger: Logger = pino(
+	{
+		base: null,
+		timestamp: () => `,"time":"${new Date().toISOString()}"`,
+		formatters: {
+			level(label) {
+				return { level: label };
+			},
+		},
+	},
+	transport,
+);
+
+/**
+ * Creates a new log entry with the provided log information
+ * @param {Log} log - The log object containing the log details
+ * @returns {string} The generated log ID
+ * @throws {Error} If appName is missing in the log object
+ */
 export const createLog = (log: Log) => {
-  const dbName = log.appName;
-  let db: ReturnType<typeof logger.createDB> | null = null;
-  if (dbName) {
-    db = logger.createDB(dbName);
-  }
+	if (!log.appName) {
+		throw new Error(`Missing appName in log: ${JSON.stringify(log)}`);
+	}
 
-  if (mode === 'prod' && db) {
-    return logger.addLog(log, db);
-  }
-  if (mode === 'agentic') {
-    return JSON.stringify(log);
-  }
-  console.log(log);
-  return 'dev-mode, see your dev console!';
+	const type = log.type || "info";
+	const log_id = log.log_id || nanoid(6);
+
+	const logRecord = {
+		log_id,
+		appName: log.appName,
+		atFunction: log.atFunction,
+		message: log.message,
+		data: log.data ?? null,
+	};
+
+	if (mode === "prod") {
+		logger[type as "info" | "warn" | "error"](logRecord);
+		return log_id;
+	}
+	if (mode === "agentic") {
+		return JSON.stringify(logRecord);
+	}
+	console.log(logRecord);
+	return "dev-mode, see your dev console!";
 };
 
-export const getAllLogs = (appName: string) => {
-  const db = logger.createDB(appName);
-  return logger.getLogs(db);
+type LogFilter = {
+	appName?: string;
+	log_id?: string;
+	type?: "info" | "warn" | "error";
+	from?: Date;
+	to?: Date;
 };
 
-// createLog({
-//   type: 'info',
-//   message: 'Logger initialized',
-//   atFunction: 'createLog',
-//   appName: 'shared/logging',
-// });
+/**
+ * Retrieves logs based on the provided filters
+ * @param {LogFilter} filters - Optional filters to apply when retrieving logs
+ * @returns {Log[]} An array of log entries matching the filters
+ */
+export function getLogs(filters: LogFilter = {}): Log[] {
+	if (!existsSync(logFile)) {
+		return [];
+	}
 
-// console.log('logs::', getAllLogs());
+	const content = readFileSync(logFile, "utf-8");
+	const lines = content.trim().split("\n");
+
+	const logs = lines
+		.map((line) => {
+			try {
+				return JSON.parse(line);
+			} catch {
+				return null;
+			}
+		})
+		.filter(Boolean)
+		.filter((log) => {
+			if (filters.appName && log.appName !== filters.appName) {
+				return false;
+			}
+			if (filters.log_id && log.log_id !== filters.log_id) {
+				return false;
+			}
+			if (filters.type && log.level !== filters.type) {
+				return false;
+			}
+
+			const time = new Date(log.time);
+			if (filters.from && time < filters.from) {
+				return false;
+			}
+			if (filters.to && time > filters.to) {
+				return false;
+			}
+
+			return true;
+		});
+
+	return logs;
+}
