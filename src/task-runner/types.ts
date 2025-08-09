@@ -36,7 +36,9 @@ export interface TaskConfig {
   onEvent?: string; // e.g. "user:logged_in"
 
   // Handler function - supports both scheduled and event-driven signatures
-  handler: ((event?: string, data?: any) => Promise<void> | void) | (() => Promise<void> | void);
+  handler:
+    | ((event?: string, data?: any) => Promise<void> | void)
+    | (() => Promise<void> | void);
 
   // Retry and rate limiting
   retryPolicy?: RetryPolicy;
