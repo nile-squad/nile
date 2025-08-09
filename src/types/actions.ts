@@ -2,6 +2,34 @@ import type { Context } from 'hono';
 import type { SafeResult } from '../utils/safe-try';
 import type { Validation } from '../utils/validation-utils';
 
+export type HookDefinition = {
+  canFail: boolean;
+  name: string;
+};
+
+export type ActionResultConfig = {
+  pipeline: boolean;
+};
+
+export type HookLogEntry = {
+  name: string;
+  input: any;
+  output: any;
+  passed: boolean;
+};
+
+export type HookContext = {
+  actionName: string;
+  input: any;
+  output?: any;
+  error?: Error;
+  state: Record<string, any>;
+  log: {
+    before: HookLogEntry[];
+    after: HookLogEntry[];
+  };
+};
+
 export type Action = {
   name: string;
   description: string;
@@ -11,6 +39,11 @@ export type Action = {
   };
   handler: ActionHandler;
   validation: Validation;
+  hooks?: {
+    before?: HookDefinition[];
+    after?: HookDefinition[];
+  };
+  result?: ActionResultConfig;
 };
 
 export type Actions = Action[];

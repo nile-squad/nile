@@ -1,6 +1,6 @@
 {
   "name": "@nile-squad/nile",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "author": "Nile Squad Team",
   "type": "module",
   "sideEffects": false,
@@ -30,6 +30,11 @@
       "types": "./dist/src/utils/index.d.ts",
       "import": "./dist/src/utils/index.js",
       "require": "./dist/src/utils/index.cjs"
+    },
+    "./task-runner": {
+      "types": "./dist/src/task-runner/index.d.ts",
+      "import": "./dist/src/task-runner/index.js",
+      "require": "./dist/src/task-runner/index.cjs"
     },
     "./types": {
       "types": "./dist/src/types/index.d.ts",
@@ -109,6 +114,9 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@z-fetch/fetch": "^0.0.10",
     "better-sqlite3": "^9.6.0",
+    "croner": "^9.1.0",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "deep-object-diff": "^1.1.9",
     "dotenv": "^16.6.1",
     "drizzle-orm": "^0.44.3",

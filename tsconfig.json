@@ -1,9 +1,6 @@
 {
   "compilerOptions": {
-    "lib": [
-      "ESNext",
-      "DOM"
-    ],
+    "lib": ["ESNext", "DOM"],
     "target": "ESNext",
     "module": "ESNext",
     "moduleDetection": "force",
@@ -21,16 +18,10 @@
     "noPropertyAccessFromIndexSignature": false,
     "baseUrl": "./",
     "paths": {
-      "@/*": [
-        "../*"
-      ],
-      "@nile/*": [
-        "./*"
-      ],
+      "@/*": ["../*"],
+      "@nile/*": ["./*"]
     },
     "strictNullChecks": true
   },
-  "include": [
-    "src"
-  ]
+  "include": ["src"]
 }
