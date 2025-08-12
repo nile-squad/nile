@@ -360,6 +360,11 @@ export const useRestRPC = (config: ServerConfig) => {
             validation: a.validation?.zodSchema
               ? z.toJSONSchema(a.validation?.zodSchema)
               : null,
+            hooks: a.hooks ? {
+              before: a.hooks.before || [],
+              after: a.hooks.after || []
+            } : null,
+            pipeline: a.result?.pipeline || false,
           })),
         })),
       });
@@ -397,6 +402,11 @@ export const useRestRPC = (config: ServerConfig) => {
               validation: jsonSchema,
               isProtected: a.isProtected,
               isSpecial: a.isSpecial,
+              hooks: a.hooks ? {
+                before: a.hooks.before || [],
+                after: a.hooks.after || []
+              } : null,
+              pipeline: a.result?.pipeline || false,
             },
           });
         }

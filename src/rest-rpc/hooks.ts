@@ -28,7 +28,8 @@ export class HookExecutor {
   private async executeHook(
     hookDef: HookDefinition,
     input: any,
-    context: HookContext
+    hookContext: HookContext,
+    originalContext?: any
   ): Promise<{ success: boolean; output: any; logEntry: HookLogEntry }> {
     this.validateHookExists(hookDef.name);
 
@@ -46,7 +47,15 @@ export class HookExecutor {
     };
 
     try {
-      const result = await action.handler(input, context as any);
+      // Create an enhanced context that includes both original context and hook state
+      const enhancedContext = originalContext ? {
+        ...originalContext,
+        hookState: hookContext.state
+      } : {
+        hookState: hookContext.state
+      };
+
+      const result = await action.handler(input, enhancedContext);
 
       if (isOk(result)) {
         logEntry.output = result.data;
@@ -60,7 +69,7 @@ export class HookExecutor {
         return { success: false, output: result, logEntry };
       }
 
-      // Hook can fail, continue with original input
+      // Hook can fail, continue with most recent successful output (current input)
       return { success: true, output: input, logEntry };
     } catch (error) {
       const errorId = createLog({
@@ -82,7 +91,7 @@ export class HookExecutor {
         };
       }
 
-      // Hook can fail, continue with original input
+      // Hook can fail, continue with most recent successful output (current input)
       return { success: true, output: input, logEntry };
     }
   }
@@ -90,7 +99,8 @@ export class HookExecutor {
   private async executeHooks(
     hooks: HookDefinition[],
     initialInput: any,
-    context: HookContext,
+    hookContext: HookContext,
+    originalContext: any,
     phase: 'before' | 'after'
   ): Promise<{ success: boolean; output: any }> {
     let currentInput = initialInput;
@@ -100,10 +110,11 @@ export class HookExecutor {
       const { success, output, logEntry } = await this.executeHook(
         hookDef,
         currentInput,
-        context
+        hookContext,
+        originalContext
       );
 
-      context.log[phase].push(logEntry);
+      hookContext.log[phase].push(logEntry);
 
       if (!success) {
         return { success: false, output };
@@ -139,6 +150,7 @@ export class HookExecutor {
           action.hooks.before,
           currentInput,
           hookContext,
+          originalContext,
           'before'
         );
 
@@ -169,6 +181,7 @@ export class HookExecutor {
           action.hooks.after,
           finalOutput,
           hookContext,
+          originalContext,
           'after'
         );
 
