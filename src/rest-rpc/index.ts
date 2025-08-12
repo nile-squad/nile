@@ -10,10 +10,18 @@ export {
   type HookExecutor,
 } from './hooks';
 export {
+  type AgenticHandler,
   type AppInstance,
+  getAutoConfig,
   onAppStart,
   type ServerConfig,
   useAppInstance,
-  useAutoConfig,
   useRestRPC,
 } from './rest-rpc';
+export {
+  type ActionPayload,
+  type RPCConfig,
+  type RPCResult,
+  type RPCUtils,
+  useRPC,
+} from './rpc-utils';

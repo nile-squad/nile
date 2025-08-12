@@ -34,6 +34,7 @@ export type Action = {
   name: string;
   description: string;
   isProtected?: boolean;
+  agentic?: boolean; // defaults to true - allows agent execution
   isSpecial?: {
     contentType: 'multipart/form-data' | 'application/json' | 'other';
   };

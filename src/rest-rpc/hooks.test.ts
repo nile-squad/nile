@@ -86,9 +86,9 @@ describe('Hook System', () => {
         name: 'stateManipulator',
         description: 'Manipulate shared state',
         handler: async (data, context) => {
-          if (context?.hookState) {
-            context.hookState.processed = true;
-            context.hookState.processedAt = Date.now();
+          if ((context as any)?.hookState) {
+            (context as any).hookState.processed = true;
+            (context as any).hookState.processedAt = Date.now();
           }
           return Ok({ ...data, stateModified: true });
         },
@@ -98,7 +98,7 @@ describe('Hook System', () => {
         name: 'stateReader',
         description: 'Read shared state',
         handler: async (data, context) => {
-          const stateData = context?.hookState || {};
+          const stateData = (context as any)?.hookState || {};
           return Ok({ ...data, sharedState: stateData });
         },
         validation: {},

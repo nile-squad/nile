@@ -16,6 +16,8 @@ export const app = new Hono();
 
 let CONFIG: ServerConfig | null = null;
 
+export type AgenticHandler = (input: string) => Promise<string>;
+
 export type ServerConfig = {
   serverName: string;
   baseUrl: string;
@@ -41,6 +43,9 @@ export type ServerConfig = {
   };
   allowedOrigins: string[];
   middlewares?: any[];
+  agenticConfig?: {
+    handler: AgenticHandler;
+  };
 };
 
 const postRequestSchema = z.object({
@@ -360,11 +365,13 @@ export const useRestRPC = (config: ServerConfig) => {
             validation: a.validation?.zodSchema
               ? z.toJSONSchema(a.validation?.zodSchema)
               : null,
-            hooks: a.hooks ? {
-              before: a.hooks.before || [],
-              after: a.hooks.after || []
-            } : null,
-            pipeline: a.result?.pipeline || false,
+            hooks: a.hooks
+              ? {
+                  before: a.hooks.before || [],
+                  after: a.hooks.after || [],
+                }
+              : null,
+            pipeline: a.result?.pipeline,
           })),
         })),
       });
@@ -402,11 +409,13 @@ export const useRestRPC = (config: ServerConfig) => {
               validation: jsonSchema,
               isProtected: a.isProtected,
               isSpecial: a.isSpecial,
-              hooks: a.hooks ? {
-                before: a.hooks.before || [],
-                after: a.hooks.after || []
-              } : null,
-              pipeline: a.result?.pipeline || false,
+              hooks: a.hooks
+                ? {
+                    before: a.hooks.before || [],
+                    after: a.hooks.after || [],
+                  }
+                : null,
+              pipeline: a.result?.pipeline,
             },
           });
         }
@@ -437,6 +446,58 @@ export const useRestRPC = (config: ServerConfig) => {
     );
   }
 
+  // Agentic endpoint
+  app.post(`${prefix}/agentic`, async (c) => {
+    const requestDetails = await handleJsonRequest(c, config);
+    const { actionName, payload, error } = requestDetails;
+
+    if (error) {
+      return error;
+    }
+
+    if (!actionName || actionName !== 'agent') {
+      return c.json({
+        status: false,
+        message: "Agentic endpoint requires action: 'agent'",
+        data: {},
+      });
+    }
+
+    if (!config.agenticConfig?.handler) {
+      return c.json({
+        status: false,
+        message: 'Agentic handler not configured',
+        data: {},
+      });
+    }
+
+    if (!payload?.input || typeof payload.input !== 'string') {
+      return c.json({
+        status: false,
+        message: 'Input required in payload',
+        data: {},
+      });
+    }
+
+    try {
+      const response = await config.agenticConfig.handler(payload.input);
+      return c.json({
+        status: true,
+        message: 'Agent response',
+        data: { response },
+      });
+    } catch (agentError) {
+      return c.json({
+        status: false,
+        message: 'Agent processing error',
+        data: {
+          error:
+            agentError instanceof Error ? agentError.message : 'Unknown error',
+        },
+      });
+    }
+  });
+
   if (config.enableStatus) {
     app.get('/status', (c) => {
       return c.json({
@@ -449,6 +510,7 @@ export const useRestRPC = (config: ServerConfig) => {
 
   console.log(`static assets are served at: ${host}:${port}/assets/*`);
   console.log(`Full action zod schemas: ${host}:${port}/${prefix}/schema`);
+  console.log(`Access agent at: ${host}:${port}/${prefix}/agentic`);
   console.log(`check server status: ${host}:${port}/status`);
 
   app.notFound((c) => {
@@ -462,6 +524,6 @@ export const useRestRPC = (config: ServerConfig) => {
 };
 
 export const useAppInstance = () => app;
-export const useAutoConfig = () => CONFIG;
+export const getAutoConfig = () => CONFIG;
 export const onAppStart = () => CONFIG?.onStart?.();
 export type AppInstance = typeof app;

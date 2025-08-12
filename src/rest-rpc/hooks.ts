@@ -48,12 +48,14 @@ export class HookExecutor {
 
     try {
       // Create an enhanced context that includes both original context and hook state
-      const enhancedContext = originalContext ? {
-        ...originalContext,
-        hookState: hookContext.state
-      } : {
-        hookState: hookContext.state
-      };
+      const enhancedContext = originalContext
+        ? {
+            ...originalContext,
+            hookState: hookContext.state,
+          }
+        : {
+            hookState: hookContext.state,
+          };
 
       const result = await action.handler(input, enhancedContext);
 
