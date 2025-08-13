@@ -4,7 +4,7 @@ import { isError } from '../../utils';
 import { formatError as utilFormatError } from '../../utils/erorr-formatter';
 import { getValidationSchema } from '../../utils/validation-utils';
 import { createHookExecutor } from '../hooks';
-import { getAutoConfig } from '../rest-rpc';
+import { getAutoConfig, type ServerConfig } from '../rest-rpc';
 import { attachAgentAuth, validateAgenticAction } from './agent-auth';
 import type { ActionPayload, ResultsMode, RPCResult } from './types';
 
@@ -18,8 +18,8 @@ function sanitizeForUrlSafety(s: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-function getFinalServices(): Service[] {
-  const config = getAutoConfig();
+function getFinalServices(serverConfig?: ServerConfig): Service[] {
+  const config = serverConfig || getAutoConfig();
   if (!config) {
     throw new Error('REST-RPC not configured');
   }
@@ -39,9 +39,10 @@ async function checkAction(params: {
   service: Service;
   auth?: { token: string };
   isAgent?: boolean;
+  serverConfig?: ServerConfig;
 }): Promise<Action | { status: false; message: string; data: any }> {
-  const { actionName, service, auth, isAgent = false } = params;
-  const config = getAutoConfig();
+  const { actionName, service, auth, isAgent = false, serverConfig } = params;
+  const config = serverConfig || getAutoConfig();
 
   if (!config) {
     throw new Error('REST-RPC not configured');
@@ -106,11 +107,11 @@ function isAction(value: unknown): value is Action {
   );
 }
 
-function formatResult<T>(
+function formatResult<T, TMode extends ResultsMode>(
   data: T,
   message: string,
-  resultsMode: ResultsMode
-): RPCResult {
+  resultsMode: TMode
+): RPCResult<TMode> {
   const result = {
     status: true as const,
     message,
@@ -118,17 +119,17 @@ function formatResult<T>(
   };
 
   if (resultsMode === 'json') {
-    return JSON.stringify(result);
+    return JSON.stringify(result) as RPCResult<TMode>;
   }
 
-  return result;
+  return result as RPCResult<TMode>;
 }
 
-function formatActionError(
+function formatActionError<TMode extends ResultsMode>(
   data: any,
   message: string,
-  resultsMode: ResultsMode
-): RPCResult {
+  resultsMode: TMode
+): RPCResult<TMode> {
   const result = {
     status: false as const,
     message,
@@ -136,10 +137,10 @@ function formatActionError(
   };
 
   if (resultsMode === 'json') {
-    return JSON.stringify(result);
+    return JSON.stringify(result) as RPCResult<TMode>;
   }
 
-  return result;
+  return result as RPCResult<TMode>;
 }
 
 /**
@@ -148,20 +149,24 @@ function formatActionError(
  * @param params - The execution parameters
  * @returns Promise resolving to the action result
  */
-export async function executeServiceAction(params: {
+export async function executeServiceAction<
+  TMode extends ResultsMode = 'data',
+>(params: {
   serviceName: string;
   payload: ActionPayload;
-  resultsMode?: ResultsMode;
+  resultsMode?: TMode;
   agentMode?: boolean;
-}): Promise<RPCResult> {
+  serverConfig?: ServerConfig;
+}): Promise<RPCResult<TMode>> {
   const {
     serviceName,
     payload,
-    resultsMode = 'data',
+    resultsMode = 'data' as TMode,
     agentMode = false,
+    serverConfig,
   } = params;
 
-  const finalServices = getFinalServices();
+  const finalServices = getFinalServices(serverConfig);
   const service = finalServices.find(
     (s) => sanitizeForUrlSafety(s.name) === sanitizeForUrlSafety(serviceName)
   );
@@ -182,6 +187,7 @@ export async function executeServiceAction(params: {
     service,
     auth: processedPayload.auth,
     isAgent: agentMode,
+    serverConfig,
   });
 
   if (!isAction(targetAction)) {

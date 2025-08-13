@@ -16,7 +16,13 @@ export const app = new Hono();
 
 let CONFIG: ServerConfig | null = null;
 
-export type AgenticHandler = (input: string) => Promise<string>;
+export type AgenticHandler = (payload: {
+  input: string;
+  company_id: string;
+  app_id: string;
+  user_id: string;
+  app_name: string;
+}) => Promise<string>;
 
 export type ServerConfig = {
   serverName: string;
@@ -480,7 +486,7 @@ export const useRestRPC = (config: ServerConfig) => {
     }
 
     try {
-      const response = await config.agenticConfig.handler(payload.input);
+      const response = await config.agenticConfig.handler(payload);
       return c.json({
         status: true,
         message: 'Agent response',

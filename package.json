@@ -1,6 +1,6 @@
 {
   "name": "@nile-squad/nile",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "author": "Nile Squad Team",
   "type": "module",
   "sideEffects": false,
@@ -82,7 +82,7 @@
     "prepublishOnly": "pnpm export",
     "publish": "changeset publish",
     "clean": "rm -rf dist",
-    "export": "pnpm clean && pnpm type-check && pnpm format && pnpm build"
+    "export": "pnpm clean && pnpm type-check && pnpm format && pnpm test && pnpm build"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.16.4",

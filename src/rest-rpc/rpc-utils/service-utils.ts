@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { Service } from '../../types/actions';
-import { getAutoConfig } from '../rest-rpc';
+import { getAutoConfig, type ServerConfig } from '../rest-rpc';
 import type { ResultsMode, RPCResult } from './types';
 
 function sanitizeForUrlSafety(s: string) {
@@ -13,8 +13,8 @@ function sanitizeForUrlSafety(s: string) {
     .replace(/^-+|-+$/g, ''); // remove hyphens from start and end
 }
 
-function getFinalServices(): Service[] {
-  const config = getAutoConfig();
+function getFinalServices(serverConfig?: ServerConfig): Service[] {
+  const config = serverConfig || getAutoConfig();
   if (!config) {
     throw new Error('REST-RPC not configured');
   }
@@ -32,11 +32,11 @@ function getFinalServices(): Service[] {
   return finalServices;
 }
 
-function formatResult<T>(
+function formatResult<T, TMode extends ResultsMode>(
   data: T,
   message: string,
-  resultsMode: ResultsMode
-): RPCResult {
+  resultsMode: TMode
+): RPCResult<TMode> {
   const result = {
     status: true as const,
     message,
@@ -44,19 +44,39 @@ function formatResult<T>(
   };
 
   if (resultsMode === 'json') {
-    return JSON.stringify(result);
+    return JSON.stringify(result) as RPCResult<TMode>;
   }
 
-  return result;
+  return result as RPCResult<TMode>;
 }
 
-export function getServices(resultsMode: ResultsMode = 'data'): RPCResult {
-  const config = getAutoConfig();
+function formatError<TMode extends ResultsMode>(
+  message: string,
+  errorId: string,
+  resultsMode: TMode
+): RPCResult<TMode> {
+  const errorResult = {
+    status: false as const,
+    message,
+    data: { error_id: errorId },
+  };
+
+  if (resultsMode === 'json') {
+    return JSON.stringify(errorResult) as RPCResult<TMode>;
+  }
+  return errorResult as RPCResult<TMode>;
+}
+
+export function getServices<TMode extends ResultsMode = 'data'>(
+  resultsMode: TMode = 'data' as TMode,
+  serverConfig?: ServerConfig
+): RPCResult<TMode> {
+  const config = serverConfig || getAutoConfig();
   if (!config) {
     throw new Error('REST-RPC not configured');
   }
 
-  const finalServices = getFinalServices();
+  const finalServices = getFinalServices(serverConfig);
   const serviceNames = finalServices.map((s) => sanitizeForUrlSafety(s.name));
 
   return formatResult(
@@ -66,26 +86,22 @@ export function getServices(resultsMode: ResultsMode = 'data'): RPCResult {
   );
 }
 
-export function getServiceDetails(
+export function getServiceDetails<TMode extends ResultsMode = 'data'>(
   serviceName: string,
-  resultsMode: ResultsMode = 'data'
-): RPCResult {
-  const finalServices = getFinalServices();
+  resultsMode: TMode = 'data' as TMode,
+  serverConfig?: ServerConfig
+): RPCResult<TMode> {
+  const finalServices = getFinalServices(serverConfig);
   const service = finalServices.find(
     (s) => sanitizeForUrlSafety(s.name) === sanitizeForUrlSafety(serviceName)
   );
 
   if (!service) {
-    const errorResult = {
-      status: false as const,
-      message: `Service '${serviceName}' not found`,
-      data: { error_id: 'SERVICE_NOT_FOUND' },
-    };
-
-    if (resultsMode === 'json') {
-      return JSON.stringify(errorResult);
-    }
-    return errorResult;
+    return formatError(
+      `Service '${serviceName}' not found`,
+      'SERVICE_NOT_FOUND',
+      resultsMode
+    );
   }
 
   const serviceData = {
@@ -97,27 +113,23 @@ export function getServiceDetails(
   return formatResult(serviceData, 'Service Details', resultsMode);
 }
 
-export function getActionDetails(
+export function getActionDetails<TMode extends ResultsMode = 'data'>(
   serviceName: string,
   actionName: string,
-  resultsMode: ResultsMode = 'data'
-): RPCResult {
-  const finalServices = getFinalServices();
+  resultsMode: TMode = 'data' as TMode,
+  serverConfig?: ServerConfig
+): RPCResult<TMode> {
+  const finalServices = getFinalServices(serverConfig);
   const service = finalServices.find(
     (s) => sanitizeForUrlSafety(s.name) === sanitizeForUrlSafety(serviceName)
   );
 
   if (!service) {
-    const errorResult = {
-      status: false as const,
-      message: `Service '${serviceName}' not found`,
-      data: { error_id: 'SERVICE_NOT_FOUND' },
-    };
-
-    if (resultsMode === 'json') {
-      return JSON.stringify(errorResult);
-    }
-    return errorResult;
+    return formatError(
+      `Service '${serviceName}' not found`,
+      'SERVICE_NOT_FOUND',
+      resultsMode
+    );
   }
 
   const action = service.actions.find(
@@ -125,16 +137,11 @@ export function getActionDetails(
   );
 
   if (!action) {
-    const errorResult = {
-      status: false as const,
-      message: `Action '${actionName}' not found in service '${serviceName}'`,
-      data: { error_id: 'ACTION_NOT_FOUND' },
-    };
-
-    if (resultsMode === 'json') {
-      return JSON.stringify(errorResult);
-    }
-    return errorResult;
+    return formatError(
+      `Action '${actionName}' not found in service '${serviceName}'`,
+      'ACTION_NOT_FOUND',
+      resultsMode
+    );
   }
 
   const jsonSchema = action.validation?.zodSchema
@@ -159,13 +166,16 @@ export function getActionDetails(
   return formatResult(actionData, 'Action Details', resultsMode);
 }
 
-export function getSchema(resultsMode: ResultsMode = 'data'): RPCResult {
-  const config = getAutoConfig();
+export function getSchema<TMode extends ResultsMode = 'data'>(
+  resultsMode: TMode = 'data' as TMode,
+  serverConfig?: ServerConfig
+): RPCResult<TMode> {
+  const config = serverConfig || getAutoConfig();
   if (!config) {
     throw new Error('REST-RPC not configured');
   }
 
-  const finalServices = getFinalServices();
+  const finalServices = getFinalServices(serverConfig);
 
   const schemaData = finalServices.map((finalService) => ({
     [finalService.name]: finalService.actions.map((a) => ({

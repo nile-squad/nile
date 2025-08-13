@@ -20,8 +20,8 @@ export {
 } from './rest-rpc';
 export {
   type ActionPayload,
+  createRPC,
   type RPCConfig,
   type RPCResult,
   type RPCUtils,
-  useRPC,
 } from './rpc-utils';

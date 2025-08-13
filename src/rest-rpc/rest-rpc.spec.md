@@ -1,219 +1,231 @@
 # REST-RPC Specification
 
-**Version:** Draft v1
-**Date:** July 26, 2025
+**Version:** 1.0  
+**Date:** August 13, 2025  
 **Author:** Hussein Kizz
 
----
+## 1. Overview
 
-## Summary
+REST-RPC is a service-oriented architecture that combines REST discovery with RPC execution. It provides:
 
-This specification outlines the REST-RPC architecture, covering the following key areas:
+- Self-documenting APIs through GET endpoint exploration
+- Action-based operations via standardized POST requests
+- Hook-driven workflows for complex business logic composition
+- Multi-modal execution (HTTP, RPC utilities, and agentic interfaces)
+- Database model automation with generated CRUD operations
+- Agent integration for AI-driven interactions
 
-* **Introduction:** The core philosophy and goals of the REST-RPC pattern.
-* **Core Concepts:** The main ideas behind the service-oriented and self-documenting architecture.
-* **Protocol:** The technical details of the interaction model, broken down into:
+## 2. Design Principles
 
-  * **Service Discovery (`GET /.../services`)**
-  * **Service Exploration (`GET /.../services/{serviceName}`)**
-  * **Action Exploration (`GET /.../services/{serviceName}/{actionName}`)**
-  * **Authentication**
-  * **Action Invocation (`POST /.../services/{serviceName}`)**
-  * **Schema Endpoint (`GET /.../services/schema`)**
+**Service-Action Oriented Architecture:**
+Business operations map naturally to named actions within services, eliminating HTTP method confusion for complex operations and enabling sophisticated workflows through hook composition.
 
-## 1. Introduction
+**Dual-Method Approach:**
+GET requests for API exploration and discovery, POST requests for all action execution, with consistent response format across all endpoints.
 
-REST-RPC is a hybrid architecture borrowing from REST (Representational State Transfer) and RPC (Remote Procedure Call) architectural styles to enable stateless communication between microservices, systems, or servers and frontends. It is highly opinionated and follows a strict but predictable design with simple principles that are flexible enough to allow for any kind of scaling and complexity.
+**Self-Documenting Nature:**
+No external documentation tools required. APIs can be explored programmatically with simple HTTP clients, providing real-time schema introspection and validation.
 
-## 2. Core Concepts
+## 3. Protocol Specification
 
-At its core, REST-RPC is service and service-action oriented. It uses `GET` requests for discoverability or exploration of available services and `POST` requests to invoke actions on a given service.
+### 3.1 Standard Response Format
 
-All requests and responses follow the same predictable structure to reduce overhead in integration and interaction with the exposed services. Only the `GET` and `POST` HTTP methods are used; `PUT`, `PATCH`, `DELETE`, and other methods are not part of this specification.
-
-* **`POST` requests** are used to execute actions and can accept payloads as `application/json`.
-* **`GET` requests** are used to explore the API's available services and their structure, enabling a self-documenting behavior. This allows developers and even AI agents to learn the API on the fly using simple tools like `curl` or any other HTTP client, eliminating the need for external documentation tools like Swagger.
-
-## 3. Protocol
-
-### 3.1. Service Discovery
-
-#### 3.1.1. Request
-
-A `GET` request is made to the `/services` endpoint. The URL has a specific anatomy:
-
-`/{baseURL}/{apiVersion}/services`
-
-* **`baseURL`**: The base path for the API (e.g., `/api`, `/testing/api`).
-* **`apiVersion`**: The version of the API (e.g., `v1`, `v2`).
-
-**Example:**
-
-```bash
-curl localhost:9000/testing/api/v1/services
-```
-
-#### 3.1.2. Response
-
-The server responds with a standard JSON object with the following keys:
-
-* **`status`**: A boolean that is `true` on success and `false` on failure.
-* **`message`**: A string containing a descriptive message about the outcome.
-* **`data`**: On success, this holds an array of strings, where each string is an available service name. On failure, this is typically `null` or empty. It may optionally contain an object with an `error_id` for tracing purposes. The `error_id` is a unique 6-character code or a UUID.
-
-**Example Success Response:**
+All REST-RPC responses follow this consistent structure:
 
 ```json
 {
+  "status": boolean,
+  "message": string,
+  "data": any | null
+}
+```
+
+- **`status`**: `true` for success, `false` for errors
+- **`message`**: Human-readable description of the outcome
+- **`data`**: Response payload on success, error details or `null` on failure
+
+### 3.2 URL Structure
+
+All endpoints follow the pattern:
+
+```
+/{baseURL}/{apiVersion}/services[/{serviceName}[/{actionName}]]
+```
+
+- **`baseURL`**: API base path (e.g., `api`, `delta/api`)
+- **`apiVersion`**: Version identifier (e.g., `v1`, `v2`)
+- **`serviceName`**: Target service name (URL-safe format)
+- **`actionName`**: Specific action name (URL-safe format)
+
+## 4. Core Endpoints
+
+### 4.1 Service Discovery
+
+**Endpoint:** `GET /{baseURL}/{apiVersion}/services`
+
+Lists all available services in the system.
+
+**Request Example:**
+```bash
+curl http://localhost:8000/delta/api/v1/services
+```
+
+**Response Example:**
+```json
+{
   "status": true,
-  "message": "List of all available services on 3M Testing Server.",
+  "message": "List of all available services on Delta Server.",
   "data": [
-    "data-service",
-    "todos",
-    "users"
+    "users",
+    "todos", 
+    "analytics"
   ]
 }
 ```
 
-**Example Error Response (Simple):**
+### 4.2 Service Exploration
 
-```json
-{
-  "status": false,
-  "message": "An error occurred while fetching services.",
-  "data": null
-}
-```
+**Endpoint:** `GET /{baseURL}/{apiVersion}/services/{serviceName}`
 
-**Example Error Response (With Trace ID):**
+Returns detailed information about a specific service and its available actions.
 
-```json
-{
-  "status": false,
-  "message": "An error occurred while fetching services.",
-  "data": {
-    "error_id": "a7b3c9"
-  }
-}
-```
-
-### 3.2. Service Exploration
-
-#### 3.2.1. Request
-
-A `GET` request is made to a specific service's endpoint:
-
-`/{baseURL}/{apiVersion}/services/{serviceName}`
-
-* **`serviceName`**: The name of the service to explore (e.g., `todos`).
-
-**Example:**
-
+**Request Example:**
 ```bash
-curl localhost:9000/testing/api/v1/services/todos
+curl http://localhost:8000/delta/api/v1/services/users
 ```
 
-#### 3.2.2. Response
-
-The server responds with the standard JSON structure. On success, the `data` object contains details about the requested service.
-
-* **`name`**: The name of the service.
-* **`description`**: A human-readable description of the service's purpose.
-* **`availableActions`**: An array of strings, where each string is an action that can be invoked on this service.
-
-**Example Success Response:**
-
+**Response Example:**
 ```json
 {
   "status": true,
   "message": "Service Details",
   "data": {
-    "name": "todos",
-    "description": "todos service",
+    "name": "users",
+    "description": "User management service",
     "availableActions": [
       "create",
-      "getAll",
+      "getAll", 
       "getOne",
       "update",
-      "delete",
-      "getEvery"
+      "delete"
     ]
   }
 }
 ```
 
-### 3.3. Action Exploration
+### 4.3 Action Exploration
 
-#### 3.3.1. Request
+**Endpoint:** `GET /{baseURL}/{apiVersion}/services/{serviceName}/{actionName}`
 
-A `GET` request is made to a specific action's endpoint:
+Returns detailed schema and configuration for a specific action.
 
-`/{baseURL}/{apiVersion}/services/{serviceName}/{actionName}`
-
-* **`actionName`**: The name of the action to explore (e.g., `create`).
-
-**Example:**
-
+**Request Example:**
 ```bash
-curl localhost:9000/testing/api/v1/services/todos/create
+curl http://localhost:8000/delta/api/v1/services/users/create
 ```
 
-#### 3.3.2. Response
-
-The server responds with the standard JSON structure. On success, the `data` object contains details about the requested action.
-
-* **`name`**: The name of the action.
-* **`description`**: A human-readable description of what the action does.
-* **`isProtected`**: A boolean indicating whether the action requires authentication or special authorization to execute.
-* **`validation`**: An object that describes the expected payload for the action. This schema should be consistent and clearly define what fields are required, their types, and any other constraints. While the example below uses JSON Schema, any consistent and descriptive format can be used.
-
-**Example Success Response:**
-
+**Response Example:**
 ```json
 {
   "status": true,
   "message": "Action Details",
   "data": {
     "name": "create",
-    "description": "Create a new record in todos",
-    "isProtected": false,
+    "description": "Create a new user record",
+    "isProtected": true,
+    "isSpecial": null,
     "validation": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "type": "object",
       "properties": {
-        "title": { "type": "string" },
-        "user_id": { "type": "string", "format": "uuid" }
+        "name": { "type": "string", "minLength": 2 },
+        "email": { "type": "string", "format": "email" }
       },
-      "required": ["title", "user_id"]
-    }
+      "required": ["name", "email"]
+    },
+    "hooks": {
+      "before": [
+        { "name": "validateEmail", "canFail": false },
+        { "name": "enrichProfile", "canFail": true }
+      ],
+      "after": [
+        { "name": "auditLog", "canFail": false }
+      ]
+    },
+    "pipeline": true
   }
 }
 ```
 
-### 3.4. Authentication
+**Action Properties:**
+- **`isProtected`**: Requires authentication when `true`
+- **`isSpecial`**: Special content type handling configuration
+- **`validation`**: JSON Schema for payload validation
+- **`hooks`**: Before/after action processing configuration
+- **`pipeline`**: When `true`, returns execution logs with results
 
-If an action is marked as protected (`"isProtected": true`), the client MUST include an `Authorization` header in the request. The most common method is using a Bearer token.
+### 4.4 Schema Export
 
-* **Header:** `Authorization: Bearer <token>`
+**Endpoint:** `GET /{baseURL}/{apiVersion}/services/schema`
 
-Any other standard auth methods are also allowed. The Bearer token is only required if the action is protected, as seen during Action Exploration.
+Returns the complete API schema for all services and actions.
 
-Tokens are typically obtained by interacting with a dedicated `auth` service, which would expose actions like `login`, `signup`, or `refreshToken`.
+**Request Example:**
+```bash
+curl http://localhost:8000/delta/api/v1/services/schema
+```
 
-### 3.5. Action Invocation
+**Response Example:**
+```json
+{
+  "status": true,
+  "message": "Delta Server Services actions zod Schemas",
+  "data": [
+    {
+      "users": [
+        {
+          "name": "create",
+          "description": "Create a new user record",
+          "validation": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "minLength": 2 },
+              "email": { "type": "string", "format": "email" }
+            },
+            "required": ["name", "email"]
+          },
+          "hooks": {
+            "before": [
+              { "name": "validateEmail", "canFail": false }
+            ],
+            "after": [
+              { "name": "auditLog", "canFail": false }
+            ]
+          },
+          "pipeline": true
+        }
+      ]
+    }
+  ]
+}
+```
 
-To execute an action on a service, the client sends a `POST` request to the service's endpoint.
+## 5. Action Execution
 
-#### 3.5.1. Request
+### 5.1 Standard Action Invocation
 
-* **Method:** `POST`
-* **URL:** `/{baseURL}/{apiVersion}/services/{serviceName}`
-* **Headers:**
+**Endpoint:** `POST /{baseURL}/{apiVersion}/services/{serviceName}`
 
-  * `Content-Type`: MUST be `application/json`.
-  * `Authorization`: Required if the action is protected (e.g., `Bearer <token>`).
-* **Body:** The request body is a JSON object containing the action to be executed and its corresponding payload.
+Executes a named action on the specified service.
 
+**Headers:**
+```
+Content-Type: application/json
+Authorization: Bearer <token>  # If action is protected
+```
+
+**Request Body Format:**
 ```json
 {
   "action": "actionName",
@@ -224,174 +236,355 @@ To execute an action on a service, the client sends a `POST` request to the serv
 }
 ```
 
-* **`action`**: The name of the action to invoke (e.g., `update`).
-* **`payload`**: An object containing the data required for the action. The structure of this payload should match the validation schema discovered via Action Exploration.
-
-**Example `curl` Request:**
-
+**Example Request:**
 ```bash
-curl -X POST \
-  localhost:9000/testing/api/v1/services/todos \
+curl -X POST http://localhost:8000/delta/api/v1/services/users \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <your_jwt_token>" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
   -d '{
-        "action": "update",
-        "payload": {
-          "todo_id": "some_todo_uuid",
-          "completed": true
-        }
-      }'
+    "action": "create",
+    "payload": {
+      "name": "John Doe",
+      "email": "john@example.com"
+    }
+  }'
 ```
 
-#### 3.5.2. Response
-
-The server responds with the standard JSON structure (`status`, `message`, `data`).
-
-* On success, the `data` field contains the result of the action. This could be the created or updated resource, a confirmation message, or be `null` if no specific data needs to be returned.
-* On failure (e.g., validation error, unauthorized access), the `status` will be `false`, and the `message` will contain a descriptive error.
-
-**Example Success Response:**
-
+**Success Response:**
 ```json
 {
   "status": true,
-  "message": "Todo updated successfully.",
+  "message": "User created successfully",
   "data": {
-    "todo_id": "some_todo_uuid",
-    "title": "My Updated Todo",
-    "completed": true,
-    "user_id": "some_user_uuid"
+    "id": "user-uuid-123",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "created_at": "2025-08-13T10:30:00Z"
   }
 }
 ```
 
-**Example Error Response:**
+### 5.2 Form Data Support
 
-```json
-{
-  "status": false,
-  "message": "Todo not found.",
-  "data": null
-}
+For file uploads and multipart requests:
+
+```bash
+curl -X POST http://localhost:8000/delta/api/v1/services/files \
+  -H "Authorization: Bearer <token>" \
+  -F "action=upload" \
+  -F "file=@document.pdf" \
+  -F "category=documents"
 ```
 
-#### 3.5.3. Validation Errors
+**Content Types Supported:**
+- `application/json` (primary)
+- `multipart/form-data` (for file uploads)
+- `application/x-www-form-urlencoded` (for form submissions)
 
-When the client’s request payload fails validation:
+### 5.3 Validation Handling
 
-* **`status`**: `false`
-* **`message`**: `invalid request format`
-* **`data`**: An object detailing any missing or malformed fields.
-* For `multipart/form-data` is also accepted on top of JSON, and with it still we pass `action` name and then `file` or `files` in form fields.
-* Pagination and filtering that can be passed in payload.
-* Versioning though not so much needed in this case since new actions can just be added into a services without removing old ones or breaking anything but for any thing a new version can be exposed under new version eg from v1 to v2 and both can be run in parallel yes.
-
-**Example Validation Failure Response:**
-
+**Validation Error Response:**
 ```json
 {
   "status": false,
-  "message": "invalid request format",
+  "message": "Invalid request format",
   "data": {
-    "missing": ["user_id", "title"],
+    "missing": ["email"],
     "invalid": {
-      "due_date": "must be a valid ISO date string"
+      "name": "must be at least 2 characters long"
     }
   }
 }
 ```
 
-### 3.6. Schema Endpoint
+## 6. Authentication
 
-For client-side type generation, tooling, or documentation, a single endpoint can be used to retrieve the entire API schema, including all services and their actions.
+Protected actions require JWT Bearer token authentication.
 
-#### 3.6.1. Request
-
-A `GET` request is made to the `/schema` endpoint.
-
-`/{baseURL}/{apiVersion}/services/schema`
-
-**Example:**
-
-```bash
-curl localhost:9000/testing/api/v1/services/schema
+**Authorization Header:**
+```
+Authorization: Bearer <jwt_token>
 ```
 
-#### 3.6.2. Response
+**Authentication Flow:**
+1. Obtain token from authentication service (typically has `login`, `signup`, `refreshToken` actions)
+2. Include Bearer token in protected action requests
+3. Server validates token against configured secret
 
-The server responds with the standard JSON structure. On success, the `data` field contains an array of all services. Each service object in the array contains a list of its actions and their corresponding validation schemas.
+**Unauthorized Response:**
+```json
+{
+  "status": false,
+  "message": "Unauthorized",
+  "data": {}
+}
+```
 
-This provides a complete, machine-readable definition of the entire API surface, which is invaluable for building type-safe clients and other integrations.
+## 7. Hook System
 
-**Example Success Response (truncated for brevity):**
+Hooks enable composable workflows by executing additional actions before and after the main action.
 
+**Hook Configuration:**
+```json
+{
+  "hooks": {
+    "before": [
+      { "name": "validateInput", "canFail": false },
+      { "name": "enrichData", "canFail": true }
+    ],
+    "after": [
+      { "name": "auditLog", "canFail": false },
+      { "name": "sendNotification", "canFail": true }
+    ]
+  },
+  "result": { "pipeline": true }
+}
+```
+
+**Execution Flow:**
+1. **Before Hooks** execute sequentially, passing output to next hook
+2. **Main Action** receives final successful before hook output
+3. **After Hooks** execute with main action output
+4. **Final Result** returned (with or without pipeline details)
+
+**Failure Handling:**
+- **Critical Hooks** (`canFail: false`): Failure stops entire workflow
+- **Optional Hooks** (`canFail: true`): Failure is logged but workflow continues
+- Failed hooks are skipped in the data flow chain
+
+**Pipeline Response (when `pipeline: true`):**
 ```json
 {
   "status": true,
-  "message": "3M Testing Server Services actions zod Schemas",
-  "data": [
-    {
-      "data-service": [
-        { "name": "greet", "description": "...", "validation": null }
-      ]
+  "message": "User created successfully",
+  "data": {
+    "result": {
+      "id": "user-uuid-123",
+      "name": "John Doe",
+      "email": "john@example.com"
     },
+    "pipeline": {
+      "state": {
+        "validationPassed": true,
+        "profileEnriched": false
+      },
+      "log": {
+        "before": [
+          {
+            "name": "validateEmail",
+            "input": { "email": "john@example.com" },
+            "output": { "email": "john@example.com", "valid": true },
+            "passed": true
+          }
+        ],
+        "after": [
+          {
+            "name": "auditLog",
+            "input": { "user": { "id": "user-uuid-123" } },
+            "output": { "logged": true },
+            "passed": true
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+**Hook Requirements:**
+- Every hook must reference an existing action by name
+- Hooks share the same validation and execution model as regular actions
+- Context and state can be shared between hooks via the hook context object
+
+## 8. Agentic Interface
+
+**Endpoint:** `POST /{baseURL}/{apiVersion}/services/agentic`
+
+Provides natural language interface for AI agents and automated systems.
+
+**Request Format:**
+```json
+{
+  "action": "agent",
+  "payload": {
+    "input": "Create a user named John with email john@example.com",
+    "company_id": "uuid",
+    "user_id": "uuid", 
+    "app_name": "string",
+    "app_id": "uuid"
+  }
+}
+```
+
+**Request Example:**
+```bash
+curl -X POST http://localhost:8000/delta/api/v1/services/agentic \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "agent", 
+    "payload": {
+      "input": "Get all users and create a summary report"
+    }
+  }'
+```
+
+**Success Response:**
+```json
+{
+  "status": true,
+  "message": "Agent response",
+  "data": {
+    "response": "Found 25 users in the system. Summary: 15 active, 8 pending, 2 inactive."
+  }
+}
+```
+
+**Error Responses:**
+```json
+{
+  "status": false,
+  "message": "Agentic handler not configured", 
+  "data": {}
+}
+```
+
+```json
+{
+  "status": false,
+  "message": "Input required in payload",
+  "data": {}
+}
+```
+
+**Configuration:**
+```typescript
+const config = {
+  agenticConfig: {
+    handler: async (payload) => {
+      const { input, company_id, user_id, app_name, app_id } = payload;
+      // AI processing logic
+      return "Processed request successfully";
+    }
+  }
+};
+```
+
+## 9. RPC Utilities
+
+Direct programmatic service interaction without HTTP overhead.
+
+**Basic Usage:**
+```typescript
+import { createRPC } from '@nile-squad/nile/rest-rpc/rpc-utils';
+
+const rpc = createRPC({
+  resultsMode: 'data',  // 'data' | 'json'
+  agentMode: false      // Enable automatic agent authentication
+});
+
+// Service discovery
+const services = await rpc.getServices();
+
+// Service exploration  
+const serviceDetails = await rpc.getServiceDetails('users');
+
+// Action introspection
+const actionDetails = await rpc.getActionDetails('users', 'create');
+
+// Action execution
+const result = await rpc.executeServiceAction('users', {
+  action: 'create',
+  payload: {
+    name: 'John Doe',
+    email: 'john@example.com'
+  }
+});
+```
+
+**Result Modes:**
+- **`'data'`**: Returns `SafeResult<T>` objects with success/error handling
+- **`'json'`**: Returns JSON strings matching HTTP response format
+
+**Agent Mode:**
+```typescript
+// Enable automatic agent authentication
+const agentRpc = createRPC({ agentMode: true });
+
+// Agent authentication handled automatically for protected actions
+const result = await agentRpc.executeServiceAction('protected-service', {
+  action: 'sensitiveAction',
+  payload: { data: 'value' }
+});
+```
+
+## 10. Database Model System
+
+Automatic CRUD operation generation from database schemas.
+
+**Service Configuration:**
+```typescript
+{
+  autoService: true,
+  subs: [
     {
-      "todos": [
-        {
-          "name": "create",
-          "description": "...",
-          "validation": { "$schema": "...", "type": "object", "..." }
-        },
-        { "name": "getAll", "description": "...", "validation": null }
-      ]
+      name: "users",
+      description: "User management service",
+      tableName: "users",
+      idName: "id",
+      protectedActions: ["delete", "deleteAll"],
+      validation: customValidationSchema, // Optional override
+      actions: [...customActions] // Additional custom actions
     }
   ]
 }
 ```
 
-### 3.7. Pagination & Filtering
+**Generated Actions:**
+- **`create`**: Insert new records with validation
+- **`getAll`**: Retrieve all records with pagination support
+- **`getOne`**: Find single record by ID or field value
+- **`update`**: Update existing records with merge logic
+- **`delete`**: Remove single record by ID
+- **`deleteAll`**: Remove multiple records (typically protected)
+- **`getMany`**: Retrieve multiple records with basic filtering
+- **`getManyWith`**: Advanced filtering, sorting, and pagination
+- **`getOneWith`**: Multi-field filtering for single record
+- **`getOneWithStrictly`**: Strict field matching
+- **`getOneWithRelations`**: Include related data via joins
 
-Clients that need to page through large result sets or apply filters include pagination and filtering parameters inside the `payload` of their action invocation.
+## 11. Pagination & Filtering
 
-#### Conventions
+Include pagination and filtering parameters in action payloads for data retrieval operations.
 
-Inside the `payload`:
-
-* **`page`**: The 1‑based page number to retrieve.
-* **`perPage`**: The number of items per page.
-* **`filters`**: An object whose keys are field names and values are filter criteria (e.g., `{ "status": "active" }`).
-* **`sort`** (optional): An array of `{ field: string, direction: "asc" | "desc" }` objects.
-
-#### Example
-
+**Request Format:**
 ```json
 {
   "action": "getAll",
   "payload": {
     "page": 2,
-    "perPage": 25,
+    "perPage": 25, 
     "filters": {
-      "user_id": "some_user_uuid",
-      "status": "completed"
+      "status": "active",
+      "created_after": "2025-01-01"
     },
     "sort": [
-      { "field": "created_at", "direction": "desc" }
+      { "field": "created_at", "direction": "desc" },
+      { "field": "name", "direction": "asc" }
     ]
   }
 }
 ```
 
-The response’s `data` field will include:
-
-* **`items`**: An array of the requested resources.
-* **`meta`**: An object with `totalItems`, `totalPages`, `currentPage`, and `perPage`.
-
+**Response Format:**
 ```json
 {
   "status": true,
-  "message": "Fetched page 2 of todos.",
+  "message": "Retrieved page 2 of users",
   "data": {
-    "items": [ /* … */ ],
+    "items": [
+      { "id": "1", "name": "Alice", "status": "active" },
+      { "id": "2", "name": "Bob", "status": "active" }
+    ],
     "meta": {
       "totalItems": 102,
       "totalPages": 5,
@@ -402,61 +595,87 @@ The response’s `data` field will include:
 }
 ```
 
-### 3.8. Versioning
+**Filtering Conventions:**
+- **`page`**: 1-based page number
+- **`perPage`**: Items per page (default/max limits configurable)
+- **`filters`**: Object with field-value pairs for equality filtering
+- **`sort`**: Array of sort specifications with field and direction
 
-By default, adding new actions or services under the same API version (e.g., `v1`) is non‑breaking. If a breaking change is ever required—or you want to run two schemas side‑by‑side—introduce a new version segment and expose the updated surface there.
+## 12. Implementation Example
 
-#### Strategy
+**Complete Service Definition:**
+```typescript
+import { useRestRPC } from '@nile-squad/nile';
 
-1. **Non‑breaking additions** (e.g., new actions) go into the current version.
-2. **Breaking changes** (e.g., renaming payload fields, changing response shapes) require a new version, e.g., `/v2`.
-3. Both versions remain available in parallel until clients migrate.
+const config = {
+  serverName: 'Business API',
+  baseUrl: 'api',
+  apiVersion: 'v1',
+  authSecret: process.env.AUTH_SECRET,
+  services: [
+    {
+      name: 'users',
+      description: 'User management service',
+      actions: [
+        {
+          name: 'create',
+          description: 'Create new user account',
+          isProtected: true,
+          validation: {
+            zodSchema: z.object({
+              name: z.string().min(2),
+              email: z.string().email()
+            })
+          },
+          hooks: {
+            before: [
+              { name: 'validateEmail', canFail: false }
+            ],
+            after: [
+              { name: 'auditLog', canFail: false }
+            ]
+          },
+          result: { pipeline: true },
+          handler: async (payload, context) => {
+            return Ok({ userId: 'new-uuid' });
+          }
+        }
+      ]
+    }
+  ],
+  agenticConfig: {
+    handler: async (payload) => {
+      return 'Processed request successfully';
+    }
+  }
+};
 
-#### Example
+const app = useRestRPC(config);
+```
 
-* **v1 endpoint:**
+## 13. When to Use REST-RPC
 
-  ```
-  POST /api/v1/services/todos
-  ```
-* **v2 endpoint with changed `dueDate` field name:**
+**Ideal Use Cases:**
+- Complex business logic requiring multi-step workflows
+- Internal APIs with consistent communication patterns
+- Database-driven API generation with minimal code
+- Systems needing flexible authentication per operation
+- Applications requiring self-documenting capabilities
 
-  ```
-  POST /api/v2/services/todos
-  ```
+**Consider Alternatives For:**
+- Simple CRUD APIs where traditional REST is sufficient
+- Public APIs where REST conventions are expected
+- Systems requiring HTTP method-based caching strategies
+- High-performance requirements where RPC overhead is significant
 
-Clients choose which version to call via the URL segment; no headers or query‑params are used.
+## 14. References
 
----
+**Frequently Asked Questions:** [rest-rpc.spec.faq.md](./rest-rpc.spec.faq.md)
 
-## 4. When to Use This Architecture?
+**Implementation:** Available in the Nile framework (`@nile-squad/nile`)
 
-**Consider To Use This For:**
+**License:** MIT License - Open source and production-ready
 
-* Microservices with complex business logic
-* APIs requiring strong validation and documentation
-* Systems needing flexible authentication per operation
-* Applications with needs beyond database-driven CRUD operations
-* Internal APIs where explicit action naming improves clarity
-* AI or agent driven development and spec driven development workflows
+**Author:** [Hussein Kizz](https://github.com/Hussseinkizz) at Nile Squad Labz
 
-**Consider Alternatives When:**
-
-* Building simple REST APIs with standard CRUD operations
-* Public APIs where REST conventions are expected
-* Systems requiring HTTP method-based caching strategies
-* Applications needing hypermedia-driven discovery (HATEOAS)
-
-However otherwise this implementation provides a robust, scalable foundation for service-oriented APIs with excellent developer experience through comprehensive documentation and validation and no surprises.
-
-## 5. Frequently Asked Questions
-
-If you still have questions or need more explanations, you can check out some I have answered already, see [commonly asked questions](./rest-rpc.spec.faq.md)
-
-## 6. License & Contributing
-
-This architecture can be implemented in any language following the same protocols. Currently, it is implemented in the `Nile` framework used internally at Nile Squad Labz under the `@nile-squad/nile` package. The idea is transferable and can also work with other protocols like WebSockets following the same principles.
-
-But it should be also noted that this architecture is still experimental and subject to change. So contributions, criticism and feedback are welcome.
-
-Created by [Hussein Kizz](https://github.com/Hussseinkizz) at Nile Squad Labz. Completely open source under MIT License and used in production.
+*This specification reflects the current implementation and is subject to evolution. Contributions and feedback are welcome.*
