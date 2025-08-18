@@ -1,6 +1,6 @@
 {
   "name": "@nile-squad/nile",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "author": "Nile Squad Team",
   "type": "module",
   "sideEffects": false,
@@ -129,6 +129,8 @@
     "pino": "^9.7.0",
     "pino-pretty": "^13.0.0",
     "resend": "^4.7.0",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
     "zod": "^4.0.8",
     "zod-validation-error": "^4.0.1"
   }

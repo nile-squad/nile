@@ -11,6 +11,7 @@ import { getValidationSchema } from '../utils/validation-utils';
 import { newServiceActionsFactory } from './actions-factory';
 import { authenticate } from './auth-utils';
 import { createHookExecutor } from './hooks';
+import type { WSConfig } from './ws/types';
 
 export const app = new Hono();
 
@@ -54,6 +55,7 @@ export type ServerConfig = {
     sessionCookieName?: string;
   };
   authSecret?: string;
+  websocket?: WSConfig;
 };
 
 const postRequestSchema = z.object({

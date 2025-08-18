@@ -22,3 +22,4 @@ export {
   type RPCResult,
   type RPCUtils,
 } from './rpc-utils';
+export * from './ws';
