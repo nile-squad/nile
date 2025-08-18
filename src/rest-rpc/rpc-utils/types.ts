@@ -3,7 +3,8 @@ import type { ServerConfig } from '../rest-rpc';
 
 export interface RPCConfig {
   resultsMode?: 'data' | 'json'; // defaults to 'data'
-  agentMode?: boolean; // defaults to false
+  agentMode?: boolean; // defaults to false - enables agent user context from auth claims
+  organizationId?: string; // for system mode - explicit org override (optional, will use auth claims if not provided)
   serverConfig?: ServerConfig; // optional server config for direct injection
 }
 

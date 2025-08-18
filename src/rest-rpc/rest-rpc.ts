@@ -2,7 +2,6 @@ import path from 'node:path';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { type Context, Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { verify } from 'hono/jwt';
 import { rateLimiter } from 'hono-rate-limiter';
 import { z } from 'zod';
 import type { Action, Service, Services } from '../types/actions';
@@ -10,7 +9,8 @@ import { isError } from '../utils';
 import { formatError } from '../utils/erorr-formatter';
 import { getValidationSchema } from '../utils/validation-utils';
 import { newServiceActionsFactory } from './actions-factory';
-import { createHookExecutor, type HookExecutor } from './hooks';
+import { authenticate } from './auth-utils';
+import { createHookExecutor } from './hooks';
 
 export const app = new Hono();
 
@@ -18,10 +18,8 @@ let CONFIG: ServerConfig | null = null;
 
 export type AgenticHandler = (payload: {
   input: string;
-  company_id: string;
-  app_id: string;
+  organization_id: string;
   user_id: string;
-  app_name: string;
 }) => Promise<string>;
 
 export type ServerConfig = {
@@ -29,7 +27,6 @@ export type ServerConfig = {
   baseUrl: string;
   apiVersion: string;
   services: Services;
-  authSecret: string;
   host?: string;
   port?: string;
   onStart?: () => void;
@@ -52,6 +49,11 @@ export type ServerConfig = {
   agenticConfig?: {
     handler: AgenticHandler;
   };
+  betterAuth?: {
+    instance: any;
+    sessionCookieName?: string;
+  };
+  authSecret?: string;
 };
 
 const postRequestSchema = z.object({
@@ -72,6 +74,10 @@ const sanitizeForUrlSafety = (s: string) => {
 
 const ASSETS_REGEX = /^\/assets\//;
 
+/**
+ * Main configuration function for REST-RPC server
+ * Sets up routes, authentication, and service handlers
+ */
 export const useRestRPC = (config: ServerConfig) => {
   CONFIG = config;
   const createdRoutes: Record<string, any>[] = [];
@@ -120,7 +126,7 @@ export const useRestRPC = (config: ServerConfig) => {
     s: Service;
     c: Context;
     config: ServerConfig;
-  }) {
+  }): Promise<Action | Response> {
     const targetAction = s.actions.find((a) => a.name === actionName);
     if (!targetAction) {
       return c.json({
@@ -129,24 +135,29 @@ export const useRestRPC = (config: ServerConfig) => {
         data: {},
       });
     }
-    if (targetAction.isProtected) {
-      const authHeader = c.req.header('Authorization');
-      if (!authHeader?.startsWith('Bearer ')) {
-        return c.text('Unauthorized', 401);
-      }
-      const token = authHeader.substring(7);
-      const payload = await verify(token, _config.authSecret);
-      if (!payload) {
+
+    // Default to protected unless explicitly set to false
+    // This implements secure-by-default for all POST service actions
+    const shouldProtect = targetAction.isProtected !== false;
+
+    if (shouldProtect) {
+      const authResult = await authenticate(c, _config);
+
+      if (!authResult.isAuthenticated) {
         return c.json(
           {
             status: false,
             message: 'Unauthorized',
-            data: {},
+            data: { error: authResult.error },
           },
           401
         );
       }
+
+      // Store auth result in context for later use
+      c.set('authResult', authResult);
     }
+
     return targetAction;
   }
 
@@ -252,13 +263,55 @@ export const useRestRPC = (config: ServerConfig) => {
     return { actionName: action, payload, error: null };
   };
 
+  /**
+   * Enrich payload with user context from authentication
+   */
+  const enrichPayloadWithUserContext = (payload: any, authResult: any) => {
+    if (!authResult?.isAuthenticated) {
+      return payload || {};
+    }
+
+    // Extract user and organization context from auth result
+    // For JWT auth: user contains the JWT payload with userId/organizationId
+    // For Better Auth: user has id, session has organizationId
+    const userId =
+      authResult.user?.userId || authResult.user?.id || authResult.user?.sub;
+    const organizationId =
+      authResult.user?.organizationId ||
+      authResult.user?.organization_id ||
+      authResult.session?.organizationId;
+
+    if (!(userId && organizationId)) {
+      return payload || {};
+    }
+
+    const enrichedPayload = {
+      ...(payload || {}),
+      user_id: userId,
+      organization_id: organizationId,
+      userId,
+      organizationId,
+    };
+
+    // Add triggered_by for agent users
+    if (
+      authResult.method === 'agent' &&
+      (authResult.session?.triggeredBy || authResult.user?.triggeredBy)
+    ) {
+      enrichedPayload.triggered_by =
+        authResult.session?.triggeredBy || authResult.user?.triggeredBy;
+    }
+
+    return enrichedPayload;
+  };
+
   const processAction = async (
     c: Context,
     s: Service,
     actionName: string,
     _payload: any,
     _config: ServerConfig,
-    actionHookExecutor: HookExecutor
+    actionHookExecutor: ReturnType<typeof createHookExecutor>
   ) => {
     const targetAction = await checkAction({
       actionName,
@@ -271,11 +324,16 @@ export const useRestRPC = (config: ServerConfig) => {
       return targetAction;
     }
 
-    if (_payload) {
+    // Enrich payload with user context from authentication
+    const authResult = c.get('authResult');
+    const enrichedPayload = enrichPayloadWithUserContext(_payload, authResult);
+
+    if (enrichedPayload && Object.keys(enrichedPayload).length > 0) {
       const actionPayloadValidation = getValidationSchema(
         targetAction.validation
       );
-      const actionPayloadParsed = actionPayloadValidation.safeParse(_payload);
+      const actionPayloadParsed =
+        actionPayloadValidation.safeParse(enrichedPayload);
       if (!actionPayloadParsed.success) {
         return c.json({
           status: false,
@@ -289,7 +347,7 @@ export const useRestRPC = (config: ServerConfig) => {
       if (targetAction.hooks?.before || targetAction.hooks?.after) {
         const result = await actionHookExecutor.executeActionWithHooks(
           targetAction,
-          _payload,
+          enrichedPayload,
           c
         );
         if (isError(result)) {
@@ -297,7 +355,7 @@ export const useRestRPC = (config: ServerConfig) => {
         }
         return c.json(result);
       }
-      const result = await targetAction.handler(_payload, c);
+      const result = await targetAction.handler(enrichedPayload, c);
       if (isError(result)) {
         return c.json(result, 200);
       }
@@ -469,6 +527,19 @@ export const useRestRPC = (config: ServerConfig) => {
       });
     }
 
+    // Add authentication check for agentic endpoint
+    const authResult = await authenticate(c, config);
+    if (!authResult.isAuthenticated) {
+      return c.json(
+        {
+          status: false,
+          message: 'Unauthorized',
+          data: { error: authResult.error },
+        },
+        401
+      );
+    }
+
     if (!config.agenticConfig?.handler) {
       return c.json({
         status: false,
@@ -486,7 +557,15 @@ export const useRestRPC = (config: ServerConfig) => {
     }
 
     try {
-      const response = await config.agenticConfig.handler(payload);
+      // Pass authenticated user context to agent handler
+      const agentPayload = {
+        ...payload,
+        user_id: authResult.user?.id,
+        organization_id:
+          authResult.session?.organizationId || payload.organization_id,
+      };
+
+      const response = await config.agenticConfig.handler(agentPayload);
       return c.json({
         status: true,
         message: 'Agent response',
@@ -503,6 +582,20 @@ export const useRestRPC = (config: ServerConfig) => {
       });
     }
   });
+
+  // Better Auth endpoints
+  if (config.betterAuth?.instance) {
+    // Mount Better Auth handler at /auth/* - this is the single handler approach
+    app.on(['GET', 'POST'], '/auth/*', (c) => {
+      const auth = config.betterAuth?.instance;
+      if (!auth) {
+        return c.json({ status: false, message: 'Auth not configured' }, 500);
+      }
+      return auth.handler(c.req.raw);
+    });
+
+    console.log(`Better Auth endpoints available at: ${host}:${port}/auth/*`);
+  }
 
   if (config.enableStatus) {
     app.get('/status', (c) => {
@@ -529,7 +622,12 @@ export const useRestRPC = (config: ServerConfig) => {
   return app;
 };
 
+/** Get the main Hono app instance */
 export const useAppInstance = () => app;
+
+/** Get the current server configuration */
 export const getAutoConfig = () => CONFIG;
+
+/** Execute onStart callback if configured */
 export const onAppStart = () => CONFIG?.onStart?.();
 export type AppInstance = typeof app;

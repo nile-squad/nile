@@ -1,4 +1,5 @@
 import { sign } from 'hono/jwt';
+import type { AuthResult } from '../auth-utils';
 import { getAutoConfig } from '../rest-rpc';
 
 /**
@@ -10,6 +11,10 @@ export async function createAgentToken(): Promise<string> {
   const config = getAutoConfig();
   if (!config) {
     throw new Error('REST-RPC not configured');
+  }
+
+  if (!config.authSecret) {
+    throw new Error('authSecret is required for agent token creation');
   }
 
   // Generate long-lived token for agent (1 year or until server restart)
@@ -52,16 +57,29 @@ export async function attachAgentAuth(
  * Validate if an action can be executed by an agent
  *
  * @param action - The action to validate
- * @param isAgent - Whether the caller is an agent
+ * @param authResult - Authentication result containing user/agent info
  * @returns True if agent can execute the action, false otherwise
  */
-export function validateAgenticAction(action: any, isAgent: boolean): boolean {
-  // If not an agent, allow all actions
-  if (!isAgent) {
+export const validateAgenticAction = (
+  action: any,
+  authResult?: AuthResult
+): boolean => {
+  // If no auth result or not an agent, allow all actions
+  if (!(authResult && isAgent(authResult))) {
     return true;
   }
 
   // For agents, check if action allows agentic execution
   // Default to true if agentic flag is not explicitly set
   return action.agentic !== false;
-}
+};
+
+/**
+ * Check if the authenticated user is an agent
+ */
+export const isAgent = (authResult: AuthResult): boolean => {
+  return (
+    authResult.method === 'agent' ||
+    (authResult.user && authResult.user.type === 'agent')
+  );
+};

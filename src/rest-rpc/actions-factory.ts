@@ -30,7 +30,12 @@ export const newServiceActionsFactory = (
   const newGetAllAction = generateGetAllAction(sub, tableName, table, model);
   const newGetOneAction = generateGetOneAction(sub, tableName, table, model);
   const newUpdateAction = generateUpdateAction(sub, tableName, table, model);
-  const newDeleteAction = generateDeleteAction(sub, tableName, table, model);
+  const newDeleteAction = generateDeleteAction({
+    sub,
+    tableName,
+    table,
+    model,
+  });
   const newEveryAction = generateGetEveryAction(sub, tableName, table, model);
   const newGetManyWithAction = generateGetManyWithAction(
     sub,
@@ -104,7 +109,9 @@ const generateCreateAction = (
   const newAction: Action = {
     name: 'create',
     description: `Create a new record in ${sub.tableName}`,
-    isProtected: sub.protectedActions?.includes('create') ?? false,
+    isProtected: sub.unprotectedActions?.includes('create')
+      ? false
+      : (sub.protectedActions?.includes('create') ?? true),
     handler: createActionHandler,
     validation: {
       ...sub.validation,
@@ -122,20 +129,20 @@ const generateGetAllAction = (
   model: Model
 ) => {
   const getAllActionHandler: ActionHandler = async (data) => {
-    if (!data.company_id) {
+    if (!data.organization_id) {
       const error_id = createLog({
-        message: 'Missing company_id in payload',
+        message: 'Missing organization_id in payload',
         data,
         type: 'error',
         atFunction: 'getAllActionHandler',
         appName: 'main',
       });
-      return safeError('Missing company_id in payload', error_id);
+      return safeError('Missing organization_id in payload', error_id);
     }
 
     const { data: result, errors } = await model.getMany({
-      basedOnProperty: 'company_id',
-      withValue: data.company_id,
+      basedOnProperty: 'organization_id',
+      withValue: data.organization_id,
     });
     if (errors.length) {
       const error_id = createLog({
@@ -157,7 +164,9 @@ const generateGetAllAction = (
   const newAction: Action = {
     name: 'getAll',
     description: `Get all records from ${sub.tableName}`,
-    isProtected: sub.protectedActions?.includes('getAll') ?? false,
+    isProtected: sub.unprotectedActions?.includes('getAll')
+      ? false
+      : (sub.protectedActions?.includes('getAll') ?? true),
     handler: getAllActionHandler,
     validation: {},
   };
@@ -193,7 +202,9 @@ const generateGetEveryAction = (
   const newAction: Action = {
     name: 'getEvery',
     description: `Get every record from ${sub.tableName}`,
-    isProtected: sub.protectedActions?.includes('getEvery') ?? false,
+    isProtected: sub.unprotectedActions?.includes('getEvery')
+      ? false
+      : (sub.protectedActions?.includes('getEvery') ?? true),
     handler: getEveryActionHandler,
     validation: {},
   };
@@ -239,7 +250,9 @@ const generateGetOneAction = (
   const newAction: Action = {
     name: 'getOne',
     description: `Get one record from ${sub.tableName}`,
-    isProtected: sub.protectedActions?.includes('getOne') ?? false,
+    isProtected: sub.unprotectedActions?.includes('getOne')
+      ? false
+      : (sub.protectedActions?.includes('getOne') ?? true),
     handler: getOneActionHandler,
     validation: {},
   };
@@ -295,7 +308,9 @@ const generateUpdateAction = (
   const newAction: Action = {
     name: 'update',
     description: `Update a record in ${sub.tableName}`,
-    isProtected: sub.protectedActions?.includes('update') ?? false,
+    isProtected: sub.unprotectedActions?.includes('update')
+      ? false
+      : (sub.protectedActions?.includes('update') ?? true),
     handler: updateActionHandler,
     validation: {
       ...sub.validation,
@@ -310,12 +325,17 @@ const generateUpdateAction = (
   return newAction;
 };
 
-export const generateDeleteAction = (
-  sub: SubService,
-  tableName: string,
-  table: any,
-  model: Model
-) => {
+export const generateDeleteAction = ({
+  sub,
+  tableName,
+  table,
+  model,
+}: {
+  sub: SubService;
+  tableName: string;
+  table: any;
+  model: Model;
+}) => {
   const deleteActionHandler: ActionHandler = async (data) => {
     if (!data[sub.idName]) {
       const error_id = createLog({
@@ -348,7 +368,9 @@ export const generateDeleteAction = (
   const newAction: Action = {
     name: 'delete',
     description: `Delete a record from ${sub.tableName}`,
-    isProtected: sub.protectedActions?.includes('delete') ?? false,
+    isProtected: sub.unprotectedActions?.includes('delete')
+      ? false
+      : (sub.protectedActions?.includes('delete') ?? true),
     handler: deleteActionHandler,
     validation: {},
   };
@@ -356,12 +378,17 @@ export const generateDeleteAction = (
   return newAction;
 };
 
-export const generateDeleteAllAction = (
-  sub: SubService,
-  tableName: string,
-  table: any,
-  model: Model
-) => {
+export const generateDeleteAllAction = ({
+  sub,
+  tableName,
+  table,
+  model,
+}: {
+  sub: SubService;
+  tableName: string;
+  table: any;
+  model: Model;
+}) => {
   const deleteAllActionHandler: ActionHandler = async (data) => {
     const { data: result, errors } = await model.deleteAll();
     if (errors.length) {
@@ -384,7 +411,9 @@ export const generateDeleteAllAction = (
   const newAction: Action = {
     name: 'deleteAll',
     description: `Delete all records from ${sub.tableName}`,
-    isProtected: sub.protectedActions?.includes('deleteAll') ?? false,
+    isProtected: sub.unprotectedActions?.includes('deleteAll')
+      ? false
+      : (sub.protectedActions?.includes('deleteAll') ?? true),
     handler: deleteAllActionHandler,
     validation: {},
   };
@@ -427,7 +456,9 @@ const generateGetManyWithAction = (
   const newAction: Action = {
     name: 'getManyWith',
     description: `Get all records from ${sub.tableName}`,
-    isProtected: sub.protectedActions?.includes('getManyWith') ?? false,
+    isProtected: sub.unprotectedActions?.includes('getManyWith')
+      ? false
+      : (sub.protectedActions?.includes('getManyWith') ?? true),
     handler: getManyWithActionHandler,
     validation: {},
   };
@@ -464,7 +495,9 @@ const generateGetOneWithAction = (
   const newAction: Action = {
     name: 'getOneWith',
     description: `Get one record from ${sub.tableName}`,
-    isProtected: sub.protectedActions?.includes('getOneWith') ?? false,
+    isProtected: sub.unprotectedActions?.includes('getOneWith')
+      ? false
+      : (sub.protectedActions?.includes('getOneWith') ?? true),
     handler: getOneWithActionHandler,
     validation: {},
   };
@@ -503,7 +536,9 @@ const generateGetOneWithRelationsAction = (
   const newAction: Action = {
     name: 'getOneWithRelations',
     description: `Get one record from ${sub.tableName} with relations`,
-    isProtected: sub.protectedActions?.includes('getOneWithRelations') ?? false,
+    isProtected: sub.unprotectedActions?.includes('getOneWithRelations')
+      ? false
+      : (sub.protectedActions?.includes('getOneWithRelations') ?? true),
     handler: getOneWithRelationsActionHandler,
     validation: {},
   };

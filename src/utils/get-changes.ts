@@ -14,10 +14,10 @@
  */
 import { diff } from 'deep-object-diff';
 
-export function getChanges<T extends object, U extends object>(
+export const getChanges = <T extends object, U extends object>(
   obj1: T,
   obj2: U
-): Partial<T & U> {
+): Partial<T & U> => {
   const result = diff(obj1, obj2);
   Object.keys(result).forEach((key) => {
     // If the value is an empty object, or undefined, remove it from the result
@@ -29,4 +29,4 @@ export function getChanges<T extends object, U extends object>(
     }
   });
   return result as Partial<T & U>;
-}
+};

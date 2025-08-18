@@ -46,7 +46,7 @@ export interface TaskStorage {
  * storage.close();
  * ```
  */
-export function createTaskStorage(dbPath = ':memory:'): TaskStorage {
+export const createTaskStorage = (dbPath = ':memory:'): TaskStorage => {
   const db = new Database(dbPath);
 
   // Create tables first
@@ -228,4 +228,4 @@ export function createTaskStorage(dbPath = ':memory:'): TaskStorage {
     },
     close: () => db.close(),
   };
-}
+};

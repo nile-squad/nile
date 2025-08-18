@@ -138,7 +138,7 @@ type LogFilter = {
  * @param {LogFilter} filters - Optional filters to apply when retrieving logs
  * @returns {Log[]} An array of log entries matching the filters
  */
-export function getLogs(filters: LogFilter = {}): Log[] {
+export const getLogs = (filters: LogFilter = {}): Log[] => {
   const logFile = filters.appName
     ? join(logDir, `${filters.appName}.log`)
     : join(logDir, 'app.log');
@@ -182,4 +182,4 @@ export function getLogs(filters: LogFilter = {}): Log[] {
     });
 
   return logs;
-}
+};

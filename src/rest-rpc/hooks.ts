@@ -8,37 +8,39 @@ import type {
 import { isError, isOk, Ok, safeError } from '../utils';
 import type { SafeResult } from '../utils/safe-try';
 
-export class HookExecutor {
-  private actions: Map<string, Action> = new Map();
+/**
+ * Creates a hook executor that manages action pipeline execution with before/after hooks
+ */
+export const createHookExecutor = (actions: Action[]) => {
+  const actionsMap = new Map<string, Action>();
 
-  constructor(actions: Action[]) {
-    for (const action of actions) {
-      this.actions.set(action.name, action);
-    }
+  for (const action of actions) {
+    actionsMap.set(action.name, action);
   }
 
-  private validateHookExists(hookName: string): void {
-    if (!this.actions.has(hookName)) {
+  const validateHookExists = (hookName: string): void => {
+    if (!actionsMap.has(hookName)) {
       throw new Error(
         `Hook action '${hookName}' not found in registered actions`
       );
     }
-  }
+  };
 
-  private async executeHook(
+  const executeHook = async (
     hookDef: HookDefinition,
     input: any,
     hookContext: HookContext,
     originalContext?: any
-  ): Promise<{ success: boolean; output: any; logEntry: HookLogEntry }> {
-    this.validateHookExists(hookDef.name);
+  ): Promise<{ success: boolean; output: any; logEntry: HookLogEntry }> => {
+    validateHookExists(hookDef.name);
 
-    const action = this.actions.get(hookDef.name);
+    const action = actionsMap.get(hookDef.name);
     if (!action) {
       throw new Error(
         `Hook action '${hookDef.name}' not found in registered actions`
       );
     }
+
     const logEntry: HookLogEntry = {
       name: hookDef.name,
       input,
@@ -47,7 +49,6 @@ export class HookExecutor {
     };
 
     try {
-      // Create an enhanced context that includes both original context and hook state
       const enhancedContext = originalContext
         ? {
             ...originalContext,
@@ -64,6 +65,7 @@ export class HookExecutor {
         logEntry.passed = true;
         return { success: true, output: result.data, logEntry };
       }
+
       logEntry.output = result.data;
       logEntry.passed = false;
 
@@ -71,7 +73,6 @@ export class HookExecutor {
         return { success: false, output: result, logEntry };
       }
 
-      // Hook can fail, continue with most recent successful output (current input)
       return { success: true, output: input, logEntry };
     } catch (error) {
       const errorId = createLog({
@@ -93,23 +94,22 @@ export class HookExecutor {
         };
       }
 
-      // Hook can fail, continue with most recent successful output (current input)
       return { success: true, output: input, logEntry };
     }
-  }
+  };
 
-  private async executeHooks(
+  const executeHooks = async (
     hooks: HookDefinition[],
     initialInput: any,
     hookContext: HookContext,
     originalContext: any,
     phase: 'before' | 'after'
-  ): Promise<{ success: boolean; output: any }> {
+  ): Promise<{ success: boolean; output: any }> => {
     let currentInput = initialInput;
 
     for (const hookDef of hooks) {
       // biome-ignore lint/nursery/noAwaitInLoop: Sequential execution required for hook chaining
-      const { success, output, logEntry } = await this.executeHook(
+      const { success, output, logEntry } = await executeHook(
         hookDef,
         currentInput,
         hookContext,
@@ -126,13 +126,13 @@ export class HookExecutor {
     }
 
     return { success: true, output: currentInput };
-  }
+  };
 
-  async executeActionWithHooks(
+  const executeActionWithHooks = async (
     action: Action,
     data: any,
     originalContext?: any
-  ): Promise<SafeResult<any>> {
+  ): Promise<SafeResult<any>> => {
     const hookContext: HookContext = {
       actionName: action.name,
       input: data,
@@ -146,9 +146,8 @@ export class HookExecutor {
     try {
       let currentInput = data;
 
-      // Execute before hooks
       if (action.hooks?.before) {
-        const beforeResult = await this.executeHooks(
+        const beforeResult = await executeHooks(
           action.hooks.before,
           currentInput,
           hookContext,
@@ -163,7 +162,6 @@ export class HookExecutor {
         currentInput = beforeResult.output;
       }
 
-      // Execute main action
       const mainResult = await action.handler(
         currentInput,
         originalContext || hookContext
@@ -177,9 +175,8 @@ export class HookExecutor {
 
       let finalOutput = mainResult.data;
 
-      // Execute after hooks
       if (action.hooks?.after) {
-        const afterResult = await this.executeHooks(
+        const afterResult = await executeHooks(
           action.hooks.after,
           finalOutput,
           hookContext,
@@ -194,7 +191,6 @@ export class HookExecutor {
         finalOutput = afterResult.output;
       }
 
-      // Compose final result
       if (action.result?.pipeline) {
         return Ok({
           result: finalOutput,
@@ -217,9 +213,9 @@ export class HookExecutor {
 
       return safeError(`Action '${action.name}' pipeline failed`, errorId);
     }
-  }
-}
+  };
 
-export function createHookExecutor(actions: Action[]): HookExecutor {
-  return new HookExecutor(actions);
-}
+  return {
+    executeActionWithHooks,
+  };
+};

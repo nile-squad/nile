@@ -23,7 +23,7 @@ import type { PubSubCallback } from './types';
  * await pubsub.publish('user:login', { userId: '123' });
  * ```
  */
-export function createPubSub() {
+export const createPubSub = () => {
   const subscribers = new Map<string, Set<PubSubCallback>>();
 
   const subscribe = (topic: string, callback: PubSubCallback) => {
@@ -96,9 +96,9 @@ export function createPubSub() {
     getSubscriberCount,
     getTopics,
   };
-}
+};
 
-function matchesPattern(event: string, pattern: string): boolean {
+const matchesPattern = (event: string, pattern: string): boolean => {
   if (pattern === event) {
     return true;
   }
@@ -113,4 +113,4 @@ function matchesPattern(event: string, pattern: string): boolean {
   }
 
   return false;
-}
+};

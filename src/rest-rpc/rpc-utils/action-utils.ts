@@ -1,14 +1,18 @@
 import { verify } from 'hono/jwt';
+import { createLogger } from '../../logging/create-log';
 import type { Action, Service } from '../../types/actions';
-import { isError } from '../../utils';
+import { isError, safeTry } from '../../utils';
 import { formatError as utilFormatError } from '../../utils/erorr-formatter';
+
+const logger = createLogger('nile-rpc-utils');
+
 import { getValidationSchema } from '../../utils/validation-utils';
 import { createHookExecutor } from '../hooks';
 import { getAutoConfig, type ServerConfig } from '../rest-rpc';
 import { attachAgentAuth, validateAgenticAction } from './agent-auth';
 import type { ActionPayload, ResultsMode, RPCResult } from './types';
 
-function sanitizeForUrlSafety(s: string): string {
+const sanitizeForUrlSafety = (s: string): string => {
   return s
     .trim()
     .toLowerCase()
@@ -16,9 +20,9 @@ function sanitizeForUrlSafety(s: string): string {
     .replace(/[^a-z0-9-]/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '');
-}
+};
 
-function getFinalServices(serverConfig?: ServerConfig): Service[] {
+const getFinalServices = (serverConfig?: ServerConfig): Service[] => {
   const config = serverConfig || getAutoConfig();
   if (!config) {
     throw new Error('REST-RPC not configured');
@@ -27,21 +31,111 @@ function getFinalServices(serverConfig?: ServerConfig): Service[] {
   const services = config.services;
   const generatedServices: Service[] = [];
 
-  const finalServices = [...services, ...generatedServices].filter(
-    (s) => s.actions.length
-  );
+  return [...services, ...generatedServices].filter((s) => s.actions.length);
+};
 
-  return finalServices;
-}
+/**
+ * Resolve user context for RPC call based on mode and auth claims
+ * Industry standard approach: extract user/org from auth token claims
+ */
+const resolveUserContext = async (params: {
+  agentMode?: boolean;
+  organizationId?: string;
+  auth?: { token: string };
+  serverConfig?: ServerConfig;
+}) => {
+  const {
+    agentMode = false,
+    organizationId: explicitOrgId,
+    auth,
+    serverConfig,
+  } = params;
 
-async function checkAction(params: {
+  const config = serverConfig || getAutoConfig();
+  let authClaims: any = null;
+
+  // Extract claims from auth token if available
+  if (auth?.token && config?.authSecret) {
+    try {
+      const { error, result } = await safeTry(() =>
+        verify(auth.token, config.authSecret as string)
+      );
+      if (!error && result) {
+        authClaims = result;
+      }
+    } catch {
+      // Token verification failed, continue without claims
+    }
+  }
+
+  if (agentMode) {
+    // Agent mode: create agent user with org from claims or explicit org
+    const orgId =
+      explicitOrgId ||
+      authClaims?.organizationId ||
+      authClaims?.organization_id;
+    if (!orgId) {
+      const error_id = logger.error({
+        message:
+          'No organization context available for agent - provide organizationId or ensure auth token contains org claims',
+        data: { authClaims, agentMode, explicitOrgId },
+        atFunction: 'resolveUserContext',
+      });
+      return {
+        err: 'No organization context available for agent',
+        errorId: error_id,
+      };
+    }
+
+    return {
+      result: {
+        userId: `agent-${orgId}`,
+        organizationId: orgId,
+        isAgent: true,
+        triggeredBy:
+          authClaims?.userId || authClaims?.user_id || authClaims?.sub,
+      },
+    };
+  }
+
+  // System mode: use explicit org or claims org
+  const orgId =
+    explicitOrgId || authClaims?.organizationId || authClaims?.organization_id;
+  if (!orgId) {
+    const error_id = logger.error({
+      message:
+        'No organization context - specify organizationId or ensure auth token contains org claims',
+      data: { explicitOrgId, authClaims },
+      atFunction: 'resolveUserContext',
+    });
+    return {
+      err: 'No organization context - specify organizationId or ensure auth token contains org claims',
+      errorId: error_id,
+    };
+  }
+
+  return {
+    result: {
+      userId: 'system',
+      organizationId: orgId,
+      isAgent: false,
+    },
+  };
+};
+
+const checkAction = async (params: {
   actionName: string;
   service: Service;
+  userContext: {
+    userId: string;
+    organizationId: string;
+    isAgent: boolean;
+    triggeredBy?: string;
+  };
   auth?: { token: string };
-  isAgent?: boolean;
   serverConfig?: ServerConfig;
-}): Promise<Action | { status: false; message: string; data: any }> {
-  const { actionName, service, auth, isAgent = false, serverConfig } = params;
+}) => {
+  const { actionName, service, userContext, auth, serverConfig } = params;
   const config = serverConfig || getAutoConfig();
 
   if (!config) {
@@ -51,67 +145,107 @@ async function checkAction(params: {
   const targetAction = service.actions.find((a) => a.name === actionName);
 
   if (!targetAction) {
+    const error_id = logger.error({
+      message: `Action ${actionName} not found in service ${service.name}`,
+      data: {
+        actionName,
+        serviceName: service.name,
+        availableActions: service.actions.map((a) => a.name),
+      },
+      atFunction: 'checkAction',
+    });
     return {
       status: false,
       message: `Action ${actionName} not found in service ${service.name}`,
-      data: { error_id: 'ACTION_NOT_FOUND' },
+      data: { error_id },
     };
   }
 
   // Check if agent can execute this action
-  if (isAgent && !validateAgenticAction(targetAction, isAgent)) {
+  if (userContext.isAgent && !validateAgenticAction(targetAction)) {
+    const error_id = logger.error({
+      message: `Action ${actionName} not available for agent execution`,
+      data: { actionName, serviceName: service.name, userContext },
+      atFunction: 'checkAction',
+    });
     return {
       status: false,
       message: `Action ${actionName} not available for agent execution`,
-      data: { error_id: 'AGENT_ACTION_BLOCKED' },
+      data: { error_id },
     };
   }
 
-  // Check authentication for protected actions
-  if (targetAction.isProtected) {
+  // Default to protected unless explicitly set to false
+  const shouldProtect = targetAction.isProtected !== false;
+
+  if (shouldProtect) {
+    // For agent/system mode, skip token verification
+    if (userContext.isAgent || userContext.userId === 'system') {
+      // Authentication passed via user context resolution
+      return targetAction;
+    }
+
+    // Standard user authentication (HTTP layer)
     if (!auth?.token) {
+      const error_id = logger.error({
+        message: 'Unauthorized - token required',
+        data: { actionName, serviceName: service.name, userContext },
+        atFunction: 'checkAction',
+      });
       return {
         status: false,
         message: 'Unauthorized - token required',
-        data: { error_id: 'UNAUTHORIZED' },
+        data: { error_id },
       };
     }
 
-    try {
-      const payload = await verify(auth.token, config.authSecret);
-      if (!payload) {
-        return {
-          status: false,
-          message: 'Unauthorized - invalid token',
-          data: { error_id: 'INVALID_TOKEN' },
-        };
-      }
-    } catch (_error) {
+    if (!config.authSecret) {
+      const error_id = logger.error({
+        message: 'Server configuration error - authSecret not configured',
+        data: { actionName, serviceName: service.name },
+        atFunction: 'checkAction',
+      });
+      return {
+        status: false,
+        message: 'Server configuration error - authSecret not configured',
+        data: { error_id },
+      };
+    }
+
+    const { error } = await safeTry(() =>
+      verify(auth.token, config.authSecret as string)
+    );
+    if (error) {
+      const error_id = logger.error({
+        message: 'Unauthorized - token verification failed',
+        data: { actionName, serviceName: service.name, error: error.message },
+        atFunction: 'checkAction',
+      });
       return {
         status: false,
         message: 'Unauthorized - token verification failed',
-        data: { error_id: 'TOKEN_VERIFICATION_FAILED' },
+        data: { error_id },
       };
     }
   }
 
   return targetAction;
-}
+};
 
-function isAction(value: unknown): value is Action {
+const isAction = (value: unknown): value is Action => {
   return (
     typeof value === 'object' &&
     value !== null &&
     'name' in value &&
     'handler' in value
   );
-}
+};
 
-function formatResult<T, TMode extends ResultsMode>(
+const formatResult = <T, TMode extends ResultsMode>(
   data: T,
   message: string,
   resultsMode: TMode
-): RPCResult<TMode> {
+): RPCResult<TMode> => {
   const result = {
     status: true as const,
     message,
@@ -123,13 +257,13 @@ function formatResult<T, TMode extends ResultsMode>(
   }
 
   return result as RPCResult<TMode>;
-}
+};
 
-function formatActionError<TMode extends ResultsMode>(
+const formatActionError = <TMode extends ResultsMode>(
   data: any,
   message: string,
   resultsMode: TMode
-): RPCResult<TMode> {
+): RPCResult<TMode> => {
   const result = {
     status: false as const,
     message,
@@ -141,30 +275,50 @@ function formatActionError<TMode extends ResultsMode>(
   }
 
   return result as RPCResult<TMode>;
-}
+};
 
 /**
  * Execute a service action with proper authentication and validation
- *
- * @param params - The execution parameters
- * @returns Promise resolving to the action result
+ * Supports two modes:
+ * 1. Agent mode: agentMode=true → agent user + org from auth claims or explicit organizationId
+ * 2. System mode: organizationId provided or from auth claims → system user + org
  */
-export async function executeServiceAction<
+export const executeServiceAction = async <
   TMode extends ResultsMode = 'data',
 >(params: {
   serviceName: string;
   payload: ActionPayload;
   resultsMode?: TMode;
   agentMode?: boolean;
+  organizationId?: string;
   serverConfig?: ServerConfig;
-}): Promise<RPCResult<TMode>> {
+}): Promise<RPCResult<TMode>> => {
   const {
     serviceName,
     payload,
     resultsMode = 'data' as TMode,
     agentMode = false,
+    organizationId,
     serverConfig,
   } = params;
+
+  // Resolve user context based on mode and auth claims
+  const userContextResult = await resolveUserContext({
+    agentMode,
+    organizationId,
+    auth: payload.auth,
+    serverConfig,
+  });
+
+  if (userContextResult.err || !userContextResult.result) {
+    return formatActionError(
+      { error_id: userContextResult.errorId },
+      userContextResult.err || 'Failed to resolve user context',
+      resultsMode
+    );
+  }
+
+  const userContext = userContextResult.result;
 
   const finalServices = getFinalServices(serverConfig);
   const service = finalServices.find(
@@ -172,21 +326,32 @@ export async function executeServiceAction<
   );
 
   if (!service) {
+    const error_id = logger.error({
+      message: `Service '${serviceName}' not found`,
+      data: {
+        serviceName,
+        availableServices: finalServices.map((s) => s.name),
+      },
+      atFunction: 'executeServiceAction',
+    });
     return formatActionError(
-      { error_id: 'SERVICE_NOT_FOUND' },
+      { error_id },
       `Service '${serviceName}' not found`,
       resultsMode
     );
   }
 
-  // Auto-attach agent auth if in agent mode
-  const processedPayload = await attachAgentAuth(payload, agentMode);
+  // For agent/system mode, don't attach JWT auth
+  const processedPayload =
+    agentMode || userContext.userId === 'system'
+      ? payload
+      : await attachAgentAuth(payload, false);
 
   const targetAction = await checkAction({
     actionName: processedPayload.action,
     service,
+    userContext,
     auth: processedPayload.auth,
-    isAgent: agentMode,
     serverConfig,
   });
 
@@ -200,12 +365,29 @@ export async function executeServiceAction<
 
   // Validate payload if validation schema exists
   if (processedPayload.payload) {
+    // First enrich payload for agent/system modes
+    let enrichedPayload = processedPayload.payload;
+
+    if (agentMode || userContext.userId === 'system') {
+      enrichedPayload = {
+        ...enrichedPayload,
+        user_id: userContext.userId,
+        organization_id: userContext.organizationId,
+        userId: userContext.userId,
+        organizationId: userContext.organizationId,
+      };
+
+      if (userContext.isAgent && userContext.triggeredBy) {
+        enrichedPayload.triggered_by = userContext.triggeredBy;
+      }
+    }
+
+    // Then validate the enriched payload
     const actionPayloadValidation = getValidationSchema(
       targetAction.validation
     );
-    const actionPayloadParsed = actionPayloadValidation.safeParse(
-      processedPayload.payload
-    );
+    const actionPayloadParsed =
+      actionPayloadValidation.safeParse(enrichedPayload);
 
     if (!actionPayloadParsed.success) {
       return formatActionError(
@@ -214,25 +396,27 @@ export async function executeServiceAction<
         resultsMode
       );
     }
+
+    // Update the processed payload with enriched data
+    processedPayload.payload = enrichedPayload;
   }
 
   if (!targetAction.handler) {
+    const error_id = logger.error({
+      message: `Handler not found for action ${processedPayload.action} of service ${service.name}`,
+      data: { actionName: processedPayload.action, serviceName: service.name },
+      atFunction: 'executeServiceAction',
+    });
     return formatActionError(
-      { error_id: 'HANDLER_NOT_FOUND' },
+      { error_id },
       `Handler not found for action ${processedPayload.action} of service ${service.name}`,
       resultsMode
     );
   }
 
-  try {
-    let actionResult: any;
-
-    // Use hook executor if action has hooks, otherwise execute normally
-    if (targetAction.hooks?.before || targetAction.hooks?.after) {
-      const allActions: Action[] = finalServices.flatMap((s) => s.actions);
-      const hookExecutor = createHookExecutor(allActions);
-
-      // Create a mock context for hook execution
+  const { error: executionErr, result: actionResult } = await safeTry(
+    async () => {
+      // Create context object that actions will receive
       const mockContext = {
         req: {
           header: () =>
@@ -240,44 +424,89 @@ export async function executeServiceAction<
               ? `Bearer ${processedPayload.auth.token}`
               : undefined,
         },
-      };
-
-      actionResult = await hookExecutor.executeActionWithHooks(
-        targetAction,
-        processedPayload.payload,
-        mockContext as any
-      );
-    } else {
-      // Create a mock context for action execution
-      const mockContext = {
-        req: {
-          header: () =>
-            processedPayload.auth?.token
-              ? `Bearer ${processedPayload.auth.token}`
-              : undefined,
+        get: (key: string) => {
+          if (key === 'authResult') {
+            return {
+              isAuthenticated: true,
+              user: {
+                id: userContext.userId,
+                type: (() => {
+                  if (userContext.isAgent) {
+                    return 'agent';
+                  }
+                  if (userContext.userId === 'system') {
+                    return 'system';
+                  }
+                  return 'user';
+                })(),
+              },
+              session: {
+                organizationId: userContext.organizationId,
+                triggeredBy: userContext.triggeredBy,
+              },
+              method: userContext.isAgent ? 'agent' : 'system',
+            };
+          }
+          return;
+        },
+        set: () => {
+          // Mock set function - no operation needed
         },
       };
 
-      actionResult = await targetAction.handler(
+      // Use hook executor if action has hooks, otherwise execute normally
+      if (targetAction.hooks?.before || targetAction.hooks?.after) {
+        const allActions: Action[] = finalServices.flatMap((s) => s.actions);
+        const hookExecutor = createHookExecutor(allActions);
+
+        return await hookExecutor.executeActionWithHooks(
+          targetAction,
+          processedPayload.payload,
+          mockContext as any
+        );
+      }
+
+      return await targetAction.handler(
         processedPayload.payload,
         mockContext as any
       );
     }
+  );
 
-    if (isError(actionResult)) {
+  if (executionErr) {
+    const error_id = logger.error({
+      message: 'Action execution failed',
+      data: {
+        error: executionErr.message,
+        serviceName,
+        actionName: processedPayload.action,
+        userContext,
+      },
+      atFunction: 'executeServiceAction',
+    });
+
+    return formatActionError(
+      { error_id, details: executionErr.message },
+      'Action execution failed',
+      resultsMode
+    );
+  }
+
+  if (!actionResult || isError(actionResult)) {
+    if (actionResult) {
       return formatActionError(
         actionResult.data,
         actionResult.message,
         resultsMode
       );
     }
-
-    return formatResult(actionResult.data, actionResult.message, resultsMode);
-  } catch (error: any) {
+    // actionResult is null, meaning execution failed
     return formatActionError(
-      { error_id: 'EXECUTION_ERROR', details: error.message },
+      { error: 'Execution returned null' },
       'Action execution failed',
       resultsMode
     );
   }
-}
+
+  return formatResult(actionResult.data, actionResult.message, resultsMode);
+};

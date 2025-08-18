@@ -14,15 +14,13 @@ export type Validation = {
 };
 
 /**
- * Generates a Zod validation schema based on the provided validation configuration. Default mode is 'auto'.
- *
- * @param validation - Configuration options for creating the validation schema
- * @param context - Additional context like operation type ('create' | 'update')
+ * Get the validation schema for an action
+ * @param validation - The validation configuration object
  * @returns A Zod object schema with applied validations
  */
-export function getValidationSchema(
+export const getValidationSchema = (
   validation: Validation
-): ZodObject<ZodRawShape> {
+): ZodObject<ZodRawShape> => {
   let schema: any;
   const operation = validation.context?.operation ?? 'other';
 
@@ -62,7 +60,7 @@ export function getValidationSchema(
   schema = handleValidationMode(schema, mode, operation);
 
   return schema;
-}
+};
 
 const handleValidationMode = (
   schema: ZodObject<ZodRawShape>,

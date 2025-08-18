@@ -16,10 +16,10 @@
  * const result = mergeTwoObjects(original, updates);
  * // result: { a: 1, b: { x: 2, y: 10 } }
  */
-export function mergeTwoObjects<T extends object, U extends object>(
+export const mergeTwoObjects = <T extends object, U extends object>(
   target: T,
   source: U
-): T & U {
+): T & U => {
   const result = { ...target } as any;
 
   for (const key in source) {
@@ -41,4 +41,4 @@ export function mergeTwoObjects<T extends object, U extends object>(
   }
 
   return result;
-}
+};

@@ -5,10 +5,7 @@ export type {
   HookLogEntry,
 } from '../types/actions';
 export { createModel, type Model, type ModelOptions } from './create-models';
-export {
-  createHookExecutor,
-  type HookExecutor,
-} from './hooks';
+export { createHookExecutor } from './hooks';
 export {
   type AgenticHandler,
   type AppInstance,

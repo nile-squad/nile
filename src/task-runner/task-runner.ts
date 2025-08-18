@@ -58,10 +58,10 @@ import type {
  * });
  * ```
  */
-export function useTaskRunner({
+export const useTaskRunner = ({
   dbPath = ':memory:',
   timezone = 'UTC',
-}: TaskRunnerConfig = {}) {
+}: TaskRunnerConfig = {}) => {
   const storage = createTaskStorage(dbPath);
   const pubsub = createPubSub();
   const scheduledJobs = new Map<string, Cron>();
@@ -621,4 +621,4 @@ export function useTaskRunner({
     getStats,
     shutdown,
   };
-}
+};

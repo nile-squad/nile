@@ -110,10 +110,10 @@ type checkOptions = {
 
 const logger = createLogger('nile-utils');
 
-export function checkIfEmptyOrErrors(
+export const checkIfEmptyOrErrors = (
   result: SafeResult<any>,
   options: checkOptions
-) {
+) => {
   const target = options.target || 'Unknown';
   const message = options.message || 'Operation failed!';
   const atFunction = options.atFunction;
@@ -137,4 +137,4 @@ export function checkIfEmptyOrErrors(
     return safeError(notFoundMessage, error_id);
   }
   return null;
-}
+};

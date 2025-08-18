@@ -3,7 +3,7 @@ import type { Service } from '../../types/actions';
 import { getAutoConfig, type ServerConfig } from '../rest-rpc';
 import type { ResultsMode, RPCResult } from './types';
 
-function sanitizeForUrlSafety(s: string) {
+const sanitizeForUrlSafety = (s: string) => {
   return s
     .trim()
     .toLowerCase()
@@ -11,9 +11,9 @@ function sanitizeForUrlSafety(s: string) {
     .replace(/[^a-z0-9-]/g, '-') // remove special characters except hyphens
     .replace(/-+/g, '-') // replace multiple hyphens with single hyphen
     .replace(/^-+|-+$/g, ''); // remove hyphens from start and end
-}
+};
 
-function getFinalServices(serverConfig?: ServerConfig): Service[] {
+const getFinalServices = (serverConfig?: ServerConfig): Service[] => {
   const config = serverConfig || getAutoConfig();
   if (!config) {
     throw new Error('REST-RPC not configured');
@@ -30,13 +30,13 @@ function getFinalServices(serverConfig?: ServerConfig): Service[] {
   );
 
   return finalServices;
-}
+};
 
-function formatResult<T, TMode extends ResultsMode>(
+const formatResult = <T, TMode extends ResultsMode>(
   data: T,
   message: string,
   resultsMode: TMode
-): RPCResult<TMode> {
+): RPCResult<TMode> => {
   const result = {
     status: true as const,
     message,
@@ -48,13 +48,13 @@ function formatResult<T, TMode extends ResultsMode>(
   }
 
   return result as RPCResult<TMode>;
-}
+};
 
-function formatError<TMode extends ResultsMode>(
+const formatError = <TMode extends ResultsMode>(
   message: string,
   errorId: string,
   resultsMode: TMode
-): RPCResult<TMode> {
+): RPCResult<TMode> => {
   const errorResult = {
     status: false as const,
     message,
@@ -65,12 +65,12 @@ function formatError<TMode extends ResultsMode>(
     return JSON.stringify(errorResult) as RPCResult<TMode>;
   }
   return errorResult as RPCResult<TMode>;
-}
+};
 
-export function getServices<TMode extends ResultsMode = 'data'>(
+export const getServices = <TMode extends ResultsMode = 'data'>(
   resultsMode: TMode = 'data' as TMode,
   serverConfig?: ServerConfig
-): RPCResult<TMode> {
+): RPCResult<TMode> => {
   const config = serverConfig || getAutoConfig();
   if (!config) {
     throw new Error('REST-RPC not configured');
@@ -84,13 +84,13 @@ export function getServices<TMode extends ResultsMode = 'data'>(
     `List of all available services on ${config.serverName}.`,
     resultsMode
   );
-}
+};
 
-export function getServiceDetails<TMode extends ResultsMode = 'data'>(
+export const getServiceDetails = <TMode extends ResultsMode = 'data'>(
   serviceName: string,
   resultsMode: TMode = 'data' as TMode,
   serverConfig?: ServerConfig
-): RPCResult<TMode> {
+): RPCResult<TMode> => {
   const finalServices = getFinalServices(serverConfig);
   const service = finalServices.find(
     (s) => sanitizeForUrlSafety(s.name) === sanitizeForUrlSafety(serviceName)
@@ -111,14 +111,14 @@ export function getServiceDetails<TMode extends ResultsMode = 'data'>(
   };
 
   return formatResult(serviceData, 'Service Details', resultsMode);
-}
+};
 
-export function getActionDetails<TMode extends ResultsMode = 'data'>(
+export const getActionDetails = <TMode extends ResultsMode = 'data'>(
   serviceName: string,
   actionName: string,
   resultsMode: TMode = 'data' as TMode,
   serverConfig?: ServerConfig
-): RPCResult<TMode> {
+): RPCResult<TMode> => {
   const finalServices = getFinalServices(serverConfig);
   const service = finalServices.find(
     (s) => sanitizeForUrlSafety(s.name) === sanitizeForUrlSafety(serviceName)
@@ -164,12 +164,12 @@ export function getActionDetails<TMode extends ResultsMode = 'data'>(
   };
 
   return formatResult(actionData, 'Action Details', resultsMode);
-}
+};
 
-export function getSchema<TMode extends ResultsMode = 'data'>(
+export const getSchema = <TMode extends ResultsMode = 'data'>(
   resultsMode: TMode = 'data' as TMode,
   serverConfig?: ServerConfig
-): RPCResult<TMode> {
+): RPCResult<TMode> => {
   const config = serverConfig || getAutoConfig();
   if (!config) {
     throw new Error('REST-RPC not configured');
@@ -199,4 +199,4 @@ export function getSchema<TMode extends ResultsMode = 'data'>(
     `${config.serverName} Services actions zod Schemas`,
     resultsMode
   );
-}
+};

@@ -38,18 +38,18 @@ export const defaultPresets: Preset[] = [
 ];
 
 /**
- * Retrieves a preset configuration by name.
- * @param name - The preset name (e.g., '@daily', '@hourly', '@weekly')
- * @returns The preset configuration if found, undefined otherwise
+ * Gets a preset by name from the default presets.
+ * @param name - The preset name to find
+ * @returns The preset object if found, undefined otherwise
  * @example
  * ```typescript
  * const dailyPreset = getPreset('@daily');
  * console.log(dailyPreset?.cron); // '0 0 * * *'
  * ```
  */
-export function getPreset(name: string): Preset | undefined {
+export const getPreset = (name: string): Preset | undefined => {
   return defaultPresets.find((preset) => preset.name === name);
-}
+};
 
 /**
  * Checks if a preset name is valid and exists in the default presets.
@@ -62,6 +62,6 @@ export function getPreset(name: string): Preset | undefined {
  * }
  * ```
  */
-export function isValidPreset(name: string): boolean {
+export const isValidPreset = (name: string): boolean => {
   return defaultPresets.some((preset) => preset.name === name);
-}
+};

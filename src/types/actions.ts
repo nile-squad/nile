@@ -76,6 +76,7 @@ export type SubService = {
   description: string;
   actions: Action[];
   protectedActions?: ProtectedAction[];
+  unprotectedActions?: ProtectedAction[]; // Actions that should remain unprotected in new default-secure model
   validation?: Validation;
   tableName: string;
   idName: string;

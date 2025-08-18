@@ -7,18 +7,18 @@ export const hasExpired = (
     durationToConvert: number,
     units: string
   ): number => {
-    switch (units.toLowerCase()) {
-      case 'hour':
-        return durationToConvert;
-      case 'day':
-        return durationToConvert * 24;
-      case 'week':
-        return durationToConvert * 7 * 24;
-      case 'month':
-        return durationToConvert * 30 * 24;
-      default:
-        return durationToConvert;
-    }
+    const unitMultipliers = {
+      hour: 1,
+      day: 24,
+      week: 7 * 24,
+      month: 30 * 24,
+    };
+
+    return (
+      durationToConvert *
+      (unitMultipliers[units.toLowerCase() as keyof typeof unitMultipliers] ||
+        1)
+    );
   };
 
   // Calculate expiration time

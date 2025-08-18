@@ -5,18 +5,15 @@ const DURATION_REGEX = /^(\d+)\s*(ms|s|m|h|d)$/i;
 const TIMEZONE_OFFSET_REGEX = /[+-]\d{2}:\d{2}$/;
 
 /**
- * Parses a duration string into milliseconds.
- * @param duration - Duration string in format like "5m", "1h", "30s", "2d"
- * @returns Duration in milliseconds
- * @throws Error if the duration format is invalid
+ * Parses a duration string and returns the equivalent milliseconds.
+ * @param duration - Duration string (e.g., "5m", "1h", "30s")
  * @example
- * ```typescript
  * parseDuration('5m') // 300000 (5 minutes in ms)
  * parseDuration('1h') // 3600000 (1 hour in ms)
  * parseDuration('30s') // 30000 (30 seconds in ms)
  * ```
  */
-export function parseDuration(duration: DurationString): number {
+export const parseDuration = (duration: DurationString): number => {
   const match = duration.trim().match(DURATION_REGEX);
 
   if (!match) {
@@ -37,7 +34,7 @@ export function parseDuration(duration: DurationString): number {
   };
 
   return value * unitMultipliers[unit as keyof typeof unitMultipliers];
-}
+};
 
 /**
  * Adds a duration to a date and returns a new date.
@@ -50,10 +47,10 @@ export function parseDuration(duration: DurationString): number {
  * const future = addDuration(now, '1h'); // 1 hour from now
  * ```
  */
-export function addDuration(date: Date, duration: DurationString): Date {
+export const addDuration = (date: Date, duration: DurationString): Date => {
   const ms = parseDuration(duration);
   return new Date(date.getTime() + ms);
-}
+};
 
 /**
  * Converts a relative duration to an absolute ISO timestamp.
@@ -64,11 +61,11 @@ export function addDuration(date: Date, duration: DurationString): Date {
  * const futureTime = convertAfterToAt('30m'); // ISO string 30 minutes from now
  * ```
  */
-export function convertAfterToAt(after: DurationString): string {
+export const convertAfterToAt = (after: DurationString): string => {
   const now = new Date();
   const futureDate = addDuration(now, after);
   return futureDate.toISOString();
-}
+};
 
 /**
  * Checks if a given timestamp represents a time that has already passed or is now.
@@ -80,13 +77,13 @@ export function convertAfterToAt(after: DurationString): string {
  * isTimeToRun(pastTime); // true (assuming current date is after 2023-01-01)
  * ```
  */
-export function isTimeToRun(timestamp: string): boolean {
+export const isTimeToRun = (timestamp: string): boolean => {
   const targetTime = parseISO(timestamp);
   const now = new Date();
   return isBefore(targetTime, now) || targetTime.getTime() === now.getTime();
-}
+};
 
-export function validateTimezone(timezone: string): boolean {
+export const validateTimezone = (timezone: string): boolean => {
   try {
     // Test if timezone is valid by creating a date with Intl.DateTimeFormat
     Intl.DateTimeFormat(undefined, { timeZone: timezone });
@@ -94,15 +91,15 @@ export function validateTimezone(timezone: string): boolean {
   } catch {
     return false;
   }
-}
+};
 
-export function parseAtWithTimezone(
+export const parseAtWithTimezone = (
   atString: string,
   timezone?: string
 ): {
   utcTimestamp: string;
   timezone: string;
-} {
+} => {
   // If timezone is provided, validate it
   if (timezone && !validateTimezone(timezone)) {
     throw new Error(`Invalid timezone: ${timezone}`);
@@ -142,4 +139,4 @@ export function parseAtWithTimezone(
     utcTimestamp: date.toISOString(),
     timezone: effectiveTimezone,
   };
-}
+};
