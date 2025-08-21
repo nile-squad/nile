@@ -52,7 +52,7 @@ All endpoints follow the pattern:
 /{baseURL}/{apiVersion}/services[/{serviceName}[/{actionName}]]
 ```
 
-- **`baseURL`**: API base path (e.g., `api`, `delta/api`)
+- **`baseURL`**: API base path (e.g., `api`, `Delta/api`)
 - **`apiVersion`**: Version identifier (e.g., `v1`, `v2`)
 - **`serviceName`**: Target service name (URL-safe format)
 - **`actionName`**: Specific action name (URL-safe format)
@@ -67,7 +67,7 @@ Lists all available services in the system.
 
 **Request Example:**
 ```bash
-curl http://localhost:8000/delta/api/v1/services
+curl http://localhost:8000/Delta/api/v1/services
 ```
 
 **Response Example:**
@@ -91,7 +91,7 @@ Returns detailed information about a specific service and its available actions.
 
 **Request Example:**
 ```bash
-curl http://localhost:8000/delta/api/v1/services/users
+curl http://localhost:8000/Delta/api/v1/services/users
 ```
 
 **Response Example:**
@@ -121,7 +121,7 @@ Returns detailed schema and configuration for a specific action.
 
 **Request Example:**
 ```bash
-curl http://localhost:8000/delta/api/v1/services/users/create
+curl http://localhost:8000/Delta/api/v1/services/users/create
 ```
 
 **Response Example:**
@@ -172,7 +172,7 @@ Returns the complete API schema for all services and actions.
 
 **Request Example:**
 ```bash
-curl http://localhost:8000/delta/api/v1/services/schema
+curl http://localhost:8000/Delta/api/v1/services/schema
 ```
 
 **Response Example:**
@@ -238,7 +238,7 @@ Authorization: Bearer <token>  # If action is protected
 
 **Example Request:**
 ```bash
-curl -X POST http://localhost:8000/delta/api/v1/services/users \
+curl -X POST http://localhost:8000/Delta/api/v1/services/users \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
   -d '{
@@ -269,7 +269,7 @@ curl -X POST http://localhost:8000/delta/api/v1/services/users \
 For file uploads and multipart requests:
 
 ```bash
-curl -X POST http://localhost:8000/delta/api/v1/services/files \
+curl -X POST http://localhost:8000/Delta/api/v1/services/files \
   -H "Authorization: Bearer <token>" \
   -F "action=upload" \
   -F "file=@document.pdf" \
@@ -418,7 +418,7 @@ Provides natural language interface for AI agents and automated systems.
 
 **Request Example:**
 ```bash
-curl -X POST http://localhost:8000/delta/api/v1/services/agentic \
+curl -X POST http://localhost:8000/Delta/api/v1/services/agentic \
   -H "Content-Type: application/json" \
   -d '{
     "action": "agent", 
