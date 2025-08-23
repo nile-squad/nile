@@ -89,7 +89,13 @@ export const useRestRPC = (config: ServerConfig) => {
   const db = config.db?.instance || null;
   const db_tables = config.db?.tables || null;
 
-  app.use('*', cors());
+  app.use(
+    '*',
+    cors({
+      origin: config.allowedOrigins.length > 0 ? config.allowedOrigins : '*',
+      credentials: true,
+    })
+  );
 
   if (config.rateLimiting?.limitingHeader) {
     app.use(
@@ -513,7 +519,7 @@ export const useRestRPC = (config: ServerConfig) => {
   }
 
   // Agentic endpoint
-  app.post(`${prefix}/agentic`, async (c) => {
+  app.post('/agentic', async (c) => {
     const requestDetails = await handleJsonRequest(c, config);
     const { actionName, payload, error } = requestDetails;
 
@@ -611,7 +617,7 @@ export const useRestRPC = (config: ServerConfig) => {
 
   console.log(`static assets are served at: ${host}:${port}/assets/*`);
   console.log(`Full action zod schemas: ${host}:${port}/${prefix}/schema`);
-  console.log(`Access agent at: ${host}:${port}/${prefix}/agentic`);
+  console.log(`Access agent at: ${host}:${port}/agentic`);
   console.log(`check server status: ${host}:${port}/status`);
 
   app.notFound((c) => {
