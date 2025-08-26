@@ -2,6 +2,7 @@ import path from 'node:path';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { type Context, Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { createMiddleware } from 'hono/factory';
 import { rateLimiter } from 'hono-rate-limiter';
 import { z } from 'zod';
 import type { Action, Service, Services } from '../types/actions';
@@ -13,7 +14,16 @@ import { authenticate } from './auth-utils';
 import { createHookExecutor } from './hooks';
 import type { WSConfig } from './ws/types';
 
-export const app = new Hono();
+// Extend Hono context type to include custom variables
+export type AppContext = {
+  Variables: {
+    user: any | null;
+    session: any | null;
+    authResult?: any;
+  };
+};
+
+export const app = new Hono<AppContext>();
 
 let CONFIG: ServerConfig | null = null;
 
@@ -51,7 +61,15 @@ export type ServerConfig = {
     handler: AgenticHandler;
   };
   betterAuth?: {
-    instance: any;
+    instance: {
+      api: {
+        getSession: (options: { headers: Headers }) => Promise<{
+          user: any;
+          session: any;
+        } | null>;
+      };
+      handler: (request: Request) => Promise<Response> | Response;
+    };
     sessionCookieName?: string;
   };
   authSecret?: string;
@@ -94,8 +112,46 @@ export const useRestRPC = (config: ServerConfig) => {
     cors({
       origin: config.allowedOrigins.length > 0 ? config.allowedOrigins : '*',
       credentials: true,
+      allowHeaders: ['Content-Type', 'Authorization'],
+      allowMethods: ['POST', 'GET', 'OPTIONS'],
+      exposeHeaders: ['Content-Length'],
+      maxAge: 600,
     })
   );
+
+  const authMiddleware = createMiddleware<{
+    Variables: {
+      user: any | null;
+      session: any | null;
+    };
+  }>(async (c, next) => {
+    console.log('Auth middleware running for path:', c.req.path);
+
+    if (!config.betterAuth?.instance) {
+      c.set('user', null);
+      c.set('session', null);
+      await next();
+      return;
+    }
+
+    const session = await config.betterAuth.instance.api.getSession({
+      headers: c.req.raw.headers,
+    });
+
+    console.log('Session found for path', c.req.path, ':', !!session);
+
+    if (session) {
+      c.set('user', session.user);
+      c.set('session', session.session);
+    } else {
+      c.set('user', null);
+      c.set('session', null);
+    }
+
+    await next();
+  });
+
+  app.use('*', authMiddleware);
 
   if (config.rateLimiting?.limitingHeader) {
     app.use(
@@ -132,7 +188,7 @@ export const useRestRPC = (config: ServerConfig) => {
   }: {
     actionName: string;
     s: Service;
-    c: Context;
+    c: Context<AppContext>;
     config: ServerConfig;
   }): Promise<Action | Response> {
     const targetAction = s.actions.find((a) => a.name === actionName);
@@ -207,7 +263,7 @@ export const useRestRPC = (config: ServerConfig) => {
   // Create hook executor with all actions from all services
   const allActions: Action[] = finalServices.flatMap((s) => s.actions);
   const hookExecutor = createHookExecutor(allActions);
-  const handleFormRequest = async (c: Context) => {
+  const handleFormRequest = async (c: Context<AppContext>) => {
     const formData = await c.req.formData().catch(() => null);
     if (!formData) {
       return {
@@ -235,7 +291,10 @@ export const useRestRPC = (config: ServerConfig) => {
     return { actionName: requestAction, payload: null, error: null };
   };
 
-  const handleJsonRequest = async (c: Context, _config: ServerConfig) => {
+  const handleJsonRequest = async (
+    c: Context<AppContext>,
+    _config: ServerConfig
+  ) => {
     const requestData = await c.req.json().catch(() => null);
     if (!requestData) {
       return {
@@ -314,7 +373,7 @@ export const useRestRPC = (config: ServerConfig) => {
   };
 
   const processAction = async (
-    c: Context,
+    c: Context<AppContext>,
     s: Service,
     actionName: string,
     _payload: any,
@@ -333,7 +392,7 @@ export const useRestRPC = (config: ServerConfig) => {
     }
 
     // Enrich payload with user context from authentication
-    const authResult = c.get('authResult');
+    const authResult = c.var.authResult;
     const enrichedPayload = enrichPayloadWithUserContext(_payload, authResult);
 
     if (enrichedPayload && Object.keys(enrichedPayload).length > 0) {

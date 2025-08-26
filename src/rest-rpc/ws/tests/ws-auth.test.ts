@@ -118,6 +118,7 @@ describe('WS Authentication', () => {
             },
           }),
         },
+        handler: vi.fn().mockResolvedValue(new Response()),
       };
 
       const config = {
@@ -151,6 +152,7 @@ describe('WS Authentication', () => {
             },
           }),
         },
+        handler: vi.fn().mockResolvedValue(new Response()),
       };
 
       const config = {
@@ -185,6 +187,7 @@ describe('WS Authentication', () => {
             data: null,
           }),
         },
+        handler: vi.fn().mockResolvedValue(new Response()),
       };
 
       const config = {
@@ -210,6 +213,7 @@ describe('WS Authentication', () => {
         api: {
           getSession: vi.fn().mockResolvedValue({ data: null }),
         },
+        handler: vi.fn().mockResolvedValue(new Response()),
       };
 
       const config = {
