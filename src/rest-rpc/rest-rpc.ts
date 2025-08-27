@@ -5,6 +5,7 @@ import { cors } from 'hono/cors';
 import { createMiddleware } from 'hono/factory';
 import { rateLimiter } from 'hono-rate-limiter';
 import { z } from 'zod';
+import { executeActionHook } from '../hooks/action-hooks.js';
 import type { Action, Service, Services } from '../types/actions';
 import { isError } from '../utils';
 import { formatError } from '../utils/erorr-formatter';
@@ -74,6 +75,7 @@ export type ServerConfig = {
   };
   authSecret?: string;
   websocket?: WSConfig;
+  onActionHandler?: import('../types/action-hook.js').ActionHookHandler;
 };
 
 const postRequestSchema = z.object({
@@ -377,6 +379,104 @@ export const useRestRPC = (config: ServerConfig) => {
     return enrichedPayload;
   };
 
+  const executeHookIfConfigured = async (
+    _config: ServerConfig,
+    c: Context<AppContext>,
+    actionName: string,
+    enrichedPayload: any
+  ) => {
+    if (!_config.onActionHandler) {
+      return null; // No hook to execute
+    }
+
+    try {
+      const hookContext = {
+        user: c.get('user'),
+        session: c.get('session'),
+        request: c.req,
+      };
+
+      const hookResult = await executeActionHook(
+        _config.onActionHandler,
+        hookContext,
+        actionName,
+        enrichedPayload
+      );
+
+      if (hookResult !== true) {
+        return c.json(hookResult, 200);
+      }
+      return null; // Hook passed
+    } catch (error) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        error !== null &&
+        'status' in error &&
+        (error as any).status === false
+      ) {
+        return c.json(error, 200);
+      }
+      throw error;
+    }
+  };
+
+  const validateActionPayload = (
+    enrichedPayload: any,
+    targetAction: Action,
+    c: Context<AppContext>
+  ) => {
+    if (enrichedPayload && Object.keys(enrichedPayload).length > 0) {
+      const actionPayloadValidation = getValidationSchema(
+        targetAction.validation
+      );
+      const actionPayloadParsed =
+        actionPayloadValidation.safeParse(enrichedPayload);
+      if (!actionPayloadParsed.success) {
+        return c.json({
+          status: false,
+          message: 'Invalid request format',
+          data: formatError(actionPayloadParsed.error),
+        });
+      }
+    }
+    return null; // Validation passed
+  };
+
+  const executeActionHandler = async (
+    targetAction: Action,
+    enrichedPayload: any,
+    c: Context<AppContext>,
+    actionHookExecutor: ReturnType<typeof createHookExecutor>,
+    actionName: string,
+    serviceName: string
+  ) => {
+    if (!targetAction.handler) {
+      throw new Error(
+        `Handler not found for action ${actionName} of service ${serviceName}`
+      );
+    }
+
+    // Use hook executor if action has hooks, otherwise execute normally
+    if (targetAction.hooks?.before || targetAction.hooks?.after) {
+      const result = await actionHookExecutor.executeActionWithHooks(
+        targetAction,
+        enrichedPayload,
+        c
+      );
+      if (isError(result)) {
+        return c.json(result, 200);
+      }
+      return c.json(result);
+    }
+
+    const result = await targetAction.handler(enrichedPayload, c);
+    if (isError(result)) {
+      return c.json(result, 200);
+    }
+    return c.json(result);
+  };
+
   const processAction = async (
     c: Context<AppContext>,
     s: Service,
@@ -400,41 +500,35 @@ export const useRestRPC = (config: ServerConfig) => {
     const authResult = c.var.authResult;
     const enrichedPayload = enrichPayloadWithUserContext(_payload, authResult);
 
-    if (enrichedPayload && Object.keys(enrichedPayload).length > 0) {
-      const actionPayloadValidation = getValidationSchema(
-        targetAction.validation
-      );
-      const actionPayloadParsed =
-        actionPayloadValidation.safeParse(enrichedPayload);
-      if (!actionPayloadParsed.success) {
-        return c.json({
-          status: false,
-          message: 'Invalid request format',
-          data: formatError(actionPayloadParsed.error),
-        });
-      }
+    // Execute action hook if configured
+    const hookResponse = await executeHookIfConfigured(
+      _config,
+      c,
+      actionName,
+      enrichedPayload
+    );
+    if (hookResponse) {
+      return hookResponse;
     }
-    if (targetAction.handler) {
-      // Use hook executor if action has hooks, otherwise execute normally
-      if (targetAction.hooks?.before || targetAction.hooks?.after) {
-        const result = await actionHookExecutor.executeActionWithHooks(
-          targetAction,
-          enrichedPayload,
-          c
-        );
-        if (isError(result)) {
-          return c.json(result, 200);
-        }
-        return c.json(result);
-      }
-      const result = await targetAction.handler(enrichedPayload, c);
-      if (isError(result)) {
-        return c.json(result, 200);
-      }
-      return c.json(result);
+
+    // Validate payload
+    const validationResponse = validateActionPayload(
+      enrichedPayload,
+      targetAction,
+      c
+    );
+    if (validationResponse) {
+      return validationResponse;
     }
-    throw new Error(
-      `Handler not found for action ${actionName} of service ${s.name}`
+
+    // Execute action handler
+    return executeActionHandler(
+      targetAction,
+      enrichedPayload,
+      c,
+      actionHookExecutor,
+      actionName,
+      s.name
     );
   };
 

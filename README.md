@@ -247,6 +247,7 @@ type HookHandler = (
 
 ## Documentation
 
+- **[Architecture](./architecture.md)** - Framework architecture and design principles
 - **[REST-RPC Specification](../docs/rest-rpc.spec.md)** - Complete HTTP RPC documentation
 - **[WebSocket RPC Specification](../docs/ws-rpc.spec.md)** - Complete WebSocket RPC documentation
 - **[Authentication Guide](../docs/auth.md)** - Authentication setup and configuration
@@ -290,18 +291,23 @@ type HookHandler = (
 ### Database Integration
 
 ```typescript
-import { createModelsService } from '@nile-squad/nile';
-
-const userModel = createModelsService({
+// Sub-services automatically generate CRUD actions for database tables
+const userService = {
+  name: 'users',
+  description: 'User management service',
+  actions: [], // Empty - actions auto-generated from sub-service config
   tableName: 'users',
-  schema: z.object({
-    name: z.string(),
-    email: z.string().email(),
-    age: z.number().optional()
-  })
-});
+  idName: 'id',
+  protectedActions: ['create', 'update', 'delete', 'getAll'],
+  unprotectedActions: ['getOne'], // Public profile access
+  validation: {
+    validationMode: 'auto',
+    omitFields: ['id', 'created_at', 'updated_at']
+  }
+};
 
 // Automatically generates: create, getAll, getOne, update, delete actions
+// Plus: getEvery, getManyWith, getOneWith, getOneWithRelations
 ```
 
 ## Performance
