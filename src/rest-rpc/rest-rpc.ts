@@ -110,7 +110,14 @@ export const useRestRPC = (config: ServerConfig) => {
   app.use(
     '*',
     cors({
-      origin: config.allowedOrigins.length > 0 ? config.allowedOrigins : '*',
+      origin: (origin) => {
+        // If you have a list in config.allowedOrigins, validate origin
+        if (config.allowedOrigins.length > 0) {
+          return config.allowedOrigins.includes(origin ?? '') ? origin : '';
+        }
+        // For local dev, allow all origins
+        return '*';
+      },
       credentials: true,
       allowHeaders: ['Content-Type', 'Authorization'],
       allowMethods: ['POST', 'GET', 'OPTIONS'],
@@ -125,7 +132,7 @@ export const useRestRPC = (config: ServerConfig) => {
       session: any | null;
     };
   }>(async (c, next) => {
-    console.log('Auth middleware running for path:', c.req.path);
+    // console.log('Auth middleware running for path:', c.req.path);
 
     if (!config.betterAuth?.instance) {
       c.set('user', null);
@@ -137,8 +144,6 @@ export const useRestRPC = (config: ServerConfig) => {
     const session = await config.betterAuth.instance.api.getSession({
       headers: c.req.raw.headers,
     });
-
-    console.log('Session found for path', c.req.path, ':', !!session);
 
     if (session) {
       c.set('user', session.user);

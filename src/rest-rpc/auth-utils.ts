@@ -53,7 +53,6 @@ export async function authenticate(
 ): Promise<AuthResult> {
   const session = c.var.session;
   const user = c.var.user;
-  console.log('session log 2:', session);
 
   if (user && session) {
     return {
