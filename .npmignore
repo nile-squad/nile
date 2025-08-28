@@ -1,2 +1,52 @@
+# Development files
 .npmrc
-nilesquad-nile-1.0.0.tgz
+.changeset/
+.github/
+.husky/
+.vscode/
+.zed/
+.rules
+
+# Editor files
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Node modules and dependencies
+node_modules/
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Test files
+**/*.test.ts
+**/*.test.js
+**/*.spec.ts
+**/*.spec.js
+tests/
+test/
+coverage/
+
+# Build artifacts
+dist/
+build/
+.tsbuildinfo
+
+# Config files
+biome.jsonc
+vitest.config.ts
+tsconfig.json
+tsup.config.ts
+
+# Documentation
+README.md
+architecture.md
+*.md
+
+# Temporary files
+nilesquad-nile-*.tgz
+*.log
+.tmp/
+temp/
