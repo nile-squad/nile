@@ -5,6 +5,7 @@ export interface WSConfig {
   enabled?: boolean;
   path?: string;
   namespace?: string;
+  sessionCookieName?: string; // Cookie name for Better Auth session tokens (defaults to 'better-auth.session_token')
   cors?: {
     origin?: boolean | string | string[];
     credentials?: boolean;

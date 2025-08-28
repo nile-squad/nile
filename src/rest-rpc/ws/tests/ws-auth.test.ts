@@ -125,7 +125,6 @@ describe('WS Authentication', () => {
         ...mockServerConfig,
         betterAuth: {
           instance: mockBetterAuth,
-          sessionCookieName: 'better-auth.session_token',
         },
       };
 
@@ -159,7 +158,6 @@ describe('WS Authentication', () => {
         ...mockServerConfig,
         betterAuth: {
           instance: mockBetterAuth,
-          sessionCookieName: 'better-auth.session_token',
         },
       };
 
@@ -176,6 +174,46 @@ describe('WS Authentication', () => {
       expect(mockBetterAuth.api.getSession).toHaveBeenCalledWith({
         headers: {
           authorization: 'Bearer cookie-session-token',
+        },
+      });
+    });
+
+    it('should extract session token from cookies with custom sessionCookieName', async () => {
+      const mockBetterAuth = {
+        api: {
+          getSession: vi.fn().mockResolvedValue({
+            data: {
+              session: { id: 'session-123' },
+              user: { id: 'user-123' },
+            },
+          }),
+        },
+        handler: vi.fn().mockResolvedValue(new Response()),
+      };
+
+      const config = {
+        ...mockServerConfig,
+        betterAuth: {
+          instance: mockBetterAuth,
+        },
+        websocket: {
+          sessionCookieName: 'custom-session-cookie',
+        },
+      };
+
+      const socket = mockSocket({
+        auth: {},
+        headers: {
+          cookie: 'custom-session-cookie=custom-session-token; other=value',
+        },
+      });
+
+      const result = await authenticateWS(socket, config);
+
+      expect(result.isAuthenticated).toBe(true);
+      expect(mockBetterAuth.api.getSession).toHaveBeenCalledWith({
+        headers: {
+          authorization: 'Bearer custom-session-token',
         },
       });
     });

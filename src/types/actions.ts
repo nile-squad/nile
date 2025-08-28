@@ -57,7 +57,7 @@ export type Service = {
   autoService?: boolean;
 };
 
-type ProtectedAction =
+type PublicAction =
   | 'create'
   | 'update'
   | 'delete'
@@ -75,11 +75,11 @@ export type SubService = {
   name: string;
   description: string;
   actions: Action[];
-  protectedActions?: ProtectedAction[];
-  unprotectedActions?: ProtectedAction[]; // Actions that should remain unprotected in new default-secure model
+  publicActions?: PublicAction[]; // Actions that are public (no authentication required)
   validation?: Validation;
   tableName: string;
   idName: string;
+  meta?: Record<string, any>; // Generic metadata for any purpose (access control, caching, rate limiting, etc.)
 };
 
 export type Services = Service[];

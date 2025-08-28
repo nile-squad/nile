@@ -71,7 +71,6 @@ export type ServerConfig = {
       };
       handler: (request: Request) => Promise<Response> | Response;
     };
-    sessionCookieName?: string;
   };
   authSecret?: string;
   websocket?: WSConfig;

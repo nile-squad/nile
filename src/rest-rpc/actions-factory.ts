@@ -109,9 +109,7 @@ const generateCreateAction = (
   const newAction: Action = {
     name: 'create',
     description: `Create a new record in ${sub.tableName}`,
-    isProtected: sub.unprotectedActions?.includes('create')
-      ? false
-      : (sub.protectedActions?.includes('create') ?? true),
+    isProtected: !sub.publicActions?.includes('create'), // Protected by default, only public if explicitly listed
     handler: createActionHandler,
     validation: {
       ...sub.validation,
@@ -164,9 +162,7 @@ const generateGetAllAction = (
   const newAction: Action = {
     name: 'getAll',
     description: `Get all records from ${sub.tableName}`,
-    isProtected: sub.unprotectedActions?.includes('getAll')
-      ? false
-      : (sub.protectedActions?.includes('getAll') ?? true),
+    isProtected: !sub.publicActions?.includes('getAll'), // Protected by default, only public if explicitly listed
     handler: getAllActionHandler,
     validation: {},
   };
@@ -202,9 +198,7 @@ const generateGetEveryAction = (
   const newAction: Action = {
     name: 'getEvery',
     description: `Get every record from ${sub.tableName}`,
-    isProtected: sub.unprotectedActions?.includes('getEvery')
-      ? false
-      : (sub.protectedActions?.includes('getEvery') ?? true),
+    isProtected: !sub.publicActions?.includes('getEvery'), // Protected by default, only public if explicitly listed
     handler: getEveryActionHandler,
     validation: {},
   };
@@ -250,9 +244,7 @@ const generateGetOneAction = (
   const newAction: Action = {
     name: 'getOne',
     description: `Get one record from ${sub.tableName}`,
-    isProtected: sub.unprotectedActions?.includes('getOne')
-      ? false
-      : (sub.protectedActions?.includes('getOne') ?? true),
+    isProtected: !sub.publicActions?.includes('getOne'), // Protected by default, only public if explicitly listed
     handler: getOneActionHandler,
     validation: {},
   };
@@ -308,9 +300,7 @@ const generateUpdateAction = (
   const newAction: Action = {
     name: 'update',
     description: `Update a record in ${sub.tableName}`,
-    isProtected: sub.unprotectedActions?.includes('update')
-      ? false
-      : (sub.protectedActions?.includes('update') ?? true),
+    isProtected: !sub.publicActions?.includes('update'), // Protected by default, only public if explicitly listed
     handler: updateActionHandler,
     validation: {
       ...sub.validation,
@@ -368,9 +358,7 @@ export const generateDeleteAction = ({
   const newAction: Action = {
     name: 'delete',
     description: `Delete a record from ${sub.tableName}`,
-    isProtected: sub.unprotectedActions?.includes('delete')
-      ? false
-      : (sub.protectedActions?.includes('delete') ?? true),
+    isProtected: !sub.publicActions?.includes('delete'), // Protected by default, only public if explicitly listed
     handler: deleteActionHandler,
     validation: {},
   };
@@ -411,9 +399,7 @@ export const generateDeleteAllAction = ({
   const newAction: Action = {
     name: 'deleteAll',
     description: `Delete all records from ${sub.tableName}`,
-    isProtected: sub.unprotectedActions?.includes('deleteAll')
-      ? false
-      : (sub.protectedActions?.includes('deleteAll') ?? true),
+    isProtected: !sub.publicActions?.includes('deleteAll'), // Protected by default, only public if explicitly listed
     handler: deleteAllActionHandler,
     validation: {},
   };
@@ -456,9 +442,7 @@ const generateGetManyWithAction = (
   const newAction: Action = {
     name: 'getManyWith',
     description: `Get all records from ${sub.tableName}`,
-    isProtected: sub.unprotectedActions?.includes('getManyWith')
-      ? false
-      : (sub.protectedActions?.includes('getManyWith') ?? true),
+    isProtected: !sub.publicActions?.includes('getManyWith'), // Protected by default, only public if explicitly listed
     handler: getManyWithActionHandler,
     validation: {},
   };
@@ -495,9 +479,7 @@ const generateGetOneWithAction = (
   const newAction: Action = {
     name: 'getOneWith',
     description: `Get one record from ${sub.tableName}`,
-    isProtected: sub.unprotectedActions?.includes('getOneWith')
-      ? false
-      : (sub.protectedActions?.includes('getOneWith') ?? true),
+    isProtected: !sub.publicActions?.includes('getOneWith'), // Protected by default, only public if explicitly listed
     handler: getOneWithActionHandler,
     validation: {},
   };
@@ -536,9 +518,7 @@ const generateGetOneWithRelationsAction = (
   const newAction: Action = {
     name: 'getOneWithRelations',
     description: `Get one record from ${sub.tableName} with relations`,
-    isProtected: sub.unprotectedActions?.includes('getOneWithRelations')
-      ? false
-      : (sub.protectedActions?.includes('getOneWithRelations') ?? true),
+    isProtected: !sub.publicActions?.includes('getOneWithRelations'), // Protected by default, only public if explicitly listed
     handler: getOneWithRelationsActionHandler,
     validation: {},
   };

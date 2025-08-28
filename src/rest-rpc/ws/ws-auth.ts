@@ -155,7 +155,7 @@ export async function authenticateWS(
     const betterAuthResult = await authenticateWSWithBetterAuth(
       socket,
       config.betterAuth.instance,
-      config.betterAuth.sessionCookieName
+      config.websocket?.sessionCookieName
     );
 
     if (betterAuthResult.isAuthenticated) {
