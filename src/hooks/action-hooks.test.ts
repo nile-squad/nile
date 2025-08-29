@@ -1,6 +1,7 @@
 import { expect, test, describe } from 'vitest';
 import { executeActionHook } from './action-hooks.js';
 import type { ActionHookHandler, ActionHookResult, Context } from '../types/action-hook.js';
+import type { Action } from '../types/actions.js';
 
 describe('executeActionHook function tests', () => {
   const mockContext: Context = {
@@ -9,20 +10,31 @@ describe('executeActionHook function tests', () => {
     request: { method: 'POST', path: '/api/test' },
   };
 
+  const mockAction: Action = {
+    name: 'testAction',
+    description: 'Test action for unit tests',
+    type: 'custom',
+    handler: async () => ({ status: true, message: 'Success', data: {} }),
+    validation: {},
+    meta: {
+      access: ['admin', 'user']
+    }
+  };
+
   test('should return true when no handler provided', async () => {
-    const result = await executeActionHook(undefined, mockContext, 'testAction', { data: 'test' });
+    const result = await executeActionHook(undefined, mockContext, mockAction, { data: 'test' });
     expect(result).toBe(true);
   });
 
   test('should return true when handler returns true', async () => {
     const handler: ActionHookHandler = () => true;
-    const result = await executeActionHook(handler, mockContext, 'testAction', { data: 'test' });
+    const result = await executeActionHook(handler, mockContext, mockAction, { data: 'test' });
     expect(result).toBe(true);
   });
 
   test('should return error when handler returns error object', async () => {
     const handler: ActionHookHandler = () => ({ error: 'Access denied' });
-    const result = await executeActionHook(handler, mockContext, 'testAction', { data: 'test' });
+    const result = await executeActionHook(handler, mockContext, mockAction, { data: 'test' });
     
     expect(result).toEqual({
       status: false,
@@ -35,13 +47,13 @@ describe('executeActionHook function tests', () => {
 
   test('should handle async handler returning true', async () => {
     const handler: ActionHookHandler = async (): Promise<ActionHookResult> => true;
-    const result = await executeActionHook(handler, mockContext, 'testAction', { data: 'test' });
+    const result = await executeActionHook(handler, mockContext, mockAction, { data: 'test' });
     expect(result).toBe(true);
   });
 
   test('should handle async handler returning error', async () => {
     const handler: ActionHookHandler = async (): Promise<ActionHookResult> => ({ error: 'Async access denied' });
-    const result = await executeActionHook(handler, mockContext, 'testAction', { data: 'test' });
+    const result = await executeActionHook(handler, mockContext, mockAction, { data: 'test' });
     
     expect(result).toEqual({
       status: false,
@@ -56,7 +68,7 @@ describe('executeActionHook function tests', () => {
     const handler: ActionHookHandler = () => 'invalid' as any;
     
     await expect(
-      executeActionHook(handler, mockContext, 'testAction', { data: 'test' })
+      executeActionHook(handler, mockContext, mockAction, { data: 'test' })
     ).rejects.toEqual(
       expect.objectContaining({
         status: false,
@@ -72,7 +84,7 @@ describe('executeActionHook function tests', () => {
     const handler: ActionHookHandler = () => ({ invalidProperty: 'test' }) as any;
     
     await expect(
-      executeActionHook(handler, mockContext, 'testAction', { data: 'test' })
+      executeActionHook(handler, mockContext, mockAction, { data: 'test' })
     ).rejects.toEqual(
       expect.objectContaining({
         status: false,
@@ -90,7 +102,7 @@ describe('executeActionHook function tests', () => {
     };
     
     await expect(
-      executeActionHook(handler, mockContext, 'testAction', { data: 'test' })
+      executeActionHook(handler, mockContext, mockAction, { data: 'test' })
     ).rejects.toEqual(
       expect.objectContaining({
         status: false,
@@ -114,7 +126,7 @@ describe('executeActionHook function tests', () => {
     };
     
     await expect(
-      executeActionHook(handler, mockContext, 'testAction', { data: 'test' })
+      executeActionHook(handler, mockContext, mockAction, { data: 'test' })
     ).rejects.toEqual(safeErrorResult);
   });
 });

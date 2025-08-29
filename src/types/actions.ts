@@ -33,6 +33,7 @@ export type HookContext = {
 export type Action = {
   name: string;
   description: string;
+  type?: 'auto' | 'custom'; // Distinguishes between auto-generated and custom actions
   isProtected?: boolean;
   agentic?: boolean; // defaults to true - allows agent execution
   isSpecial?: {
@@ -45,6 +46,7 @@ export type Action = {
     after?: HookDefinition[];
   };
   result?: ActionResultConfig;
+  meta?: Record<string, any>; // Generic metadata for any purpose (access control, caching, rate limiting, etc.)
 };
 
 export type Actions = Action[];
@@ -55,6 +57,7 @@ export type Service = {
   actions: Action[];
   subs?: SubService[];
   autoService?: boolean;
+  meta?: Record<string, any>; // Generic metadata for any purpose (access control, caching, rate limiting, etc.)
 };
 
 type PublicAction =

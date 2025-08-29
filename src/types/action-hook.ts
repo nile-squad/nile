@@ -1,14 +1,17 @@
+import type { Action } from './actions';
+
 export type Context = {
   user: any | null;
   session: any | null;
   request: any;
+  service?: any;
 };
 
 export type ActionHookResult = true | { error: string };
 
 export type ActionHookHandler = (
   context: Context,
-  action: string,
+  action: Action,
   payload: unknown
 ) => ActionHookResult | Promise<ActionHookResult>;
 

@@ -8,6 +8,7 @@ import {
   formatInvalidHookResultError,
   validateActionHookResult,
 } from '../types/action-hook.js';
+import type { Action } from '../types/actions.js';
 import { type _Error, safeError } from '../utils/safe-try.js';
 
 const logger = createLogger('action-hooks');
@@ -15,7 +16,7 @@ const logger = createLogger('action-hooks');
 export async function executeActionHook(
   handler: ActionHookHandler | undefined,
   context: Context,
-  action: string,
+  action: Action,
   payload: unknown
 ): Promise<ActionHookResult | _Error> {
   if (!handler) {
@@ -29,7 +30,7 @@ export async function executeActionHook(
       const errorMessage = formatInvalidHookResultError(result);
       const error_id = logger.error({
         message: errorMessage,
-        data: { action, result },
+        data: { action: action.name, result },
         atFunction: 'executeActionHook',
       });
       throw safeError(errorMessage, error_id);
@@ -38,7 +39,7 @@ export async function executeActionHook(
     if (result !== true) {
       const error_id = logger.info({
         message: `Action denied by hook: ${result.error}`,
-        data: { action, context: { user: context.user?.id } },
+        data: { action: action.name, context: { user: context.user?.id } },
         atFunction: 'executeActionHook',
       });
       return safeError(result.error, error_id);
@@ -59,7 +60,7 @@ export async function executeActionHook(
       error instanceof Error ? error.message : 'Unknown error in action hook';
     const error_id = logger.error({
       message: `Action hook execution failed: ${errorMessage}`,
-      data: { action, error },
+      data: { action: action.name, error },
       atFunction: 'executeActionHook',
     });
     throw safeError('Action hook execution failed', error_id);

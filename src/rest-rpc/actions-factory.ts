@@ -108,6 +108,7 @@ const generateCreateAction = (
   // Create action validation schema with create context
   const newAction: Action = {
     name: 'create',
+    type: 'auto',
     description: `Create a new record in ${sub.tableName}`,
     isProtected: !sub.publicActions?.includes('create'), // Protected by default, only public if explicitly listed
     handler: createActionHandler,
@@ -161,6 +162,7 @@ const generateGetAllAction = (
   // create action
   const newAction: Action = {
     name: 'getAll',
+    type: 'auto',
     description: `Get all records from ${sub.tableName}`,
     isProtected: !sub.publicActions?.includes('getAll'), // Protected by default, only public if explicitly listed
     handler: getAllActionHandler,
@@ -197,6 +199,7 @@ const generateGetEveryAction = (
   // create action
   const newAction: Action = {
     name: 'getEvery',
+    type: 'auto',
     description: `Get every record from ${sub.tableName}`,
     isProtected: !sub.publicActions?.includes('getEvery'), // Protected by default, only public if explicitly listed
     handler: getEveryActionHandler,
@@ -243,6 +246,7 @@ const generateGetOneAction = (
   // create action
   const newAction: Action = {
     name: 'getOne',
+    type: 'auto',
     description: `Get one record from ${sub.tableName}`,
     isProtected: !sub.publicActions?.includes('getOne'), // Protected by default, only public if explicitly listed
     handler: getOneActionHandler,
@@ -299,6 +303,7 @@ const generateUpdateAction = (
   // Update action validation schema with update context
   const newAction: Action = {
     name: 'update',
+    type: 'auto',
     description: `Update a record in ${sub.tableName}`,
     isProtected: !sub.publicActions?.includes('update'), // Protected by default, only public if explicitly listed
     handler: updateActionHandler,
@@ -357,6 +362,7 @@ export const generateDeleteAction = ({
   // create action
   const newAction: Action = {
     name: 'delete',
+    type: 'auto',
     description: `Delete a record from ${sub.tableName}`,
     isProtected: !sub.publicActions?.includes('delete'), // Protected by default, only public if explicitly listed
     handler: deleteActionHandler,
@@ -398,6 +404,7 @@ export const generateDeleteAllAction = ({
   // create action
   const newAction: Action = {
     name: 'deleteAll',
+    type: 'auto',
     description: `Delete all records from ${sub.tableName}`,
     isProtected: !sub.publicActions?.includes('deleteAll'), // Protected by default, only public if explicitly listed
     handler: deleteAllActionHandler,
@@ -441,6 +448,7 @@ const generateGetManyWithAction = (
   // create action
   const newAction: Action = {
     name: 'getManyWith',
+    type: 'auto',
     description: `Get all records from ${sub.tableName}`,
     isProtected: !sub.publicActions?.includes('getManyWith'), // Protected by default, only public if explicitly listed
     handler: getManyWithActionHandler,
@@ -478,6 +486,7 @@ const generateGetOneWithAction = (
   // create action
   const newAction: Action = {
     name: 'getOneWith',
+    type: 'auto',
     description: `Get one record from ${sub.tableName}`,
     isProtected: !sub.publicActions?.includes('getOneWith'), // Protected by default, only public if explicitly listed
     handler: getOneWithActionHandler,
@@ -517,6 +526,7 @@ const generateGetOneWithRelationsAction = (
   // create action
   const newAction: Action = {
     name: 'getOneWithRelations',
+    type: 'auto',
     description: `Get one record from ${sub.tableName} with relations`,
     isProtected: !sub.publicActions?.includes('getOneWithRelations'), // Protected by default, only public if explicitly listed
     handler: getOneWithRelationsActionHandler,

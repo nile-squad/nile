@@ -266,6 +266,23 @@ export const useRestRPC = (config: ServerConfig) => {
     (s) => s.actions.length
   );
 
+  // Pre-process all actions to merge service-level meta with action-level meta.
+  // This ensures that all actions, whether custom or auto-generated,
+  // have a consistent and merged view of metadata from both the service and action levels.
+  finalServices.forEach((service) => {
+    service.actions = service.actions.map((action) => {
+      const mergedMeta = { ...(service.meta || {}), ...(action.meta || {}) };
+      // Default the action type to 'custom' if not explicitly set.
+      // This ensures that all actions have a reliable type for the access control hook.
+      const actionType = action.type || 'custom';
+      return {
+        ...action,
+        meta: mergedMeta,
+        type: actionType,
+      };
+    });
+  });
+
   // Create hook executor with all actions from all services
   const allActions: Action[] = finalServices.flatMap((s) => s.actions);
   const hookExecutor = createHookExecutor(allActions);
@@ -381,8 +398,9 @@ export const useRestRPC = (config: ServerConfig) => {
   const executeHookIfConfigured = async (
     _config: ServerConfig,
     c: Context<AppContext>,
-    actionName: string,
-    enrichedPayload: any
+    action: Action,
+    enrichedPayload: any,
+    service?: Service
   ) => {
     if (!_config.onActionHandler) {
       return null; // No hook to execute
@@ -393,12 +411,13 @@ export const useRestRPC = (config: ServerConfig) => {
         user: c.get('user'),
         session: c.get('session'),
         request: c.req,
+        service,
       };
 
       const hookResult = await executeActionHook(
         _config.onActionHandler,
         hookContext,
-        actionName,
+        action,
         enrichedPayload
       );
 
@@ -503,8 +522,9 @@ export const useRestRPC = (config: ServerConfig) => {
     const hookResponse = await executeHookIfConfigured(
       _config,
       c,
-      actionName,
-      enrichedPayload
+      targetAction,
+      enrichedPayload,
+      s
     );
     if (hookResponse) {
       return hookResponse;
