@@ -1,7 +1,4 @@
 // type Data = Record<string, any> | Record<string, any>[];
-/** biome-ignore-all lint/suspicious/noShadowRestrictedNames: <shall fix this in coming versions> */
-
-import { createLogger } from '../logging';
 
 /**
  * Represents a successful operation result.
@@ -101,40 +98,3 @@ export const safeTry = async <T>(
 // https://github.com/supermacro/neverthrow
 // idea: add pattern matching?
 // ok and error - result pattern
-
-type checkOptions = {
-  target: string;
-  message: string;
-  atFunction: string;
-};
-
-const logger = createLogger('nile-utils');
-
-export const checkIfEmptyOrErrors = (
-  result: SafeResult<any>,
-  options: checkOptions
-) => {
-  const target = options.target || 'Unknown';
-  const message = options.message || 'Operation failed!';
-  const atFunction = options.atFunction;
-  const notFoundMessage = `${target} not found!`;
-
-  if (isError(result)) {
-    const error_id = logger.error({
-      message,
-      data: result,
-      atFunction,
-    });
-    return safeError(message, error_id);
-  }
-
-  if (!result.data) {
-    const error_id = logger.error({
-      message: notFoundMessage,
-      data: result,
-      atFunction,
-    });
-    return safeError(notFoundMessage, error_id);
-  }
-  return null;
-};

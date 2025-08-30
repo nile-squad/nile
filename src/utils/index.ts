@@ -5,7 +5,6 @@ export { generateSimilarHandles } from './handle-generator';
 export { hasExpired } from './has-expired';
 export { mergeTwoObjects } from './merge-two-objects';
 export {
-  checkIfEmptyOrErrors,
   isError,
   isOk,
   Ok,
@@ -13,4 +12,5 @@ export {
   safeError,
   safeTry,
 } from './safe-try';
+export { checkIfEmptyOrErrors } from './check-if-empty';
 export { getValidationSchema, type Validation } from './validation-utils';
