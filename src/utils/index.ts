@@ -1,3 +1,4 @@
+export { checkIfEmptyOrErrors } from './check-if-empty';
 export { cleanObject } from './clean-object';
 export { formatError } from './erorr-formatter';
 export { getChanges } from './get-changes';
@@ -12,5 +13,4 @@ export {
   safeError,
   safeTry,
 } from './safe-try';
-export { checkIfEmptyOrErrors } from './check-if-empty';
 export { getValidationSchema, type Validation } from './validation-utils';

@@ -1,5 +1,5 @@
 import { createLogger } from '../logging';
-import { isError, safeError, type SafeResult } from './safe-try';
+import { isError, type SafeResult, safeError } from './safe-try';
 
 type checkOptions = {
   target: string;
