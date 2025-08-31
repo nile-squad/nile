@@ -1,7 +1,7 @@
 import { executeServiceAction } from './action-utils';
 import {
   getActionDetails,
-  getSchema,
+  getSchemas,
   getServiceDetails,
   getServices,
 } from './service-utils';
@@ -51,8 +51,10 @@ export const createRPC = <TMode extends 'data' | 'json' = 'data'>(
         ) as RPCResult<TMode>
       ),
 
-    getSchema: () =>
-      Promise.resolve(getSchema(resultsMode, serverConfig) as RPCResult<TMode>),
+    getSchemas: () =>
+      Promise.resolve(
+        getSchemas(resultsMode, serverConfig) as RPCResult<TMode>
+      ),
 
     executeServiceAction: (serviceName: string, payload: ActionPayload) =>
       executeServiceAction({

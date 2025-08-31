@@ -25,7 +25,7 @@ export interface RPCUtils<TMode extends 'data' | 'json' = 'data'> {
     serviceName: string,
     actionName: string
   ): Promise<RPCResult<TMode>>;
-  getSchema(): Promise<RPCResult<TMode>>;
+  getSchemas(): Promise<RPCResult<TMode>>;
   executeServiceAction(
     serviceName: string,
     payload: ActionPayload

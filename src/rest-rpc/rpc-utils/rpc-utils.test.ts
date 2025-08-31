@@ -10,7 +10,7 @@ describe("RPC Utils Core Functionality", () => {
 			expect(typeof rpc.getServices).toBe("function");
 			expect(typeof rpc.getServiceDetails).toBe("function");
 			expect(typeof rpc.getActionDetails).toBe("function");
-			expect(typeof rpc.getSchema).toBe("function");
+			expect(typeof rpc.getSchemas).toBe("function");
 			expect(typeof rpc.executeServiceAction).toBe("function");
 		});
 

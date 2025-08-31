@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import type { Service } from '../../types/actions';
+import type { Service, Services } from '../../types/actions';
+import { newServiceActionsFactory } from '../actions-factory';
 import { getAutoConfig, type ServerConfig } from '../rest-rpc';
 import type { ResultsMode, RPCResult } from './types';
 
@@ -13,23 +14,74 @@ const sanitizeForUrlSafety = (s: string) => {
     .replace(/^-+|-+$/g, ''); // remove hyphens from start and end
 };
 
-const getFinalServices = (serverConfig?: ServerConfig): Service[] => {
+/**
+ * Process services with the same logic as rest-rpc.ts
+ * Handles auto-generation, metadata merging, and final processing
+ */
+export const processServices = (serverConfig?: ServerConfig): Service[] => {
   const config = serverConfig || getAutoConfig();
   if (!config) {
     throw new Error('REST-RPC not configured');
   }
 
   const services = config.services;
-  const generatedServices: Service[] = [];
+  const generatedServices: Services = [];
+  const db = config.db?.instance || null;
+  const db_tables = config.db?.tables || null;
 
-  // Add logic for generated services if needed
-  // This would include the same logic from rest-rpc.ts for auto-generated services
+  // Process each service for auto-generation
+  services.forEach((s) => {
+    if (s.autoService && s.subs?.length) {
+      if (!(db && db_tables)) {
+        throw new Error(
+          'No database instance or tables provided for auto services to work properly!'
+        );
+      }
+      s.subs.forEach((sub) => {
+        const { actions: newActions, errors: newErrors } =
+          newServiceActionsFactory(sub, db, db_tables);
+
+        if (newErrors.length) {
+          throw new Error(
+            `Error while generating actions for service ${
+              sub.name
+            }: ${newErrors.join(', ')}`
+          );
+        }
+        generatedServices.push({
+          ...sub,
+          actions: [...sub.actions, ...newActions],
+        });
+      });
+    }
+  });
 
   const finalServices = [...services, ...generatedServices].filter(
     (s) => s.actions.length
   );
 
+  // Pre-process all actions to merge service-level meta with action-level meta.
+  // This ensures that all actions, whether custom or auto-generated,
+  // have a consistent and merged view of metadata from both the service and action levels.
+  finalServices.forEach((service) => {
+    service.actions = service.actions.map((action) => {
+      const mergedMeta = { ...(service.meta || {}), ...(action.meta || {}) };
+      // Default the action type to 'custom' if not explicitly set.
+      // This ensures that all actions have a reliable type for the access control hook.
+      const actionType = action.type || 'custom';
+      return {
+        ...action,
+        meta: mergedMeta,
+        type: actionType,
+      };
+    });
+  });
+
   return finalServices;
+};
+
+const getFinalServices = (serverConfig?: ServerConfig): Service[] => {
+  return processServices(serverConfig);
 };
 
 const formatResult = <T, TMode extends ResultsMode>(
@@ -166,7 +218,7 @@ export const getActionDetails = <TMode extends ResultsMode = 'data'>(
   return formatResult(actionData, 'Action Details', resultsMode);
 };
 
-export const getSchema = <TMode extends ResultsMode = 'data'>(
+export const getSchemas = <TMode extends ResultsMode = 'data'>(
   resultsMode: TMode = 'data' as TMode,
   serverConfig?: ServerConfig
 ): RPCResult<TMode> => {
@@ -175,14 +227,16 @@ export const getSchema = <TMode extends ResultsMode = 'data'>(
     throw new Error('REST-RPC not configured');
   }
 
-  const finalServices = getFinalServices(serverConfig);
+  const finalServices = processServices(serverConfig);
 
   const schemaData = finalServices.map((finalService) => ({
     [finalService.name]: finalService.actions.map((a) => ({
       name: a.name,
       description: a.description,
       validation: a.validation?.zodSchema
-        ? z.toJSONSchema(a.validation?.zodSchema)
+        ? z.toJSONSchema(a.validation?.zodSchema, {
+            unrepresentable: 'any',
+          })
         : null,
       hooks: a.hooks
         ? {

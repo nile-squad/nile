@@ -10,9 +10,9 @@ import type { Action, Service, Services } from '../types/actions';
 import { isError } from '../utils';
 import { formatError } from '../utils/erorr-formatter';
 import { getValidationSchema } from '../utils/validation-utils';
-import { newServiceActionsFactory } from './actions-factory';
 import { authenticate } from './auth-utils';
 import { createHookExecutor } from './hooks';
+import { processServices } from './rpc-utils/service-utils';
 import type { WSConfig } from './ws/types';
 
 // Extend Hono context type to include custom variables
@@ -105,8 +105,6 @@ export const useRestRPC = (config: ServerConfig) => {
   const prefix = `${config.baseUrl}/${config.apiVersion}/services`;
   const host = config.host || '0.0.0.0';
   const port = config.port || '8000';
-  const db = config.db?.instance || null;
-  const db_tables = config.db?.tables || null;
 
   app.use(
     '*',
@@ -181,10 +179,8 @@ export const useRestRPC = (config: ServerConfig) => {
     return c.text('OK');
   });
 
-  const services = config.services;
-
-  // const finalServices = services.filter((s) => !s.autoActions);
-  const generatedServices: Services = [];
+  // Process services using the reusable utility
+  const finalServices = processServices(config);
 
   async function checkAction({
     actionName,
@@ -236,52 +232,6 @@ export const useRestRPC = (config: ServerConfig) => {
     value !== null &&
     'name' in value &&
     'handler' in value;
-
-  services.forEach((s) => {
-    if (s.autoService && s.subs?.length) {
-      if (!(db && db_tables)) {
-        throw new Error(
-          'No database instance or tables provided for auto services to work properly!'
-        );
-      }
-      s.subs.forEach((sub) => {
-        const { actions: newActions, errors: newErrors } =
-          newServiceActionsFactory(sub, db, db_tables);
-
-        if (newErrors.length) {
-          throw new Error(
-            `Error while generating actions for service ${
-              sub.name
-            }: ${newErrors.join(', ')}`
-          );
-        }
-        generatedServices.push({
-          ...sub,
-          actions: [...sub.actions, ...newActions],
-        });
-      });
-    }
-  });
-  const finalServices = [...services, ...generatedServices].filter(
-    (s) => s.actions.length
-  );
-
-  // Pre-process all actions to merge service-level meta with action-level meta.
-  // This ensures that all actions, whether custom or auto-generated,
-  // have a consistent and merged view of metadata from both the service and action levels.
-  finalServices.forEach((service) => {
-    service.actions = service.actions.map((action) => {
-      const mergedMeta = { ...(service.meta || {}), ...(action.meta || {}) };
-      // Default the action type to 'custom' if not explicitly set.
-      // This ensures that all actions have a reliable type for the access control hook.
-      const actionType = action.type || 'custom';
-      return {
-        ...action,
-        meta: mergedMeta,
-        type: actionType,
-      };
-    });
-  });
 
   // Create hook executor with all actions from all services
   const allActions: Action[] = finalServices.flatMap((s) => s.actions);
@@ -612,7 +562,9 @@ export const useRestRPC = (config: ServerConfig) => {
             name: a.name,
             description: a.description,
             validation: a.validation?.zodSchema
-              ? z.toJSONSchema(a.validation?.zodSchema)
+              ? z.toJSONSchema(a.validation?.zodSchema, {
+                  unrepresentable: 'any',
+                })
               : null,
             hooks: a.hooks
               ? {
@@ -647,7 +599,7 @@ export const useRestRPC = (config: ServerConfig) => {
         )}`,
         (c) => {
           const jsonSchema = a.validation?.zodSchema
-            ? z.toJSONSchema(a.validation.zodSchema)
+            ? z.toJSONSchema(a.validation.zodSchema, { unrepresentable: 'any' })
             : null;
           return c.json({
             status: true,
