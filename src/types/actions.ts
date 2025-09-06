@@ -36,6 +36,11 @@ export type Action = {
   type?: 'auto' | 'custom'; // Distinguishes between auto-generated and custom actions
   isProtected?: boolean;
   agentic?: boolean; // defaults to true - allows agent execution
+  visibility?: {
+    rest?: boolean;
+    rpc?: boolean;
+    agent?: boolean;
+  };
   isSpecial?: {
     contentType: 'multipart/form-data' | 'application/json' | 'other';
   };
@@ -82,6 +87,7 @@ export type SubService = {
   validation?: Validation;
   tableName: string;
   idName: string;
+  disabled?: (PublicAction | '*')[];
   meta?: Record<string, any>; // Generic metadata for any purpose (access control, caching, rate limiting, etc.)
 };
 

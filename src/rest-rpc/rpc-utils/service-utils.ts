@@ -38,6 +38,9 @@ export const processServices = (serverConfig?: ServerConfig): Service[] => {
         );
       }
       s.subs.forEach((sub) => {
+        if (sub.disabled?.includes('*')) {
+          return; // Skip this sub-service entirely
+        }
         const { actions: newActions, errors: newErrors } =
           newServiceActionsFactory(sub, db, db_tables);
 
@@ -48,9 +51,12 @@ export const processServices = (serverConfig?: ServerConfig): Service[] => {
             }: ${newErrors.join(', ')}`
           );
         }
+        const finalActions = newActions.filter(
+          (a) => !sub.disabled?.includes(a.name as any)
+        );
         generatedServices.push({
           ...sub,
-          actions: [...sub.actions, ...newActions],
+          actions: [...sub.actions, ...finalActions],
         });
       });
     }
@@ -159,7 +165,9 @@ export const getServiceDetails = <TMode extends ResultsMode = 'data'>(
   const serviceData = {
     name: service.name,
     description: service.description,
-    availableActions: service.actions.map((a) => a.name),
+    availableActions: service.actions
+      .filter((a) => a.visibility?.rpc !== false)
+      .map((a) => a.name),
   };
 
   return formatResult(serviceData, 'Service Details', resultsMode);
@@ -184,9 +192,11 @@ export const getActionDetails = <TMode extends ResultsMode = 'data'>(
     );
   }
 
-  const action = service.actions.find(
-    (a) => sanitizeForUrlSafety(a.name) === sanitizeForUrlSafety(actionName)
-  );
+  const action = service.actions
+    .filter((a) => a.visibility?.rpc !== false)
+    .find(
+      (a) => sanitizeForUrlSafety(a.name) === sanitizeForUrlSafety(actionName)
+    );
 
   if (!action) {
     return formatError(
@@ -213,6 +223,7 @@ export const getActionDetails = <TMode extends ResultsMode = 'data'>(
         }
       : null,
     pipeline: action.result?.pipeline,
+    meta: action.meta ?? null,
   };
 
   return formatResult(actionData, 'Action Details', resultsMode);
@@ -245,6 +256,7 @@ export const getSchemas = <TMode extends ResultsMode = 'data'>(
           }
         : null,
       pipeline: a.result?.pipeline,
+      meta: a.meta ?? null,
     })),
   }));
 

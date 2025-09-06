@@ -193,7 +193,9 @@ export const useRestRPC = (config: ServerConfig) => {
     c: Context<AppContext>;
     config: ServerConfig;
   }): Promise<Action | Response> {
-    const targetAction = s.actions.find((a) => a.name === actionName);
+    const targetAction = s.actions.find(
+      (a) => a.name === actionName && a.visibility?.rest !== false
+    );
     if (!targetAction) {
       return c.json({
         status: false,
@@ -234,7 +236,9 @@ export const useRestRPC = (config: ServerConfig) => {
     'handler' in value;
 
   // Create hook executor with all actions from all services
-  const allActions: Action[] = finalServices.flatMap((s) => s.actions);
+  const allActions: Action[] = finalServices.flatMap((s) =>
+    s.actions.filter((a) => a.visibility?.rpc !== false)
+  );
   const hookExecutor = createHookExecutor(allActions);
   const handleFormRequest = async (c: Context<AppContext>) => {
     const formData = await c.req.formData().catch(() => null);
@@ -573,6 +577,7 @@ export const useRestRPC = (config: ServerConfig) => {
                 }
               : null,
             pipeline: a.result?.pipeline,
+            meta: a.meta ?? null,
           })),
         })),
       });
@@ -586,7 +591,9 @@ export const useRestRPC = (config: ServerConfig) => {
         data: {
           name: s.name,
           description: s.description,
-          availableActions: s.actions.map((a) => a.name),
+          availableActions: s.actions
+            .filter((a) => a.visibility?.rest !== false)
+            .map((a) => a.name),
         },
       });
     });
@@ -617,6 +624,7 @@ export const useRestRPC = (config: ServerConfig) => {
                   }
                 : null,
               pipeline: a.result?.pipeline,
+              meta: a.meta ?? null,
             },
           });
         }

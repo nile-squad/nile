@@ -71,7 +71,8 @@ export const validateAgenticAction = (
 
   // For agents, check if action allows agentic execution
   // Default to true if agentic flag is not explicitly set
-  return action.agentic !== false;
+  const isVisible = action.visibility?.agent !== false;
+  return action.agentic !== false && isVisible;
 };
 
 /**
