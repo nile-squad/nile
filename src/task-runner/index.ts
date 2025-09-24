@@ -1,7 +1,7 @@
 export { defaultPresets, getPreset, isValidPreset } from './presets';
 export { createPubSub } from './pubsub';
 export { createTaskStorage } from './storage';
-export { useTaskRunner } from './task-runner';
+export { createTaskRunner } from './task-runner';
 export {
   addDuration,
   convertAfterToAt,

@@ -63,14 +63,8 @@ export async function authenticate(
     };
   }
 
-  // If user exists but no session, it means auth middleware ran but user is not authenticated
-  // Check if this was processed by Better Auth middleware
-  if (config.betterAuth?.instance && user === null && session === null) {
-    return {
-      isAuthenticated: false,
-      error: 'Authentication required',
-    };
-  }
+  // Better Auth present but no session: do not short-circuit here.
+  // Allow fallback to JWT (and other methods) to proceed.
 
   // Fallback to JWT authentication if authSecret is provided
   if (config.authSecret) {
@@ -80,10 +74,10 @@ export async function authenticate(
     }
   }
 
-  // No authentication method available or failed
+  // No authentication method available or none succeeded
   return {
     isAuthenticated: false,
-    error: 'Authentication required',
+    error: 'No valid authentication found',
   };
 }
 

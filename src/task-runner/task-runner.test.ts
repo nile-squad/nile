@@ -1,15 +1,15 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
-import { useTaskRunner } from './task-runner';
+import { createTaskRunner } from './task-runner';
 import { createTaskStorage } from './storage';
 import { parseDuration, convertAfterToAt, validateTimezone } from './time-utils';
 import { getPreset, isValidPreset } from './presets';
 import { createPubSub } from './pubsub';
 
 describe('TaskRunner - Core Functionality', () => {
-  let taskRunner: ReturnType<typeof useTaskRunner>;
+  let taskRunner: ReturnType<typeof createTaskRunner>;
 
   beforeEach(() => {
-    taskRunner = useTaskRunner({ dbPath: ':memory:' });
+    taskRunner = createTaskRunner({ dbPath: ':memory:' });
   });
 
   afterEach(() => {
@@ -149,10 +149,10 @@ describe('TaskRunner - Core Functionality', () => {
 });
 
 describe('TaskRunner - PubSub System', () => {
-  let taskRunner: ReturnType<typeof useTaskRunner>;
+  let taskRunner: ReturnType<typeof createTaskRunner>;
 
   beforeEach(() => {
-    taskRunner = useTaskRunner({ dbPath: ':memory:' });
+    taskRunner = createTaskRunner({ dbPath: ':memory:' });
   });
 
   afterEach(() => {
@@ -364,10 +364,10 @@ describe('PubSub', () => {
 });
 
 describe('TaskRunner - Timezone Support', () => {
-  let taskRunner: ReturnType<typeof useTaskRunner>;
+  let taskRunner: ReturnType<typeof createTaskRunner>;
 
   beforeEach(() => {
-    taskRunner = useTaskRunner({ dbPath: ':memory:', timezone: 'America/New_York' });
+    taskRunner = createTaskRunner({ dbPath: ':memory:', timezone: 'America/New_York' });
   });
 
   afterEach(() => {

@@ -1,6 +1,6 @@
 {
   "name": "@nile-squad/nile",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "author": "Nile Squad Team",
   "type": "module",
   "sideEffects": false,

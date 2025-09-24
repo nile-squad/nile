@@ -9,11 +9,11 @@ export { createHookExecutor } from './hooks';
 export {
   type AgenticHandler,
   type AppInstance,
+  createRestRPC,
   getAutoConfig,
   onAppStart,
   type ServerConfig,
   useAppInstance,
-  useRestRPC,
 } from './rest-rpc';
 export {
   type ActionPayload,

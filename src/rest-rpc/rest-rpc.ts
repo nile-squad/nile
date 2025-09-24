@@ -94,27 +94,62 @@ const sanitizeForUrlSafety = (s: string) => {
 };
 
 const ASSETS_REGEX = /^\/assets\//;
+const TRAILING_SLASH_REGEX = /\/+$/;
+const HTTP_SCHEME_REGEX = /^https?:\/\//;
+const JOIN_TRAILING_SLASH_REGEX = /\/+$/;
+const JOIN_EDGE_SLASHES_REGEX = /^\/+|\/+$/g;
 
 /**
  * Main configuration function for REST-RPC server
  * Sets up routes, authentication, and service handlers
  */
-export const useRestRPC = (config: ServerConfig) => {
+export const createRestRPC = (config: ServerConfig) => {
   CONFIG = config;
   const createdRoutes: Record<string, any>[] = [];
   const prefix = `${config.baseUrl}/${config.apiVersion}/services`;
   const host = config.host || '0.0.0.0';
   const port = config.port || '8000';
 
+  // Build a clean origin (scheme + host [+ port]) without duplications
+  const origin = (() => {
+    try {
+      const u = new URL(host);
+      return u.origin;
+    } catch {
+      const h = host.replace(TRAILING_SLASH_REGEX, '');
+      if (HTTP_SCHEME_REGEX.test(h)) {
+        try {
+          return new URL(h).origin;
+        } catch {
+          return h;
+        }
+      }
+      if (h.includes(':')) {
+        return `http://${h}`;
+      }
+      return `http://${h}:${port}`;
+    }
+  })();
+
+  const joinUrl = (...parts: string[]) =>
+    parts
+      .filter(Boolean)
+      .map((p, i) =>
+        i === 0
+          ? p.replace(JOIN_TRAILING_SLASH_REGEX, '')
+          : p.replace(JOIN_EDGE_SLASHES_REGEX, '')
+      )
+      .join('/');
+
   app.use(
     '*',
     cors({
-      origin: (origin) => {
-        // If you have a list in config.allowedOrigins, validate origin
+      origin: (reqOrigin) => {
         if (config.allowedOrigins.length > 0) {
-          return config.allowedOrigins.includes(origin ?? '') ? origin : '';
+          return config.allowedOrigins.includes(reqOrigin ?? '')
+            ? reqOrigin
+            : '';
         }
-        // For local dev, allow all origins
         return '*';
       },
       credentials: true,
@@ -632,7 +667,7 @@ export const useRestRPC = (config: ServerConfig) => {
     });
   });
   console.log(
-    `Services Docs generated (${finalServices.length}): ${host}:${port}/${prefix}`
+    `Services Docs generated (${finalServices.length}): ${joinUrl(origin, prefix)}`
   );
 
   // services preview
@@ -655,8 +690,8 @@ export const useRestRPC = (config: ServerConfig) => {
     );
   }
 
-  // Agentic endpoint
-  app.post('/agentic', async (c) => {
+  // Agentic endpoint under services prefix
+  app.post(`${prefix}/agentic`, async (c) => {
     const requestDetails = await handleJsonRequest(c, config);
     const { actionName, payload, error } = requestDetails;
 
@@ -672,7 +707,7 @@ export const useRestRPC = (config: ServerConfig) => {
       });
     }
 
-    // Add authentication check for agentic endpoint
+    // Authentication check for agentic endpoint
     const authResult = await authenticate(c, config);
     if (!authResult.isAuthenticated) {
       return c.json(
@@ -702,12 +737,23 @@ export const useRestRPC = (config: ServerConfig) => {
     }
 
     try {
-      // Pass authenticated user context to agent handler
+      // Enrich payload with auth context (user/org)
+      const enriched = enrichPayloadWithUserContext(payload, authResult);
+      const userId =
+        enriched.user_id ??
+        authResult.user?.userId ??
+        authResult.user?.sub ??
+        authResult.user?.id;
+      const organizationId =
+        enriched.organization_id ??
+        authResult.user?.organizationId ??
+        authResult.user?.organization_id ??
+        authResult.session?.organizationId;
+
       const agentPayload = {
-        ...payload,
-        user_id: authResult.user?.id,
-        organization_id:
-          authResult.session?.organizationId || payload.organization_id,
+        input: enriched.input,
+        user_id: userId,
+        organization_id: organizationId,
       };
 
       const response = await config.agenticConfig.handler(agentPayload);
@@ -739,7 +785,9 @@ export const useRestRPC = (config: ServerConfig) => {
       return auth.handler(c.req.raw);
     });
 
-    console.log(`Better Auth endpoints available at: ${host}:${port}/auth/*`);
+    console.log(
+      `Better Auth endpoints available at: ${joinUrl(origin, 'auth/*')}`
+    );
   }
 
   if (config.enableStatus) {
@@ -752,10 +800,10 @@ export const useRestRPC = (config: ServerConfig) => {
     });
   }
 
-  console.log(`static assets are served at: ${host}:${port}/assets/*`);
-  console.log(`Full action zod schemas: ${host}:${port}/${prefix}/schema`);
-  console.log(`Access agent at: ${host}:${port}/agentic`);
-  console.log(`check server status: ${host}:${port}/status`);
+  console.log(`static assets are served at: ${joinUrl(origin, 'assets/*')}`);
+  console.log(`Full action zod schemas: ${joinUrl(origin, prefix, 'schema')}`);
+  console.log(`Access agent at: ${joinUrl(origin, prefix, 'agentic')}`);
+  console.log(`check server status: ${joinUrl(origin, 'status')}`);
 
   app.notFound((c) => {
     return c.text(

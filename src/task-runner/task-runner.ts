@@ -32,7 +32,7 @@ import type {
  *
  * @example
  * ```typescript
- * const taskRunner = useTaskRunner({
+ * const taskRunner = createTaskRunner({
  *   dbPath: './tasks.db',
  *   timezone: 'America/New_York'
  * });
@@ -58,7 +58,7 @@ import type {
  * });
  * ```
  */
-export const useTaskRunner = ({
+export const createTaskRunner = ({
   dbPath = ':memory:',
   timezone = 'UTC',
 }: TaskRunnerConfig = {}) => {
@@ -75,7 +75,7 @@ export const useTaskRunner = ({
   ) => {
     createLog({
       appName: 'task-runner',
-      atFunction: 'useTaskRunner',
+      atFunction: 'createTaskRunner',
       message,
       data,
       type,

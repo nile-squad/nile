@@ -241,23 +241,32 @@ export const getSchemas = <TMode extends ResultsMode = 'data'>(
   const finalServices = processServices(serverConfig);
 
   const schemaData = finalServices.map((finalService) => ({
-    [finalService.name]: finalService.actions.map((a) => ({
-      name: a.name,
-      description: a.description,
-      validation: a.validation?.zodSchema
-        ? z.toJSONSchema(a.validation?.zodSchema, {
-            unrepresentable: 'any',
-          })
-        : null,
-      hooks: a.hooks
-        ? {
-            before: a.hooks.before || [],
-            after: a.hooks.after || [],
-          }
-        : null,
-      pipeline: a.result?.pipeline,
-      meta: a.meta ?? null,
-    })),
+    [finalService.name]: finalService.actions.map((a) => {
+      try {
+        return {
+          name: a.name,
+          description: a.description,
+          validation: a.validation?.zodSchema
+            ? z.toJSONSchema(a.validation?.zodSchema, {
+                unrepresentable: 'any',
+              })
+            : null,
+          hooks: a.hooks
+            ? {
+                before: a.hooks.before || [],
+                after: a.hooks.after || [],
+              }
+            : null,
+          pipeline: a.result?.pipeline,
+          meta: a.meta ?? null,
+        };
+      } catch (error) {
+        console.error(
+          `Error generating schema for service: ${finalService.name}, action: ${a.name}, make sure the unrecognized key exists and is set correctly in sub service.`
+        );
+        throw error;
+      }
+    }),
   }));
 
   return formatResult(

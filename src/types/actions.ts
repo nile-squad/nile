@@ -65,7 +65,7 @@ export type Service = {
   meta?: Record<string, any>; // Generic metadata for any purpose (access control, caching, rate limiting, etc.)
 };
 
-type PublicAction =
+export type PublicAction =
   | 'create'
   | 'update'
   | 'delete'
