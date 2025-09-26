@@ -5,3 +5,6 @@ dist
 *.log
 *.env
 logs
+.deleted.*
+*.local
+.deleted.npmrc
