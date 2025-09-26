@@ -1,7 +1,7 @@
 {
   "name": "@nile-squad/nile",
-  "version": "1.1.9",
-  "author": "Nile Squad Team",
+  "version": "1.2.0",
+  "author": "Hussein Kizz",
   "type": "module",
   "sideEffects": false,
   "files": [
@@ -52,7 +52,7 @@
     "pnpm": ">=8"
   },
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "repository": {
     "type": "git",
@@ -62,14 +62,19 @@
     "url": "https://github.com/nilesquad/nile/issues"
   },
   "homepage": "https://nilesquad.github.io/nile",
+  "description": "TypeScript first, service-oriented backend framework.",
   "keywords": [
     "typescript",
-    "vite",
+    "backend",
     "framework",
     "rest-rpc",
-    "nile",
+    "websocket",
+    "rpc",
     "zod",
-    "tsup"
+    "drizzle",
+    "hooks",
+    "crud",
+    "nile"
   ],
   "scripts": {
     "build": "tsup",
