@@ -1,25 +1,36 @@
 // type Data = Record<string, any> | Record<string, any>[];
 
-/**
- * Represents a successful operation result.
+/*
+ * A successful operation result.
+ * Properties:
+ *   - status: true (indicates success)
+ *   - message: string (success message)
+ *   - data: T (result data)
+ *   - isOk?: true (optional, always true if present)
  */
 export type _Ok<T> = {
   status: true;
   message: string;
   data: T;
-  isOk?: boolean;
+  isOk?: true;
 };
 
-/**
- * Represents an unsuccessful operation result.
+/*
+ * An unsuccessful operation result.
+ * Properties:
+ *   - status: false (indicates failure)
+ *   - message: string (error message)
+ *   - data: { error_id: string, ... } (error details)
+ *   - isError?: true (optional, always true if present)
  */
 export type _Error = {
   status: false;
   message: string;
   data: {
     error_id: string;
+    [key: string]: any;
   };
-  isError?: boolean;
+  isError?: true;
 };
 
 export type SafeResult<T> = _Ok<T> | _Error;
@@ -42,7 +53,7 @@ export const isError = <T>(obj: _Ok<T> | _Error): obj is _Error => !obj.status;
  * Creates an _Ok object.
  * @param data - The data associated with the success.
  * @param message - An optional message, defaults to 'Success'.
- * @returns An _Ok type object.
+ * @returns An _Ok type object with isOk: true.
  */
 export const Ok = <T>(data: T, message = 'Success'): _Ok<T> => ({
   status: true,
@@ -56,7 +67,7 @@ export const Ok = <T>(data: T, message = 'Success'): _Ok<T> => ({
  * @param message - The error message.
  * @param error_id - A unique identifier for the error.
  * @param other - Optional additional data to include in the error.
- * @returns An _Error type object.
+ * @returns An _Error type object with isError: true.
  */
 export const safeError = (
   message: string,
