@@ -1,5 +1,6 @@
 import { expect, test, describe } from 'vitest';
 import { executeActionHook } from './action-hooks.js';
+import { Ok, safeError } from '../utils/safe-try';
 import type { ActionHookHandler, ActionHookResult, Context } from '../types/action-hook.js';
 import type { Action } from '../types/actions.js';
 
@@ -10,30 +11,30 @@ describe('executeActionHook function tests', () => {
     request: { method: 'POST', path: '/api/test' },
   };
 
-  const mockAction: Action = {
-    name: 'testAction',
-    description: 'Test action for unit tests',
-    type: 'custom',
-    handler: async () => ({ status: true, message: 'Success', data: {} }),
-    validation: {},
-    meta: {
-      access: ['admin', 'user']
-    }
-  };
+const mockAction: Action = {
+  name: 'testAction',
+  description: 'Test action for unit tests',
+  type: 'custom',
+  handler: async () => Ok({}, 'Success'),
+  validation: {},
+  meta: {
+    access: ['admin', 'user']
+  }
+};
 
-  test('should return true when no handler provided', async () => {
+  test('should return Ok(true) when no handler provided', async () => {
     const result = await executeActionHook(undefined, mockContext, mockAction, { data: 'test' });
-    expect(result).toBe(true);
+    expect(result).toEqual(Ok(true, 'No handler provided'));
   });
 
-  test('should return true when handler returns true', async () => {
-    const handler: ActionHookHandler = () => true;
+  test('should return Ok(true) when handler returns Ok(true)', async () => {
+    const handler: ActionHookHandler = () => Ok(true, 'Handler returned Ok');
     const result = await executeActionHook(handler, mockContext, mockAction, { data: 'test' });
-    expect(result).toBe(true);
+    expect(result).toEqual(Ok(true, 'Handler returned Ok'));
   });
 
   test('should return error when handler returns error object', async () => {
-    const handler: ActionHookHandler = () => ({ error: 'Access denied' });
+    const handler: ActionHookHandler = () => safeError('Access denied', 'test-error-id');
     const result = await executeActionHook(handler, mockContext, mockAction, { data: 'test' });
     
     expect(result).toEqual({
@@ -43,17 +44,18 @@ describe('executeActionHook function tests', () => {
         error_id: expect.any(String),
       }),
       isError: true,
+      isOk: false,
     });
   });
 
-  test('should handle async handler returning true', async () => {
-    const handler: ActionHookHandler = async (): Promise<ActionHookResult> => true;
+  test('should handle async handler returning Ok(true)', async () => {
+    const handler: ActionHookHandler = async (): Promise<ActionHookResult> => Ok(true, 'Async handler returned Ok');
     const result = await executeActionHook(handler, mockContext, mockAction, { data: 'test' });
-    expect(result).toBe(true);
+    expect(result).toEqual(Ok(true, 'Async handler returned Ok'));
   });
 
   test('should handle async handler returning error', async () => {
-    const handler: ActionHookHandler = async (): Promise<ActionHookResult> => ({ error: 'Async access denied' });
+    const handler: ActionHookHandler = async (): Promise<ActionHookResult> => safeError('Async access denied', 'test-async-error-id');
     const result = await executeActionHook(handler, mockContext, mockAction, { data: 'test' });
     
     expect(result).toEqual({
@@ -63,6 +65,7 @@ describe('executeActionHook function tests', () => {
         error_id: expect.any(String),
       }),
       isError: true,
+      isOk: false,
     });
   });
 
@@ -117,11 +120,13 @@ describe('executeActionHook function tests', () => {
   });
 
   test('should re-throw safeError from handler', async () => {
-    const safeErrorResult = {
-      status: false,
-      message: 'Custom safe error',
-      data: { error_id: 'custom123' },
-    };
+const safeErrorResult = {
+  status: false,
+  message: 'Custom safe error',
+  data: { error_id: 'custom123' },
+  isError: true,
+  isOk: false,
+};
     
     const handler: ActionHookHandler = () => {
       throw safeErrorResult;

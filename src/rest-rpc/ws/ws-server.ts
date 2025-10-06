@@ -380,11 +380,18 @@ export function createWSRPCServer(options: WSServerOptions): void {
           }
 
           // Execute action
+          console.log(
+            '[WS SERVER] Executing action:',
+            service,
+            action,
+            enrichedPayload
+          );
           const result = await executeActionHandler(
             targetAction,
             enrichedPayload,
             hookExecutor
           );
+          console.log('[WS SERVER] Action result:', result);
 
           // Handle result
           if (isError(result)) {

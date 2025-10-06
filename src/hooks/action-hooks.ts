@@ -4,12 +4,9 @@ import type {
   ActionHookResult,
   Context,
 } from '../types/action-hook.js';
-import {
-  formatInvalidHookResultError,
-  validateActionHookResult,
-} from '../types/action-hook.js';
+import { formatInvalidHookResultError } from '../types/action-hook.js';
 import type { Action } from '../types/actions.js';
-import { type _Error, safeError } from '../utils/safe-try.js';
+import { Ok, safeError } from '../utils/safe-try.js';
 
 const logger = createLogger('action-hooks');
 
@@ -18,15 +15,22 @@ export async function executeActionHook(
   context: Context,
   action: Action,
   payload: unknown
-): Promise<ActionHookResult | _Error> {
+): Promise<ActionHookResult> {
   if (!handler) {
-    return true;
+    return Ok(true, 'No handler provided');
   }
 
   try {
     const result = await handler(context, action, payload);
 
-    if (!validateActionHookResult(result)) {
+    // Validate that the result is a SafeResult
+    if (
+      !result ||
+      typeof result !== 'object' ||
+      typeof result.status !== 'boolean' ||
+      typeof result.isOk !== 'boolean' ||
+      typeof result.isError !== 'boolean'
+    ) {
       const errorMessage = formatInvalidHookResultError(result);
       const error_id = logger.error({
         message: errorMessage,
@@ -36,16 +40,7 @@ export async function executeActionHook(
       throw safeError(errorMessage, error_id);
     }
 
-    if (result !== true) {
-      const error_id = logger.info({
-        message: `Action denied by hook: ${result.error}`,
-        data: { action: action.name, context: { user: context.user?.id } },
-        atFunction: 'executeActionHook',
-      });
-      return safeError(result.error, error_id);
-    }
-
-    return true;
+    return result;
   } catch (error) {
     if (
       error &&

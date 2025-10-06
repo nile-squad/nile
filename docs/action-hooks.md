@@ -53,9 +53,10 @@ export type SubService = {
 ```typescript
 // backend/server.config.ts
 import type { ActionHookHandler } from '@nile-squad/nile/types';
+import { Ok } from '@nile-squad/nile/utils/safe-try';
 
 const actionHook: ActionHookHandler = (context, action, payload) => {
-  return true; // Allow action
+  return Ok(true); // Allow action
 };
 
 export const serverConfig: ServerConfig = {
@@ -91,29 +92,41 @@ export const serverConfig: ServerConfig = {
 2. **`action`** - Action identifier (e.g., "users.create")
 3. **`payload`** - Request payload
 
-#### Return Values
+#### Return Value (Standardized)
 
-- **`true`** - Allow action to proceed
-- **`{ error: string }`** - Deny action with message
+The handler **must return a SafeResult** (either `Ok` or `safeError`).
+
+- **`Ok(data, message?)`** — Allow action to proceed (data can be any value, message is optional)
+- **`safeError(message, error_id, extra?)`** — Deny action with a message and error id (optionally extra data)
+
+A SafeResult is an object with the following discriminants:
+- `isOk: true` and `isError: false` for Ok results
+- `isOk: false` and `isError: true` for Error results
+
+**No other return values are allowed.**
+
+See `@src/utils/safe-try.ts` for details.
 
 ## 4. Access Control Example
 
 ```typescript
 import type { ActionHookHandler } from '@nile-squad/nile/types';
 
+import { Ok, safeError } from '@nile-squad/nile/utils/safe-try';
+
 export const accessControlHook: ActionHookHandler = (context, action, _payload) => {
   const { user } = context;
   
   // Skip access control for unauthenticated users - let framework handle public actions
   if (!user) {
-    return true; // Framework will handle public/private action checking
+    return Ok(true, 'No user, let framework handle public/private');
   }
   
   const userRole = user.role || 'member'; // Default role if not specified
   
   if (!action.meta?.access) {
     // If no access meta is defined, deny access by default for protected routes
-    return { error: 'Access denied: No permissions defined for this action.' };
+    return safeError('Access denied: No permissions defined for this action.', 'access-denied-no-meta');
   }
   
   const accessMeta = action.meta.access;
@@ -121,7 +134,7 @@ export const accessControlHook: ActionHookHandler = (context, action, _payload) 
   
   // Universal access pattern ("*" allows all authenticated users)
   if (Array.isArray(accessMeta) && accessMeta.includes('*')) {
-    return true;
+    return Ok(true, 'Universal access');
   }
   
   // For auto-generated actions, the action name is the CRUD verb (e.g., 'create')
@@ -137,10 +150,10 @@ export const accessControlHook: ActionHookHandler = (context, action, _payload) 
   }
   
   if (allowedRoles?.includes(userRole)) {
-    return true;
+    return Ok(true, 'Role allowed');
   }
   
-  return { error: 'Access denied' };
+  return safeError('Access denied', 'access-denied-role');
 };
 ```
 

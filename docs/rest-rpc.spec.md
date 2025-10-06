@@ -527,10 +527,10 @@ const globalAccessControl: ActionHookHandler = (context, action, payload) => {
   
   const allowedActions = rolePermissions[userRole] || [];
   if (!allowedActions.includes('*') && !allowedActions.includes(action)) {
-    return { error: `Access denied: ${userRole} cannot perform ${action}` };
+    return safeError(`Access denied: ${userRole} cannot perform ${action}`, 'access-denied-role');
   }
   
-  return true; // Allow action to proceed
+  return Ok(); // Allow action to proceed
 };
 
 export const serverConfig: ServerConfig = {
@@ -550,8 +550,8 @@ export const serverConfig: ServerConfig = {
 - `payload`: Request payload with auto-injected user context
 
 **Return Values:**
-- `true`: Allow action to proceed normally
-- `{ error: string }`: Deny action with custom error message
+- `Ok(data, message?)`: Allow action to proceed (data can be any value, message is optional)
+- `safeError(message, error_id)`: Deny action with custom error message and error id
 
 **Runtime Validation:**
 The framework strictly validates hook return values and throws immediately for invalid returns.
@@ -566,14 +566,14 @@ const roleBasedAccess: ActionHookHandler = (context, action, payload) => {
   
   // Define hierarchical permissions
   if (action.startsWith('admin.') && userRole !== 'admin') {
-    return { error: 'Administrative privileges required' };
+    return safeError('Administrative privileges required', 'admin-required');
   }
   
   if (action.includes('delete') && !['admin', 'moderator'].includes(userRole)) {
-    return { error: 'Deletion requires elevated privileges' };
+    return safeError('Deletion requires elevated privileges', 'deletion-elevated-privileges');
   }
   
-  return true;
+  return Ok();
 };
 ```
 
@@ -586,10 +586,10 @@ const organizationIsolation: ActionHookHandler = (context, action, payload) => {
   
   // Ensure users only access their organization's data
   if (payloadOrgId && payloadOrgId !== userOrgId) {
-    return { error: 'Cross-organization access denied' };
+    return safeError('Cross-organization access denied', 'cross-org-denied');
   }
   
-  return true;
+  return Ok();
 };
 ```
 
@@ -601,10 +601,10 @@ const rateLimiting: ActionHookHandler = async (context, action, payload) => {
   const limits = { user: 100, admin: 1000 }; // requests per hour
   
   if (await isRateLimited(userId, limits[context.user?.role])) {
-    return { error: 'Rate limit exceeded. Please try again later.' };
+    return safeError('Rate limit exceeded. Please try again later.', 'rate-limit-exceeded');
   }
   
-  return true;
+  return Ok();
 };
 ```
 
@@ -615,7 +615,7 @@ const rateLimiting: ActionHookHandler = async (context, action, payload) => {
 | **Scope** | All actions across all services | Specific action only |
 | **Purpose** | Cross-cutting concerns (auth, rate limiting) | Business workflow logic |
 | **Execution** | Before every action | Within action workflow |
-| **Return Type** | `true \| { error: string }` | `SafeResult<T>` |
+| **Return Type** | `Ok(data, message?) \| safeError(message, error_id)` | `SafeResult<T>` |
 | **Configuration** | Server config (`onActionHandler`) | Individual action (`hooks` property) |
 | **Data Flow** | Denies or allows action execution | Transforms action data |
 

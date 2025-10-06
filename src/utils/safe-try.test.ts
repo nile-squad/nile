@@ -9,6 +9,7 @@ describe('Ok', () => {
       message: 'All good',
       data: { foo: 'bar' },
       isOk: true,
+      isError: false,
     });
   });
 });
@@ -21,6 +22,7 @@ describe('safeError', () => {
       message: 'Something went wrong',
       data: expect.objectContaining({ error_id: 'err-123', extra: 42 }),
       isError: true,
+      isOk: false,
     });
   });
 });

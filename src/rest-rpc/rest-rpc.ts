@@ -410,10 +410,11 @@ export const createRestRPC = (config: ServerConfig) => {
         enrichedPayload
       );
 
-      if (hookResult !== true) {
+      if (hookResult.isError === true) {
         return c.json(hookResult, 200);
       }
-      return null; // Hook passed
+      // If isOk, allow action to proceed
+      return null;
     } catch (error) {
       if (
         error &&

@@ -8,11 +8,21 @@
  *   - data: T (result data)
  *   - isOk?: true (optional, always true if present)
  */
+/*
+ * A successful operation result.
+ * Properties:
+ *   - status: true (indicates success)
+ *   - message: string (success message)
+ *   - data: T (result data)
+ *   - isOk: true (discriminant)
+ *   - isError: false (discriminant)
+ */
 export type _Ok<T> = {
   status: true;
   message: string;
   data: T;
-  isOk?: true;
+  isOk: true;
+  isError: false;
 };
 
 /*
@@ -23,6 +33,15 @@ export type _Ok<T> = {
  *   - data: { error_id: string, ... } (error details)
  *   - isError?: true (optional, always true if present)
  */
+/*
+ * An unsuccessful operation result.
+ * Properties:
+ *   - status: false (indicates failure)
+ *   - message: string (error message)
+ *   - data: { error_id: string, ... } (error details)
+ *   - isOk: false (discriminant)
+ *   - isError: true (discriminant)
+ */
 export type _Error = {
   status: false;
   message: string;
@@ -30,7 +49,8 @@ export type _Error = {
     error_id: string;
     [key: string]: any;
   };
-  isError?: true;
+  isOk: false;
+  isError: true;
 };
 
 export type SafeResult<T> = _Ok<T> | _Error;
@@ -40,14 +60,16 @@ export type SafeResult<T> = _Ok<T> | _Error;
  * @param obj - The result object to check.
  * @returns True if the result is an _Ok type.
  */
-export const isOk = <T>(obj: _Ok<T> | _Error): obj is _Ok<T> => obj.status;
+export const isOk = <T>(obj: _Ok<T> | _Error): obj is _Ok<T> =>
+  obj.isOk === true;
 
 /**
  * Type guard to check if the result is an _Error type.
  * @param obj - The result object to check.
  * @returns True if the result is an _Error type.
  */
-export const isError = <T>(obj: _Ok<T> | _Error): obj is _Error => !obj.status;
+export const isError = <T>(obj: _Ok<T> | _Error): obj is _Error =>
+  obj.isError === true;
 
 /**
  * Creates an _Ok object.
@@ -60,6 +82,7 @@ export const Ok = <T>(data: T, message = 'Success'): _Ok<T> => ({
   message,
   data,
   isOk: true,
+  isError: false,
 });
 
 /**
@@ -80,6 +103,7 @@ export const safeError = (
     error_id,
     ...other,
   },
+  isOk: false,
   isError: true,
 });
 

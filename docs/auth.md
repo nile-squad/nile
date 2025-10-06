@@ -405,7 +405,7 @@ const roleBasedAccessControl: ActionHookHandler = (context, action, payload) => 
   
   // 1. Organization-level data isolation
   if (payloadOrgId && payloadOrgId !== userOrgId) {
-    return { error: 'Access denied: Cross-organization access not allowed' };
+    return safeError('Access denied: Cross-organization access not allowed', 'access-denied-cross-org');
   }
   
   // 2. Role-based action permissions
@@ -436,18 +436,18 @@ const roleBasedAccessControl: ActionHookHandler = (context, action, payload) => 
                        allowedActions.some(pattern => action.startsWith(pattern.replace('*', '')));
   
   if (!hasPermission) {
-    return { error: `Access denied: ${userRole} role cannot perform ${action}` };
+    return safeError(`Access denied: ${userRole} role cannot perform ${action}`, 'access-denied-role');
   }
   
   // 3. Data-level restrictions
   if (action.includes('tickets') && userRole === 'manager') {
     // Agents can only access their assigned complaints
     if (payload.assignedToAgentId && payload.assignedToAgentId !== user.id) {
-      return { error: 'Access denied: You can only access assigned complaints' };
+      return safeError('Access denied: You can only access assigned complaints', 'access-denied-assigned-complaints');
     }
   }
   
-  return true; // Allow action to proceed
+  return Ok(true, 'Allow action to proceed');
 };
 
 export const serverConfig: ServerConfig = {
@@ -468,10 +468,10 @@ const dynamicPermissions: ActionHookHandler = async (context, action, payload) =
   const permissions = await loadUserPermissions(user.id, user.organization_id);
   
   if (!permissions.includes(action)) {
-    return { error: 'Insufficient permissions for this action' };
+    return safeError('Insufficient permissions for this action', 'insufficient-permissions');
   }
   
-  return true;
+  return Ok();
 };
 ```
 
@@ -485,11 +485,11 @@ const resourceLevelAccess: ActionHookHandler = async (context, action, payload) 
     
     if (complaint.assignedToAgentId !== context.user.id && 
         context.user.role !== 'admin') {
-      return { error: 'You can only modify complaints assigned to you' };
+      return safeError('You can only modify complaints assigned to you', 'access-denied-modify-assigned');
     }
   }
   
-  return true;
+  return Ok();
 };
 ```
 
@@ -506,10 +506,10 @@ const rateLimitingHook: ActionHookHandler = async (context, action, payload) => 
   
   const limit = rateLimits[context.user?.role];
   if (limit && await isRateLimited(context.user.id, limit)) {
-    return { error: 'Rate limit exceeded. Please try again later.' };
+    return safeError('Rate limit exceeded. Please try again later.', 'rate-limit-exceeded');
   }
   
-  return true;
+  return Ok();
 };
 ```
 
@@ -521,8 +521,8 @@ const rateLimitingHook: ActionHookHandler = async (context, action, payload) => 
 - `payload`: Request payload with auto-injected user context
 
 **Return Values:**
-- `true`: Allow action to proceed
-- `{ error: string }`: Deny with custom error message
+- `Ok(data, message?)`: Allow action to proceed (data can be any value, message is optional)
+- `safeError(message, error_id)`: Deny with custom error message and error id
 
 **Error Handling:**
 - Framework validates return values at runtime
@@ -760,41 +760,8 @@ export const accessControlHook: ActionHookHandler = (context, action, _payload) 
 
   // Skip for unauthenticated users - framework handles public actions
   if (!user) {
-    return true;
-  }
-
-  const userRole = user.role || 'member';
-
-  if (!action.meta?.access) {
-    return { error: 'Access denied: No permissions defined for this action.' };
-  }
-
-  const accessMeta = action.meta.access;
-
-  // Universal access pattern
-  if (Array.isArray(accessMeta) && accessMeta.includes('*')) {
-    return true;
-  }
-
-  let allowedRoles: string[] | undefined;
-
-  // Auto-generated CRUD actions
-  if (action.type === 'auto') {
-    if (typeof accessMeta === 'object' && accessMeta !== null) {
-      allowedRoles = accessMeta[action.name];
-    }
-  }
-  // Custom actions
-  else if (Array.isArray(accessMeta)) {
-    allowedRoles = accessMeta;
-  }
-
-  if (allowedRoles?.includes(userRole)) {
-    return true;
-  }
-
-  return { error: 'Access denied' };
-};
+return Ok(true);
+}
 ```
 
 ### 9.6 Advanced RBAC Patterns

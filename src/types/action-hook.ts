@@ -7,8 +7,13 @@ export type Context = {
   service?: any;
 };
 
-export type ActionHookResult = true | { error: string };
+import type { SafeResult } from '../utils/safe-try';
+export type ActionHookResult = SafeResult<any>;
 
+/**
+ * ActionHookHandler must return a SafeResult (Ok or safeError).
+ * Legacy returns like `true` or `{ error: string }` are not allowed.
+ */
 export type ActionHookHandler = (
   context: Context,
   action: Action,
@@ -18,18 +23,19 @@ export type ActionHookHandler = (
 export function validateActionHookResult(
   result: unknown
 ): result is ActionHookResult {
-  if (result === true) {
-    return true;
-  }
-
   if (typeof result === 'object' && result !== null && !Array.isArray(result)) {
     const obj = result as Record<string, unknown>;
-    return typeof obj.error === 'string' && Object.keys(obj).length === 1;
+    // Only accept SafeResult shape
+    if (obj.isOk === true && obj.isError === false) {
+      return true;
+    }
+    if (obj.isOk === false && obj.isError === true) {
+      return true;
+    }
   }
-
   return false;
 }
 
 export function formatInvalidHookResultError(result: unknown): string {
-  return `Invalid action hook result. Expected true or { error: string }, got: ${JSON.stringify(result)}`;
+  return `Invalid action hook result. Expected SafeResult (Ok or safeError), got: ${JSON.stringify(result)}`;
 }
