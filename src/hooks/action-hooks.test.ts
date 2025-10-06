@@ -42,6 +42,7 @@ describe('executeActionHook function tests', () => {
       data: expect.objectContaining({
         error_id: expect.any(String),
       }),
+      isError: true,
     });
   });
 
@@ -61,6 +62,7 @@ describe('executeActionHook function tests', () => {
       data: expect.objectContaining({
         error_id: expect.any(String),
       }),
+      isError: true,
     });
   });
 

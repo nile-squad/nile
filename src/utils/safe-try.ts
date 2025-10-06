@@ -7,6 +7,7 @@ export type _Ok<T> = {
   status: true;
   message: string;
   data: T;
+  isOk?: boolean;
 };
 
 /**
@@ -18,6 +19,7 @@ export type _Error = {
   data: {
     error_id: string;
   };
+  isError?: boolean;
 };
 
 export type SafeResult<T> = _Ok<T> | _Error;
@@ -46,6 +48,7 @@ export const Ok = <T>(data: T, message = 'Success'): _Ok<T> => ({
   status: true,
   message,
   data,
+  isOk: true,
 });
 
 /**
@@ -66,6 +69,7 @@ export const safeError = (
     error_id,
     ...other,
   },
+  isError: true,
 });
 
 /**
