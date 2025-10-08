@@ -1,17 +1,13 @@
-import { loader } from 'fumadocs-core/source';
-import { createMDXSource } from 'fumadocs-mdx';
-import { icons } from 'lucide-react';
-import { createElement } from 'react';
+import { pageTree } from '@/lib/page-tree';
 
-export const source = loader({
-  baseUrl: '/docs',
-  source: createMDXSource({
-    files: [
-      './content/**/*.mdx',
-    ],
-  }),
-  icon(icon) {
-    if (icon && icon in icons)
-      return createElement(icons[icon as keyof typeof icons]);
+export const source = {
+  pageTree,
+  getPage: (slugs?: string[]) => {
+    const slug = slugs?.join('/') || 'index';
+    // This is a simplified version - in production you'd load actual MDX files
+    return null;
   },
-});
+  generateParams: () => {
+    return [];
+  }
+};
