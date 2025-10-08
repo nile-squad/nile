@@ -1,0 +1,234 @@
+---
+title: Getting Started
+description: Learn how to install and set up Nile in your project
+---
+
+**Version:** 1.0  
+**Date:** January 16, 2025  
+**Author:** Hussein Kizz
+
+## Installation
+
+Add Nile to your project using your preferred package manager:
+
+```bash
+pnpm install @nile-squad/nile
+```
+
+```bash
+npm install @nile-squad/nile
+```
+
+```bash
+yarn add @nile-squad/nile
+```
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- **Node.js** 18.0 or higher
+- **TypeScript** 5.0 or higher
+- Basic understanding of TypeScript and async/await patterns
+
+## Your First Nile Server
+
+Let's create a minimal Nile server with a single service. Create a new file called `server.ts`:
+
+```typescript
+import { createRestRPC } from '@nile-squad/nile/rest-rpc';
+import { z } from 'zod';
+
+const app = createRestRPC({
+  port: 3000,
+  services: [
+    {
+      name: 'accounts',
+      description: 'User account management',
+      actions: [
+        {
+          name: 'create',
+          description: 'Create a new user account',
+          isProtected: false,
+          handler: async (data, context) => {
+            return {
+              status: true,
+              message: 'Account created successfully',
+              data: { id: '123', ...data }
+            };
+          },
+          validation: {
+            zodSchema: z.object({
+              name: z.string(),
+              email: z.string().email()
+            })
+          }
+        }
+      ]
+    }
+  ]
+});
+
+app.listen(3000, () => {
+  console.log('Nile server running on http://localhost:3000');
+});
+```
+
+Run your server:
+
+```bash
+npx tsx server.ts
+```
+
+Congratulations! Your Nile server is now running on `http://localhost:3000`.
+
+## Discovering Your API
+
+One of Nile's most powerful features is automatic API discovery. Let's explore what's available:
+
+**List all services:**
+
+```bash
+curl http://localhost:3000/services
+```
+
+**Get details about a specific service:**
+
+```bash
+curl http://localhost:3000/services/accounts
+```
+
+**Get schema for a specific action:**
+
+```bash
+curl http://localhost:3000/services/accounts/create
+```
+
+This self-documenting nature means you never need external API documentation tools.
+
+## Calling Your Service
+
+Now let's call the create action we defined:
+
+```bash
+curl -X POST http://localhost:3000/services/accounts \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "create",
+    "payload": {
+      "name": "John Doe",
+      "email": "john@example.com"
+    }
+  }'
+```
+
+You should receive a response like this:
+
+```json
+{
+  "status": true,
+  "message": "Account created successfully",
+  "data": {
+    "id": "123",
+    "name": "John Doe",
+    "email": "john@example.com"
+  }
+}
+```
+
+## Adding Validation
+
+Notice how we used Zod for validation in our action definition. If you try to send invalid data, Nile automatically validates and returns helpful errors:
+
+```bash
+curl -X POST http://localhost:3000/services/accounts \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "create",
+    "payload": {
+      "name": "John Doe",
+      "email": "not-an-email"
+    }
+  }'
+```
+
+Response:
+
+```json
+{
+  "status": false,
+  "message": "Validation failed",
+  "error": {
+    "issues": [
+      {
+        "path": ["email"],
+        "message": "Invalid email"
+      }
+    ]
+  }
+}
+```
+
+## Using the Agentic Endpoint
+
+Nile comes with a built-in AI agent endpoint that lets you interact with your services using natural language:
+
+```bash
+curl -X POST http://localhost:3000/agentic \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "Create a new user named Jane Smith with email jane@example.com"
+  }'
+```
+
+The agent understands your intent and calls the appropriate service action automatically.
+
+## Project Structure
+
+For real-world applications, organize your code properly. Here's a recommended structure:
+
+```
+my-backend/
+├── backend/
+│   ├── db/
+│   │   ├── schemas/       # Drizzle ORM table definitions
+│   │   ├── models/        # Data access layer
+│   │   └── ...
+│   ├── services/
+│   │   ├── accounts/      # Account service handlers
+│   │   ├── messaging/     # Messaging service handlers
+│   │   └── ...
+│   ├── validations/       # Zod schemas
+│   ├── hooks/             # Action hooks
+│   ├── config.ts          # Application configuration
+│   └── server.config.ts   # Nile server configuration
+├── index.ts               # Server entry point
+└── package.json
+```
+
+## Next Steps
+
+Now that you have a basic server running, explore these topics:
+
+- **[Core Concepts](/docs/core-concepts)** - Understand services, actions, and hooks
+- **[Architecture Guide](/docs/guides/architecture)** - Learn the layered architecture
+- **[REST-RPC API](/docs/api-reference/rest-rpc)** - Complete REST-RPC protocol reference
+- **[Authentication](/docs/guides/authentication)** - Secure your services
+
+## Common Issues
+
+**Port already in use:**
+
+Change the port number in your configuration or stop the process using that port.
+
+**TypeScript errors:**
+
+Ensure you have TypeScript 5.0 or higher and proper type definitions installed.
+
+**Module not found:**
+
+Run `npm install` or `pnpm install` to ensure all dependencies are installed.
+
+**Author:** [Hussein Kizz](https://github.com/Hussseinkizz) at [Nile Squad Labz](https://github.com/nile-squad)
+
+*This documentation reflects the current implementation and is subject to evolution. Contributions and feedback are welcome.*
