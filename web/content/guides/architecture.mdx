@@ -1,0 +1,623 @@
+---
+title: Architecture Guide
+description: Understanding Nile's layered architecture and best practices
+---
+
+**Version:** 1.0  
+**Date:** January 16, 2025  
+**Author:** Hussein Kizz
+
+## Overview
+
+Nile follows a strict layered architecture that ensures maintainability, testability, and scalability. This guide explains each layer and how they work together.
+
+## Core Principles
+
+**Separation of Concerns**
+
+Each layer has a single, well-defined responsibility. Logic from one layer must not bleed into another.
+
+**Unidirectional Data Flow**
+
+Data and control flow in a single direction, making the system predictable and easier to debug.
+
+**Modularity**
+
+Features like validation, services, and models are defined in their own modules and composed together at a higher level.
+
+**Predictable Runtimes**
+
+All service handlers follow a strict contract for inputs, outputs, and error handling, ensuring API consistency.
+
+## The Five Layers
+
+```
+┌─────────────────────────┐
+│   1. API Layer          │ ← REST-RPC Engine
+├─────────────────────────┤
+│   2. Service Layer      │ ← Business Logic
+├─────────────────────────┤
+│   3. Model Layer        │ ← Data Access
+├─────────────────────────┤
+│   4. Schema Layer       │ ← Database Definition
+├─────────────────────────┤
+│   5. Validation Layer   │ ← Zod Schemas
+└─────────────────────────┘
+```
+
+Each layer can only call the layer directly beneath it.
+
+## Layer 5: Validation Layer
+
+**Location:** `backend/validations/`
+
+**Role:** Define all Zod validation schemas as the single source of truth for data shapes.
+
+**Rules:**
+
+- MUST contain only Zod schema definitions
+- MUST be organized by domain
+- MUST NOT contain any business logic
+
+**Example:**
+
+```typescript
+// backend/validations/accounts.ts
+import { z } from 'zod';
+
+export const createAccountSchema = z.object({
+  name: z.string().min(1),
+  email: z.string().email(),
+  role: z.enum(['admin', 'user', 'guest']).default('user')
+});
+
+export const updateAccountSchema = z.object({
+  name: z.string().min(1).optional(),
+  email: z.string().email().optional(),
+  role: z.enum(['admin', 'user', 'guest']).optional()
+});
+```
+
+## Layer 4: Schema Layer
+
+**Location:** `backend/db/schemas/`
+
+**Role:** Define database table structures using Drizzle ORM.
+
+**Rules:**
+
+- MUST contain only Drizzle table definitions
+- MUST NOT contain any functions or business logic
+
+**Example:**
+
+```typescript
+// backend/db/schemas/accounts.ts
+import { pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+
+export const accounts = pgTable('accounts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  role: text('role').notNull().default('user'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+```
+
+## Layer 3: Model Layer
+
+**Location:** `backend/db/models/`
+
+**Role:** Data Access Layer (DAL) - provides atomic, business-logic-free CRUD operations.
+
+**Rules:**
+
+- MUST contain only functions that directly interact with the database
+- MUST NOT contain any business rules, validation, or state orchestration
+
+**Example:**
+
+```typescript
+// backend/db/models/accounts.ts
+import { db } from '../client';
+import { accounts } from '../schemas';
+import { createModel } from '@nile-squad/nile';
+
+export const accountsModel = createModel({
+  table: accounts,
+  dbInstance: db
+});
+
+// Custom query functions
+export const findAccountByEmail = (email: string) => {
+  return accountsModel.getOne({
+    basedOnProperty: 'email',
+    withValue: email
+  });
+};
+
+export const getAccountsByRole = (role: string) => {
+  return accountsModel.getAll({
+    basedOnProperty: 'role',
+    withValue: role
+  });
+};
+```
+
+## Layer 2: Service Layer
+
+**Location:** `backend/services/`
+
+**Role:** Business logic - orchestrates data operations and implements business rules.
+
+This layer has two components:
+
+### Auto-Generated CRUD (Subs)
+
+Configuration objects that instruct Nile to auto-generate CRUD actions:
+
+```typescript
+// backend/services/db/subs/accounts.ts
+import { createAccountSchema } from '@/validations/accounts';
+
+export const accountsSubs = [{
+  name: 'accounts',
+  tableName: 'accounts',
+  idName: 'id',
+  validation: {
+    zodSchema: createAccountSchema
+  },
+  meta: {
+    access: {
+      create: ['admin'],
+      read: ['admin', 'user'],
+      update: ['admin'],
+      delete: ['admin']
+    }
+  }
+}];
+```
+
+This automatically generates:
+
+- `create` - Insert a new record
+- `update` - Update an existing record
+- `delete` - Delete a record
+- `getAll` - List all records
+- `getOne` - Get a single record
+
+### Custom Business Actions
+
+Handlers for complex workflows that require business logic:
+
+```typescript
+// backend/services/accounts/assign-role.ts
+import { Ok, safeError, isError } from '@nile-squad/nile';
+import * as accountModel from '@/backend/db/models/accounts';
+
+export const assignRoleHandler = async (payload) => {
+  const { accountId, role } = payload;
+  
+  // 1. Get account from model layer
+  const accountResult = await accountModel.getById(accountId);
+  if (isError(accountResult)) return accountResult;
+  
+  // 2. Business rule check
+  if (!accountResult.data) {
+    return safeError('Account not found', 'not-found');
+  }
+  
+  if (accountResult.data.role === role) {
+    return safeError('Account already has this role', 'already-assigned');
+  }
+  
+  // 3. Update through model layer
+  const updateResult = await accountModel.update(accountId, { role });
+  if (isError(updateResult)) return updateResult;
+  
+  // 4. Return success
+  return Ok(updateResult.data);
+};
+```
+
+**Handler Implementation Rules:**
+
+1. **Input Validation:** Accept only validated payloads (validation happens before handler)
+2. **Model Layer Only:** Call only the model layer for data access
+3. **Business Logic Here:** Implement all business rules and orchestration
+4. **SafeResult Pattern:** Always return `Ok()` or `safeError()`
+5. **Error Propagation:** Use `isError()` to check and propagate errors
+
+## Layer 1: API Layer
+
+**Location:** `backend/server.config.ts` and `index.ts`
+
+**Role:** Configuration and server initialization.
+
+**Server Configuration:**
+
+```typescript
+// backend/server.config.ts
+import type { ServerConfig } from '@nile-squad/nile/rest-rpc';
+import { services } from './services';
+import { accessControlHook } from './hooks/access-control';
+
+export const serverConfig: ServerConfig = {
+  serverName: 'My Nile Server',
+  port: String(process.env.PORT || 3000),
+  allowedOrigins: process.env.ALLOWED_ORIGINS?.split(',') || [],
+  authSecret: process.env.AUTH_SECRET,
+  services,
+  onActionHandler: accessControlHook,
+};
+```
+
+**Service Composition:**
+
+```typescript
+// backend/services/index.ts
+import { composeSubs } from '@nile-squad/nile';
+import { accountsSubs } from './db/subs/accounts';
+import { assignRoleHandler } from './accounts/assign-role';
+
+export const services = [
+  {
+    name: 'db',
+    description: 'Database operations',
+    subs: composeSubs([...accountsSubs]),
+    actions: [
+      {
+        name: 'assignRole',
+        description: 'Assign role to account',
+        handler: assignRoleHandler,
+        validation: {
+          zodSchema: z.object({
+            accountId: z.string().uuid(),
+            role: z.enum(['admin', 'user', 'guest'])
+          })
+        }
+      }
+    ]
+  }
+];
+```
+
+**Server Initialization:**
+
+```typescript
+// index.ts
+import 'dotenv/config';
+import { serve } from '@hono/node-server';
+import { createRestRPC } from '@nile-squad/nile/rest-rpc';
+import { serverConfig } from './backend/server.config';
+
+const app = createRestRPC(serverConfig);
+
+serve({
+  port: Number(serverConfig.port),
+  fetch: app.fetch,
+  hostname: '0.0.0.0',
+});
+```
+
+## Project Structure
+
+A well-structured Nile project looks like this:
+
+```
+backend/
+├── db/
+│   ├── schemas/         # Layer 4: Drizzle tables
+│   ├── models/          # Layer 3: Data access
+│   ├── client.ts        # Database connection
+│   └── ...
+├── services/
+│   ├── db/
+│   │   ├── subs/        # Auto-CRUD configs
+│   │   └── index.ts     # Service composition
+│   ├── accounts/        # Domain-specific handlers
+│   ├── messaging/
+│   └── ...
+├── validations/         # Layer 5: Zod schemas
+├── hooks/               # Action hooks
+├── integrations/        # Third-party integrations
+├── utils/               # Utility functions
+├── config.ts            # App configuration
+└── server.config.ts     # Nile configuration
+index.ts                 # Server entry point
+```
+
+## Data Flow Example
+
+Let's trace a request through all layers:
+
+**1. Client Request (API Layer):**
+
+```bash
+POST /services/db
+{
+  "action": "assignRole",
+  "payload": {
+    "accountId": "123",
+    "role": "admin"
+  }
+}
+```
+
+**2. Validation Layer:**
+
+```typescript
+// Payload is validated against Zod schema
+const schema = z.object({
+  accountId: z.string().uuid(),
+  role: z.enum(['admin', 'user', 'guest'])
+});
+```
+
+**3. Service Layer (Handler):**
+
+```typescript
+export const assignRoleHandler = async (payload) => {
+  // Business logic: Check current role
+  const account = await accountModel.getById(payload.accountId);
+  
+  if (account.data.role === payload.role) {
+    return safeError('Already has this role');
+  }
+  
+  // Update role
+  return accountModel.update(payload.accountId, {
+    role: payload.role
+  });
+};
+```
+
+**4. Model Layer:**
+
+```typescript
+export const update = (id, data) => {
+  return db.update(accounts)
+    .set(data)
+    .where(eq(accounts.id, id))
+    .returning();
+};
+```
+
+**5. Schema Layer:**
+
+```typescript
+// Drizzle uses the schema definition to generate SQL
+export const accounts = pgTable('accounts', {
+  id: uuid('id').primaryKey(),
+  role: text('role').notNull(),
+  // ...
+});
+```
+
+**6. Response (API Layer):**
+
+```json
+{
+  "status": true,
+  "message": "Role assigned successfully",
+  "data": {
+    "id": "123",
+    "role": "admin"
+  }
+}
+```
+
+## Best Practices
+
+### Keep Layers Pure
+
+**Do:** Separate concerns properly
+
+```typescript
+// Model Layer - Pure data access
+export const getAccount = (id) => {
+  return db.select().from(accounts).where(eq(accounts.id, id));
+};
+
+// Service Layer - Business logic
+export const assignRole = async (accountId, role) => {
+  const account = await getAccount(accountId);
+  if (account.role === role) {
+    return safeError('Already assigned');
+  }
+  return updateAccount(accountId, { role });
+};
+```
+
+**Don't:** Mix concerns
+
+```typescript
+// BAD: Business logic in model layer
+export const assignRole = (accountId, role) => {
+  const account = getAccount(accountId);
+  if (account.role === role) {  // Business logic doesn't belong here
+    return safeError('Already assigned');
+  }
+  return db.update(accounts).set({ role });
+};
+```
+
+### Use SafeResult Pattern
+
+Always use `Ok()` and `safeError()`:
+
+```typescript
+// Good
+export const createAccount = async (data) => {
+  const existing = await findAccountByEmail(data.email);
+  
+  if (isError(existing)) {
+    return existing; // Propagate error
+  }
+  
+  if (existing.data) {
+    return safeError('Email already in use', 'duplicate-email');
+  }
+  
+  const result = await insertAccount(data);
+  return Ok(result.data);
+};
+```
+
+### Organize by Domain
+
+```
+services/
+├── accounts/
+│   ├── assign-role.ts
+│   ├── update-profile.ts
+│   └── index.ts
+├── messaging/
+│   ├── send-email.ts
+│   ├── send-sms.ts
+│   └── index.ts
+```
+
+### Use Composition
+
+Compose services from subs and actions:
+
+```typescript
+export const dbService = {
+  name: 'db',
+  subs: composeSubs([
+    ...accountsSubs,
+    ...messagesSubs,
+  ]),
+  actions: [
+    ...accountActions,
+    ...messageActions,
+  ],
+};
+```
+
+## Testing Strategy
+
+### Layer 3: Model Layer Tests
+
+Test data access in isolation:
+
+```typescript
+describe('accountsModel', () => {
+  it('should create an account', async () => {
+    const result = await accountsModel.create({
+      name: 'John',
+      email: 'john@example.com'
+    });
+    
+    expect(result.status).toBe(true);
+    expect(result.data.email).toBe('john@example.com');
+  });
+});
+```
+
+### Layer 2: Service Layer Tests
+
+Test business logic with mocked models:
+
+```typescript
+describe('assignRoleHandler', () => {
+  it('should not reassign same role', async () => {
+    // Mock model layer
+    vi.spyOn(accountModel, 'getById').mockResolvedValue(
+      Ok({ id: '123', role: 'admin' })
+    );
+    
+    const result = await assignRoleHandler({
+      accountId: '123',
+      role: 'admin'
+    });
+    
+    expect(result.isError).toBe(true);
+    expect(result.message).toBe('Already has this role');
+  });
+});
+```
+
+### Layer 1: Integration Tests
+
+Test full request flow:
+
+```typescript
+describe('POST /services/db', () => {
+  it('should assign role', async () => {
+    const response = await request(app)
+      .post('/services/db')
+      .send({
+        action: 'assignRole',
+        payload: { accountId: '123', role: 'admin' }
+      });
+    
+    expect(response.status).toBe(200);
+    expect(response.body.status).toBe(true);
+  });
+});
+```
+
+## Common Anti-Patterns
+
+### Skipping Layers
+
+**Don't:** Call database directly from service layer
+
+```typescript
+// BAD
+export const assignRole = async (accountId, role) => {
+  // Skipping model layer
+  const result = await db.update(accounts)
+    .set({ role })
+    .where(eq(accounts.id, accountId));
+  
+  return Ok(result);
+};
+```
+
+**Do:** Go through model layer
+
+```typescript
+// GOOD
+export const assignRole = async (accountId, role) => {
+  const result = await accountModel.update(accountId, { role });
+  return result;
+};
+```
+
+### Business Logic in Models
+
+**Don't:** Put validation in model layer
+
+```typescript
+// BAD
+export const createAccount = async (data) => {
+  if (data.email.includes('@')) {  // Validation doesn't belong here
+    return db.insert(accounts).values(data);
+  }
+  throw new Error('Invalid email');
+};
+```
+
+**Do:** Keep models pure
+
+```typescript
+// GOOD
+export const createAccount = (data) => {
+  // Pure data access, no validation
+  return db.insert(accounts).values(data).returning();
+};
+```
+
+## Next Steps
+
+- **[Action Hooks](/docs/guides/hooks)** - Add cross-cutting concerns
+- **[Authentication](/docs/guides/authentication)** - Secure your services
+- **[Core Concepts](/docs/core-concepts)** - Understand the fundamentals
+
+**Author:** [Hussein Kizz](https://github.com/Hussseinkizz) at [Nile Squad Labz](https://github.com/nile-squad)
+
+*This documentation reflects the current implementation and is subject to evolution. Contributions and feedback are welcome.*
