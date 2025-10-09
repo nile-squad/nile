@@ -1,0 +1,700 @@
+---
+title: Action Hooks Guide
+description: Master the hooks system for cross-cutting concerns and custom logic
+---
+
+**Version:** 1.0  
+**Date:** January 16, 2025  
+**Author:** Hussein Kizz
+
+## Overview
+
+Action Hooks provide a powerful mechanism for implementing cross-cutting concerns at the framework level. They execute before or after service actions, enabling consistent security, logging, and business rule enforcement.
+
+## What are Action Hooks?
+
+Action Hooks are interceptors that:
+
+- Execute before or after every service action
+- Have access to authenticated user context
+- Can approve or deny action execution
+- Provide custom error messages for denials
+- Support both synchronous and asynchronous logic
+
+## Execution Flow
+
+```
+[Client Request] → [Authentication] → [Before Hooks] → 
+[Payload Validation] → [Action Handler] → [After Hooks] → [Response]
+```
+
+## Hook Types
+
+### Global Hooks
+
+Run for every action in your application:
+
+```typescript
+const serverConfig = {
+  onActionHandler: async (context, action, payload) => {
+    console.log(`Executing ${action.name}`);
+    return Ok(true); // Allow action to proceed
+  },
+  // ... other config
+};
+```
+
+**Use cases:**
+
+- Authentication and authorization
+- Audit logging
+- Rate limiting
+- Global metrics collection
+
+### Action-Specific Hooks
+
+Run only for specific actions:
+
+```typescript
+{
+  name: 'create',
+  handler: async (data) => { /* ... */ },
+  hooks: {
+    before: [validateInput, checkQuota],
+    after: [sendNotification, updateMetrics]
+  }
+}
+```
+
+**Use cases:**
+
+- Custom validation
+- Data transformation
+- Notifications
+- Cleanup operations
+
+## Hook Implementation
+
+### Basic Hook Structure
+
+```typescript
+import type { ActionHookHandler } from '@nile-squad/nile/types';
+import { Ok, safeError } from '@nile-squad/nile';
+
+export const myHook: ActionHookHandler = async (context, action, payload) => {
+  // Your logic here
+  
+  // Allow action to proceed
+  return Ok(true);
+  
+  // Or deny action
+  // return safeError('Action denied', 'denial-reason');
+};
+```
+
+### Hook Parameters
+
+**context:** Execution context
+
+- `user` - Authenticated user information
+- `request` - HTTP request details
+- `headers` - Request headers
+- `organizationId` - Organization context
+
+**action:** Action metadata
+
+- `name` - Action name
+- `description` - Action description
+- `type` - 'auto' or 'custom'
+- `meta` - Custom metadata
+- `isProtected` - Whether auth is required
+
+**payload:** Request payload (validated)
+
+### Hook Return Value
+
+Hooks MUST return a SafeResult:
+
+```typescript
+// Allow action
+return Ok(true);
+
+// Or with message
+return Ok(true, 'Action approved');
+
+// Deny action
+return safeError('Action denied', 'error-id');
+
+// With extra data
+return safeError('Quota exceeded', 'quota-exceeded', {
+  limit: 100,
+  current: 105
+});
+```
+
+## Common Use Cases
+
+### Access Control
+
+Implement role-based access control:
+
+```typescript
+import { Ok, safeError } from '@nile-squad/nile';
+
+export const accessControlHook = (context, action, payload) => {
+  const { user } = context;
+  
+  // Skip for unauthenticated users (let framework handle)
+  if (!user) {
+    return Ok(true);
+  }
+  
+  const userRole = user.role || 'member';
+  
+  // Check access rules from action metadata
+  if (!action.meta?.access) {
+    return safeError(
+      'Access denied: No permissions defined',
+      'no-permissions'
+    );
+  }
+  
+  const accessMeta = action.meta.access;
+  
+  // Universal access pattern
+  if (Array.isArray(accessMeta) && accessMeta.includes('*')) {
+    return Ok(true);
+  }
+  
+  // Get allowed roles for this action
+  let allowedRoles;
+  if (action.type === 'auto') {
+    allowedRoles = accessMeta[action.name];
+  } else {
+    allowedRoles = accessMeta;
+  }
+  
+  // Check if user role is allowed
+  if (!allowedRoles || !allowedRoles.includes(userRole)) {
+    return safeError(
+      `Access denied for role: ${userRole}`,
+      'insufficient-permissions',
+      { requiredRoles: allowedRoles, userRole }
+    );
+  }
+  
+  return Ok(true);
+};
+```
+
+**Usage:**
+
+```typescript
+// Define access rules in sub
+{
+  name: 'users',
+  tableName: 'users',
+  idName: 'id',
+  meta: {
+    access: {
+      create: ['admin', 'owner'],
+      read: ['admin', 'owner', 'manager', 'member'],
+      update: ['admin', 'owner', 'manager'],
+      delete: ['admin', 'owner']
+    }
+  }
+}
+
+// Register hook globally
+const serverConfig = {
+  onActionHandler: accessControlHook,
+  // ...
+};
+```
+
+### Audit Logging
+
+Log all action executions:
+
+```typescript
+import { createLogger } from '@nile-squad/nile/logging';
+import { Ok } from '@nile-squad/nile';
+
+export const auditLogHook = async (context, action, payload) => {
+  const logger = createLogger('audit');
+  
+  logger.info({
+    message: 'Action executed',
+    action: action.name,
+    user: context.user?.id,
+    timestamp: new Date().toISOString(),
+    payload: JSON.stringify(payload)
+  });
+  
+  return Ok(true);
+};
+```
+
+### Rate Limiting
+
+Implement custom rate limiting:
+
+```typescript
+import { Ok, safeError } from '@nile-squad/nile';
+
+const rateLimiter = new Map<string, { count: number; resetAt: number }>();
+
+export const rateLimitHook = async (context, action, payload) => {
+  const { user } = context;
+  
+  if (!user) {
+    return Ok(true); // No rate limit for unauthenticated
+  }
+  
+  const key = `${user.id}:${action.name}`;
+  const now = Date.now();
+  const limit = 100; // requests per minute
+  const window = 60 * 1000; // 1 minute
+  
+  let record = rateLimiter.get(key);
+  
+  if (!record || now > record.resetAt) {
+    record = { count: 0, resetAt: now + window };
+    rateLimiter.set(key, record);
+  }
+  
+  record.count++;
+  
+  if (record.count > limit) {
+    const retryAfter = Math.ceil((record.resetAt - now) / 1000);
+    return safeError(
+      'Rate limit exceeded',
+      'rate-limit-exceeded',
+      { limit, retryAfter }
+    );
+  }
+  
+  return Ok(true);
+};
+```
+
+### Data Sanitization
+
+Clean input data before processing:
+
+```typescript
+import { Ok } from '@nile-squad/nile';
+
+export const sanitizeInputHook = (context, action, payload) => {
+  // Remove potentially dangerous fields
+  const sanitized = { ...payload };
+  delete sanitized.__proto__;
+  delete sanitized.constructor;
+  
+  // Trim string values
+  for (const key in sanitized) {
+    if (typeof sanitized[key] === 'string') {
+      sanitized[key] = sanitized[key].trim();
+    }
+  }
+  
+  return Ok(true);
+};
+```
+
+### Quota Management
+
+Check resource quotas:
+
+```typescript
+import { Ok, safeError } from '@nile-squad/nile';
+import { getOrganizationQuota } from './quota-service';
+
+export const quotaCheckHook = async (context, action, payload) => {
+  const { user } = context;
+  
+  if (!user?.organizationId) {
+    return Ok(true);
+  }
+  
+  // Only check for create actions
+  if (action.name !== 'create') {
+    return Ok(true);
+  }
+  
+  const quota = await getOrganizationQuota(user.organizationId);
+  
+  if (quota.current >= quota.limit) {
+    return safeError(
+      'Organization quota exceeded',
+      'quota-exceeded',
+      {
+        limit: quota.limit,
+        current: quota.current,
+        upgradeUrl: '/upgrade'
+      }
+    );
+  }
+  
+  return Ok(true);
+};
+```
+
+## After Hooks
+
+Execute logic after the action completes:
+
+```typescript
+{
+  name: 'create',
+  handler: async (data) => {
+    // Main action logic
+    return Ok(createdData);
+  },
+  hooks: {
+    after: [
+      async (result, context, action) => {
+        // Send welcome email
+        if (result.status) {
+          await sendWelcomeEmail(result.data.email);
+        }
+      },
+      async (result, context, action) => {
+        // Update metrics
+        await incrementMetric('accounts.created');
+      }
+    ]
+  }
+}
+```
+
+**After hook signature:**
+
+```typescript
+type AfterHook = (
+  result: SafeResult,
+  context: Context,
+  action: Action
+) => Promise<void> | void;
+```
+
+## Hook Composition
+
+Combine multiple hooks:
+
+```typescript
+import { composeHooks } from '@nile-squad/nile';
+
+const globalHooks = composeHooks([
+  auditLogHook,
+  accessControlHook,
+  rateLimitHook,
+  quotaCheckHook
+]);
+
+const serverConfig = {
+  onActionHandler: globalHooks,
+  // ...
+};
+```
+
+## SubService Metadata
+
+Store hook configuration in metadata:
+
+```typescript
+{
+  name: 'users',
+  tableName: 'users',
+  idName: 'id',
+  meta: {
+    access: {
+      create: ['admin'],
+      read: ['*']
+    },
+    rateLimit: {
+      create: 10,
+      update: 20,
+      delete: 5
+    },
+    notifications: {
+      onCreate: true,
+      onUpdate: true,
+      onDelete: false
+    }
+  }
+}
+```
+
+Access metadata in hooks:
+
+```typescript
+export const customHook = (context, action, payload) => {
+  const rateLimit = action.meta?.rateLimit;
+  const notifications = action.meta?.notifications;
+  
+  // Use metadata to configure behavior
+  // ...
+  
+  return Ok(true);
+};
+```
+
+## Error Handling in Hooks
+
+### Graceful Degradation
+
+```typescript
+export const robustHook = async (context, action, payload) => {
+  try {
+    const result = await externalService.check(payload);
+    
+    if (!result.ok) {
+      return safeError('External check failed', 'external-error');
+    }
+    
+    return Ok(true);
+  } catch (error) {
+    // Log error but don't block action
+    console.error('Hook error:', error);
+    return Ok(true); // Allow action to proceed
+  }
+};
+```
+
+### Strict Enforcement
+
+```typescript
+export const strictHook = async (context, action, payload) => {
+  try {
+    await criticalCheck(payload);
+    return Ok(true);
+  } catch (error) {
+    // Block action on any error
+    return safeError(
+      'Critical check failed',
+      'critical-error',
+      { originalError: error.message }
+    );
+  }
+};
+```
+
+## Testing Hooks
+
+### Unit Tests
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import { accessControlHook } from './access-control';
+
+describe('accessControlHook', () => {
+  it('should allow admin access', () => {
+    const context = {
+      user: { id: '1', role: 'admin' }
+    };
+    const action = {
+      name: 'create',
+      type: 'auto',
+      meta: { access: { create: ['admin'] } }
+    };
+    
+    const result = accessControlHook(context, action, {});
+    
+    expect(result.isOk).toBe(true);
+  });
+  
+  it('should deny member access', () => {
+    const context = {
+      user: { id: '1', role: 'member' }
+    };
+    const action = {
+      name: 'delete',
+      type: 'auto',
+      meta: { access: { delete: ['admin'] } }
+    };
+    
+    const result = accessControlHook(context, action, {});
+    
+    expect(result.isError).toBe(true);
+    expect(result.message).toContain('Access denied');
+  });
+});
+```
+
+### Integration Tests
+
+```typescript
+describe('Hook Integration', () => {
+  it('should enforce access control', async () => {
+    const response = await request(app)
+      .post('/services/accounts')
+      .set('Authorization', `Bearer ${memberToken}`)
+      .send({
+        action: 'delete',
+        payload: { id: '123' }
+      });
+    
+    expect(response.status).toBe(403);
+    expect(response.body.message).toContain('Access denied');
+  });
+});
+```
+
+## Best Practices
+
+### Keep Hooks Focused
+
+Each hook should do one thing well:
+
+```typescript
+// Good - Single responsibility
+export const auditLogHook = (context, action, payload) => {
+  logger.info({ action: action.name, user: context.user?.id });
+  return Ok(true);
+};
+
+// Bad - Multiple responsibilities
+export const megaHook = (context, action, payload) => {
+  // Logging
+  logger.info({ action: action.name });
+  
+  // Rate limiting
+  if (isRateLimited(context.user)) {
+    return safeError('Rate limited');
+  }
+  
+  // Authorization
+  if (!hasPermission(context.user, action)) {
+    return safeError('No permission');
+  }
+  
+  return Ok(true);
+};
+```
+
+### Use Metadata Effectively
+
+Store configuration in metadata:
+
+```typescript
+// Define metadata
+{
+  name: 'users',
+  meta: {
+    caching: { ttl: 300 },
+    validation: { strict: true }
+  }
+}
+
+// Use in hook
+export const cacheHook = (context, action, payload) => {
+  const ttl = action.meta?.caching?.ttl || 0;
+  // Use ttl for caching logic
+};
+```
+
+### Handle Errors Gracefully
+
+Don't let hooks crash the application:
+
+```typescript
+export const safeHook = async (context, action, payload) => {
+  try {
+    await doSomething();
+    return Ok(true);
+  } catch (error) {
+    console.error('Hook error:', error);
+    return Ok(true); // Don't block on non-critical errors
+  }
+};
+```
+
+### Document Hook Behavior
+
+```typescript
+/**
+ * Enforces role-based access control using action metadata.
+ * 
+ * Requires action.meta.access to be defined with role arrays.
+ * 
+ * @example
+ * meta: {
+ *   access: {
+ *     create: ['admin'],
+ *     read: ['admin', 'user']
+ *   }
+ * }
+ */
+export const accessControlHook = (context, action, payload) => {
+  // Implementation
+};
+```
+
+## Performance Considerations
+
+### Async Operations
+
+Be mindful of hook performance:
+
+```typescript
+// Good - Parallel execution
+export const efficientHook = async (context, action, payload) => {
+  const [check1, check2] = await Promise.all([
+    performCheck1(payload),
+    performCheck2(payload)
+  ]);
+  
+  if (!check1 || !check2) {
+    return safeError('Checks failed');
+  }
+  
+  return Ok(true);
+};
+
+// Bad - Sequential execution
+export const slowHook = async (context, action, payload) => {
+  const check1 = await performCheck1(payload);
+  const check2 = await performCheck2(payload);
+  
+  if (!check1 || !check2) {
+    return safeError('Checks failed');
+  }
+  
+  return Ok(true);
+};
+```
+
+### Caching
+
+Cache expensive operations:
+
+```typescript
+const cache = new Map();
+
+export const cachedHook = async (context, action, payload) => {
+  const key = `${context.user?.id}:${action.name}`;
+  
+  if (cache.has(key)) {
+    return Ok(true);
+  }
+  
+  const result = await expensiveCheck(context, action);
+  
+  if (result) {
+    cache.set(key, true);
+  }
+  
+  return result ? Ok(true) : safeError('Check failed');
+};
+```
+
+## Next Steps
+
+- **[Authentication](/docs/guides/authentication)** - Secure your services
+- **[Architecture](/docs/guides/architecture)** - Understand the layers
+- **[Core Concepts](/docs/core-concepts)** - Learn the fundamentals
+
+**Author:** [Hussein Kizz](https://github.com/Hussseinkizz) at [Nile Squad Labz](https://github.com/nile-squad)
+
+*This documentation reflects the current implementation and is subject to evolution. Contributions and feedback are welcome.*

@@ -1,0 +1,592 @@
+---
+title: Agentic System Specification
+description: Natural language interface for AI agents and automation
+---
+
+**Version:** 1.0  
+**Date:** January 16, 2025  
+**Author:** Hussein Kizz
+
+## Overview
+
+The Agentic System provides a natural language interface for interacting with Nile services. It bridges the gap between human language and backend operations, enabling:
+
+- Natural language to backend service translation
+- Conversational memory and context awareness
+- Tool-assisted operation execution
+- Multi-turn dialogue support
+- Service discovery and exploration
+
+## Core Concepts
+
+### Purpose
+
+The agentic system allows users to:
+
+- Discover available services without technical knowledge
+- Execute complex workflows through simple requests
+- Get contextual help and guidance
+- Maintain conversation flow across multiple interactions
+
+### Interaction Flow
+
+```
+User Input → Intent Understanding → Service Discovery → 
+Tool Selection → Execution → Response
+```
+
+## Basic Usage
+
+### Simple Request
+
+Execute actions using natural language:
+
+```bash
+curl -X POST http://localhost:3000/agentic \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{
+    "input": "Create a new user named John Doe with email john@example.com"
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "status": true,
+  "message": "Account created successfully",
+  "data": {
+    "id": "123",
+    "name": "John Doe",
+    "email": "john@example.com"
+  }
+}
+```
+
+### Service Discovery
+
+Ask about available capabilities:
+
+```bash
+curl -X POST http://localhost:3000/agentic \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "What can I do with user accounts?"
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "status": true,
+  "message": "Available account operations",
+  "data": {
+    "capabilities": [
+      "Create new accounts",
+      "Update account information",
+      "Delete accounts",
+      "List all accounts",
+      "Get account details"
+    ]
+  }
+}
+```
+
+## Usage Patterns
+
+### Data Operations
+
+**Get recent data:**
+
+```json
+{
+  "input": "Get recent user registrations"
+}
+```
+
+**Find specific records:**
+
+```json
+{
+  "input": "Find accounts created this month"
+}
+```
+
+**Filter and sort:**
+
+```json
+{
+  "input": "Show me active users sorted by registration date"
+}
+```
+
+### Task Execution
+
+**Create records:**
+
+```json
+{
+  "input": "Create an account for sarah@example.com"
+}
+```
+
+**Update data:**
+
+```json
+{
+  "input": "Update email address for user John Smith to john.smith@example.com"
+}
+```
+
+**Delete records:**
+
+```json
+{
+  "input": "Deactivate accounts that haven't logged in for 6 months"
+}
+```
+
+### Analysis and Reporting
+
+**Generate summaries:**
+
+```json
+{
+  "input": "Summarize user activity patterns"
+}
+```
+
+**Create reports:**
+
+```json
+{
+  "input": "Generate monthly usage report"
+}
+```
+
+**Analyze trends:**
+
+```json
+{
+  "input": "What's our user growth rate this quarter?"
+}
+```
+
+## Authentication
+
+### User-Triggered Operations
+
+All agentic operations require user authentication:
+
+```bash
+curl -X POST http://localhost:3000/agentic \
+  -H "Authorization: Bearer <jwt-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "Create a customer account"
+  }'
+```
+
+**Why authentication is required:**
+
+- Ensures operations are performed within user's organization context
+- Maintains audit trail of who triggered agent actions
+- Enforces user permissions and access controls
+- Prevents unauthorized access to organizational data
+
+### Context Propagation
+
+User context automatically propagates to all operations:
+
+```
+1. User authenticates at agentic endpoint
+   ↓
+2. Agent receives authenticated context
+   ↓
+3. Agent operations execute with user context
+   ↓
+4. All service calls maintain user permissions
+```
+
+**User context includes:**
+
+- `user_id` - Unique user identifier
+- `organization_id` - Organization scope
+- `role` - User's role and permissions
+- `metadata` - Additional user information
+
+## Multi-Turn Conversations
+
+Maintain conversation context across multiple requests:
+
+**First request:**
+
+```json
+{
+  "input": "Show me all admin users",
+  "sessionId": "conv-123"
+}
+```
+
+**Follow-up request:**
+
+```json
+{
+  "input": "Create one more with email newadmin@example.com",
+  "sessionId": "conv-123"
+}
+```
+
+The agent remembers the context from the previous message.
+
+## Advanced Features
+
+### Complex Workflows
+
+Execute multi-step operations:
+
+```json
+{
+  "input": "Create a new team account for Acme Corp, assign admin role, and send welcome email"
+}
+```
+
+The agent automatically:
+
+1. Creates the account
+2. Assigns the admin role
+3. Triggers welcome email
+4. Returns consolidated result
+
+### Conditional Logic
+
+Handle business rules in natural language:
+
+```json
+{
+  "input": "If John's account status is active, send him a password reset email"
+}
+```
+
+### Batch Operations
+
+Process multiple items:
+
+```json
+{
+  "input": "Send password reset emails to all flagged accounts"
+}
+```
+
+## Tool Ecosystem
+
+The agent uses these tool categories:
+
+### Discovery Tools
+
+- `listServices` - List available services
+- `getServiceDetails` - Get service information
+- `getActionSchema` - Get action validation schema
+
+### Execution Tools
+
+- `executeAction` - Execute a service action
+- `batchExecute` - Execute multiple actions
+- `conditionalExecute` - Execute based on conditions
+
+### Query Tools
+
+- `queryData` - Search and filter records
+- `aggregateData` - Compute statistics
+- `analyzePatterns` - Identify trends
+
+## Error Handling
+
+### Graceful Degradation
+
+When the agent can't understand:
+
+```json
+{
+  "status": true,
+  "message": "I'm not sure what you mean. Can you rephrase?",
+  "suggestions": [
+    "Try: 'List all users'",
+    "Try: 'Create a new account'",
+    "Try: 'What can I do with accounts?'"
+  ]
+}
+```
+
+### Validation Errors
+
+When input is invalid:
+
+```json
+{
+  "status": false,
+  "message": "The email format is invalid",
+  "error": {
+    "field": "email",
+    "provided": "not-an-email",
+    "expected": "Valid email address"
+  }
+}
+```
+
+### Permission Errors
+
+When access is denied:
+
+```json
+{
+  "status": false,
+  "message": "You don't have permission to delete accounts",
+  "error": {
+    "requiredRole": "admin",
+    "userRole": "member"
+  }
+}
+```
+
+## Security Model
+
+### Multi-Layer Security
+
+1. **Endpoint Authentication** - User must be authenticated
+2. **Context Isolation** - Operations scoped to user's organization
+3. **Action Restrictions** - Certain actions can be blocked
+4. **Audit Trail** - All operations logged
+
+### Blocking Agent Access
+
+Prevent agent execution of sensitive actions:
+
+```typescript
+{
+  name: 'deleteAllCustomers',
+  agentic: false,  // Blocks agent access
+  handler: destructiveOperation
+}
+```
+
+**Default behavior:** All actions allow agent access
+
+**Explicit allow:**
+
+```typescript
+{
+  name: 'createCustomer',
+  agentic: true,   // Explicitly allow (optional)
+  handler: createHandler
+}
+```
+
+## Best Practices
+
+### Clear Instructions
+
+**Good:**
+
+```json
+{
+  "input": "Create an account for john@example.com with name John Doe and role admin"
+}
+```
+
+**Less effective:**
+
+```json
+{
+  "input": "Make a new user"
+}
+```
+
+### Provide Context
+
+**Good:**
+
+```json
+{
+  "input": "Show me accounts created today in the US timezone"
+}
+```
+
+**Less effective:**
+
+```json
+{
+  "input": "Show accounts"
+}
+```
+
+### Use Follow-ups
+
+**First request:**
+
+```json
+{
+  "input": "List all pending registrations",
+  "sessionId": "session-1"
+}
+```
+
+**Follow-up:**
+
+```json
+{
+  "input": "Approve the first three",
+  "sessionId": "session-1"
+}
+```
+
+## Implementation Example
+
+### Server Setup
+
+```typescript
+import { createRestRPC } from '@nile-squad/nile/rest-rpc';
+
+const app = createRestRPC({
+  port: 3000,
+  services: [/* your services */],
+  agenticConfig: {
+    enabled: true,
+    model: 'gpt-4',
+    systemPrompt: 'You are a helpful assistant for managing accounts'
+  }
+});
+```
+
+### Client Integration
+
+```typescript
+class AgenticClient {
+  async execute(input: string, sessionId?: string) {
+    const response = await fetch('/agentic', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.token}`
+      },
+      body: JSON.stringify({ input, sessionId })
+    });
+    
+    return response.json();
+  }
+}
+
+// Usage
+const client = new AgenticClient(userToken);
+const result = await client.execute(
+  'Create account for john@example.com'
+);
+```
+
+## Limitations
+
+### Current Limitations
+
+**Language Support:** Currently optimized for English
+
+**Complex Queries:** Very complex multi-step operations may require breaking down
+
+**Ambiguity:** Ambiguous requests may need clarification
+
+**Rate Limits:** Subject to standard API rate limits
+
+### Future Enhancements
+
+- Multi-language support
+- Voice input/output
+- Visual workflow builder
+- Enhanced memory across sessions
+- Custom agent personalities
+
+## Troubleshooting
+
+### Agent Not Understanding
+
+**Issue:** Agent can't parse your request
+
+**Solution:**
+
+- Be more specific with action and parameters
+- Use follow-up questions to clarify
+- Check available actions with "What can I do?"
+
+### Permission Denied
+
+**Issue:** Agent can't execute action
+
+**Solution:**
+
+- Verify your authentication token
+- Check your user role and permissions
+- Ensure action is not blocked for agents
+
+### Unexpected Results
+
+**Issue:** Agent executes wrong action
+
+**Solution:**
+
+- Review the agent's interpretation
+- Provide more context in your request
+- Use explicit action names when possible
+
+## Examples by Use Case
+
+### Account Management
+
+```json
+// Create
+{ "input": "Create account for jane@example.com named Jane Smith" }
+
+// Update
+{ "input": "Change John's email to john.new@example.com" }
+
+// Delete
+{ "input": "Remove accounts that haven't logged in for a year" }
+
+// Query
+{ "input": "Show me all admin accounts created this week" }
+```
+
+### Data Exploration
+
+```json
+// Analytics
+{ "input": "What's our user growth rate this month?" }
+
+// Trends
+{ "input": "Which features are most popular among users?" }
+
+// Comparisons
+{ "input": "Compare active users this month vs last month" }
+```
+
+### Workflow Automation
+
+```json
+// Multi-step
+{ "input": "Create team account, assign roles, and send invites" }
+
+// Conditional
+{ "input": "If account is verified, enable premium features" }
+
+// Batch
+{ "input": "Update all trial accounts to premium" }
+```
+
+## Next Steps
+
+- **[REST-RPC](/docs/api-reference/rest-rpc)** - Traditional API alternative
+- **[Authentication](/docs/guides/authentication)** - Secure agent access
+- **[Core Concepts](/docs/core-concepts)** - Understand the fundamentals
+
+**Author:** [Hussein Kizz](https://github.com/Hussseinkizz) at [Nile Squad Labz](https://github.com/nile-squad)
+
+*This specification reflects the current implementation and is subject to evolution. Contributions and feedback are welcome.*

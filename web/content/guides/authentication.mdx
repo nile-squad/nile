@@ -1,0 +1,480 @@
+---
+title: Authentication Guide
+description: Learn how to secure your Nile services with authentication and authorization
+---
+
+**Version:** 1.0  
+**Date:** January 16, 2025  
+**Author:** Hussein Kizz
+
+## Overview
+
+Nile is secure by default. All actions require authentication unless explicitly marked as public. This guide shows you how to set up and use authentication in your Nile application.
+
+## Authentication Modes
+
+Nile supports three authentication modes:
+
+### User Authentication
+
+Standard user authentication for client applications.
+
+**Use when:**
+
+- Building web or mobile applications
+- Users need to authenticate
+- Each user has their own data and permissions
+
+**Setup:**
+
+```typescript
+// Configure JWT secret
+const serverConfig = {
+  authSecret: process.env.AUTH_SECRET,
+  // ... other config
+};
+```
+
+**Client usage:**
+
+```bash
+curl -X POST http://localhost:3000/services/accounts \
+  -H "Authorization: Bearer <jwt-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "create",
+    "payload": { "name": "John", "email": "john@example.com" }
+  }'
+```
+
+### Session Authentication
+
+Browser-based session authentication using cookies.
+
+**Use when:**
+
+- Building traditional web applications
+- Need CSRF protection
+- Want automatic session management
+
+**Setup:**
+
+```typescript
+// Better Auth integration example
+import { betterAuth } from 'better-auth';
+
+const auth = betterAuth({
+  database: db,
+  emailAndPassword: {
+    enabled: true,
+  },
+});
+
+// Nile automatically recognizes Better Auth cookies
+```
+
+**Client usage:**
+
+```bash
+curl -X POST http://localhost:3000/services/accounts \
+  -H "Cookie: better-auth.session_token=<session>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "create",
+    "payload": { "name": "John", "email": "john@example.com" }
+  }'
+```
+
+### Agent Authentication
+
+Internal authentication for AI agents and automated systems.
+
+**Use when:**
+
+- Building AI agents
+- Internal automation
+- Service-to-service communication
+
+**Setup:**
+
+```typescript
+import { createRPC } from '@nile-squad/nile/rest-rpc';
+
+const rpc = createRPC({
+  agentMode: true,
+  organization_id: 'org-uuid',
+  serverConfig
+});
+
+const result = await rpc.executeServiceAction('accounts', {
+  action: 'create',
+  payload: { name: 'John', email: 'john@example.com' }
+});
+```
+
+## Making Actions Public
+
+By default, all actions require authentication. Make actions public when needed:
+
+### Single Public Action
+
+```typescript
+{
+  name: 'getPublicProfile',
+  description: 'Get public user profile',
+  isProtected: false,  // Anyone can call this
+  handler: async (data) => {
+    // Your logic
+  }
+}
+```
+
+### Service-Level Public Actions
+
+```typescript
+{
+  name: 'accounts',
+  description: 'User account management',
+  publicActions: ['register', 'getPublicProfile'],
+  actions: [
+    // All actions here except those in publicActions require auth
+  ]
+}
+```
+
+## Accessing User Context
+
+Authenticated user information is available in the handler context:
+
+```typescript
+{
+  name: 'updateProfile',
+  isProtected: true,
+  handler: async (data, context) => {
+    const { user } = context;
+    
+    console.log('User ID:', user.id);
+    console.log('User email:', user.email);
+    console.log('User role:', user.role);
+    console.log('Organization:', user.organizationId);
+    
+    // Update only the authenticated user's profile
+    return updateUserProfile(user.id, data);
+  }
+}
+```
+
+**Context object includes:**
+
+- `user.id` - User's unique identifier
+- `user.email` - User's email address
+- `user.role` - User's role (admin, user, etc.)
+- `user.organizationId` - Organization context
+- `user.metadata` - Additional user metadata
+
+## Role-Based Access Control
+
+Implement RBAC using the meta system and action hooks:
+
+### Define Access Rules
+
+```typescript
+{
+  name: 'users',
+  tableName: 'users',
+  idName: 'id',
+  meta: {
+    access: {
+      create: ['owner', 'admin'],
+      read: ['owner', 'admin', 'manager', 'member'],
+      update: ['owner', 'admin', 'manager'],
+      delete: ['owner', 'admin']
+    }
+  }
+}
+```
+
+### Create Access Control Hook
+
+```typescript
+import { Ok, safeError } from '@nile-squad/nile';
+
+export const accessControlHook = (context, action, payload) => {
+  const { user } = context;
+  
+  // Skip for unauthenticated users
+  if (!user) {
+    return Ok(true);
+  }
+  
+  const userRole = user.role || 'member';
+  
+  // Check access rules
+  const accessMeta = action.meta?.access;
+  if (!accessMeta) {
+    return safeError('Access denied: No permissions defined', 'no-access-meta');
+  }
+  
+  // For auto-generated actions
+  let allowedRoles;
+  if (action.type === 'auto') {
+    allowedRoles = accessMeta[action.name];
+  } else {
+    allowedRoles = accessMeta;
+  }
+  
+  if (!allowedRoles || !allowedRoles.includes(userRole)) {
+    return safeError(`Access denied for role: ${userRole}`, 'access-denied');
+  }
+  
+  return Ok(true);
+};
+```
+
+### Register Global Hook
+
+```typescript
+const serverConfig = {
+  onActionHandler: accessControlHook,
+  // ... other config
+};
+```
+
+## JWT Token Format
+
+Nile expects JWT tokens with this structure:
+
+```json
+{
+  "sub": "user-id",
+  "email": "user@example.com",
+  "role": "admin",
+  "organizationId": "org-uuid",
+  "exp": 1234567890
+}
+```
+
+**Generate a token:**
+
+```typescript
+import jwt from 'jsonwebtoken';
+
+const token = jwt.sign(
+  {
+    sub: user.id,
+    email: user.email,
+    role: user.role,
+    organizationId: user.organizationId
+  },
+  process.env.AUTH_SECRET,
+  { expiresIn: '7d' }
+);
+```
+
+## Better Auth Integration
+
+Nile works seamlessly with Better Auth:
+
+### Setup Better Auth
+
+```typescript
+import { betterAuth } from 'better-auth';
+import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+
+export const auth = betterAuth({
+  database: drizzleAdapter(db, {
+    provider: 'pg',
+  }),
+  emailAndPassword: {
+    enabled: true,
+  },
+  session: {
+    expiresIn: 60 * 60 * 24 * 7, // 7 days
+  },
+});
+```
+
+### Add Auth Endpoints
+
+```typescript
+import { auth } from './auth';
+
+// Better Auth handles these routes automatically
+app.on(['POST', 'GET'], '/api/auth/**', (c) => {
+  return auth.handler(c.req.raw);
+});
+```
+
+### Frontend Integration
+
+```typescript
+import { createAuthClient } from 'better-auth/react';
+
+const authClient = createAuthClient({
+  baseURL: 'http://localhost:3000',
+});
+
+// Sign in
+await authClient.signIn.email({
+  email: 'user@example.com',
+  password: 'password',
+});
+
+// The session cookie is set automatically
+// Now you can call protected Nile endpoints
+const response = await fetch('/services/accounts', {
+  method: 'POST',
+  credentials: 'include', // Include cookies
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    action: 'create',
+    payload: { name: 'John', email: 'john@example.com' }
+  })
+});
+```
+
+## Custom Authentication
+
+Implement custom authentication logic:
+
+```typescript
+import { verifyToken } from './custom-auth';
+
+const serverConfig = {
+  authSecret: process.env.AUTH_SECRET,
+  customAuth: async (request) => {
+    // Extract token from custom header
+    const token = request.headers.get('X-Custom-Token');
+    
+    if (!token) {
+      return null;
+    }
+    
+    // Verify token with your logic
+    const user = await verifyToken(token);
+    
+    return user ? {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      organizationId: user.organizationId
+    } : null;
+  },
+  // ... other config
+};
+```
+
+## Troubleshooting
+
+### Authentication Required Error
+
+**Issue:** Getting "Authentication required" for public endpoints
+
+**Solution:** Mark actions as public:
+
+```typescript
+{
+  name: 'publicAction',
+  isProtected: false,
+  handler: async (data) => { /* ... */ }
+}
+```
+
+### Invalid Token Error
+
+**Issue:** Token is rejected as invalid
+
+**Solution:** Check:
+
+- Token is properly signed with AUTH_SECRET
+- Token hasn't expired
+- Token has required claims (sub, email)
+- Authorization header format is correct
+
+### User Context Missing
+
+**Issue:** `context.user` is undefined in protected action
+
+**Solution:** Verify:
+
+- Request includes authentication header
+- Token is valid and not expired
+- Auth middleware is configured properly
+
+### CORS Issues
+
+**Issue:** Authentication fails due to CORS errors
+
+**Solution:** Configure CORS properly:
+
+```typescript
+const serverConfig = {
+  allowedOrigins: ['http://localhost:3000'],
+  // ... other config
+};
+```
+
+## Security Best Practices
+
+### Store Secrets Securely
+
+```typescript
+// Use environment variables
+const serverConfig = {
+  authSecret: process.env.AUTH_SECRET,
+  // Never hardcode secrets
+};
+```
+
+### Use HTTPS in Production
+
+Always use HTTPS in production to protect authentication tokens in transit.
+
+### Set Appropriate Token Expiry
+
+```typescript
+const token = jwt.sign(payload, secret, {
+  expiresIn: '7d' // Not too long, not too short
+});
+```
+
+### Validate Input
+
+Always validate user input even for authenticated users:
+
+```typescript
+{
+  name: 'updateProfile',
+  isProtected: true,
+  validation: {
+    zodSchema: updateProfileSchema
+  },
+  handler: async (data, context) => {
+    // Data is already validated
+  }
+}
+```
+
+### Implement Rate Limiting
+
+Protect against brute force attacks:
+
+```typescript
+const serverConfig = {
+  rateLimit: {
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100 // limit each IP to 100 requests per windowMs
+  },
+  // ... other config
+};
+```
+
+## Next Steps
+
+- **[Action Hooks](/docs/guides/hooks)** - Implement custom authorization logic
+- **[REST-RPC API](/docs/api-reference/rest-rpc)** - Learn about authentication headers
+- **[Core Concepts](/docs/core-concepts)** - Understand protected vs public actions
+
+**Author:** [Hussein Kizz](https://github.com/Hussseinkizz) at [Nile Squad Labz](https://github.com/nile-squad)
+
+*This documentation reflects the current implementation and is subject to evolution. Contributions and feedback are welcome.*

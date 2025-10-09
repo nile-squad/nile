@@ -1,0 +1,359 @@
+---
+title: Core Concepts
+description: Understand the fundamental concepts behind Nile's architecture
+---
+
+**Version:** 1.0  
+**Date:** January 16, 2025  
+**Author:** Hussein Kizz
+
+## The Service-Action Model
+
+Nile is built around a simple yet powerful mental model: **Services** contain **Actions**.
+
+### What is a Service?
+
+A service represents a business domain or capability in your application. Examples:
+
+- `accounts` - User account management
+- `messaging` - Email and notification handling
+- `storage` - File upload and storage
+- `payments` - Payment processing
+
+Services group related functionality together in a logical, maintainable way.
+
+### What is an Action?
+
+An action is a single operation within a service. Actions are the atomic units of work in Nile.
+
+**Example actions in the accounts service:**
+
+- `create` - Create a new account
+- `update` - Update account information
+- `delete` - Delete an account
+- `getAll` - List all accounts
+
+Each action:
+
+- Has a unique name within its service
+- Receives validated input data
+- Returns a consistent response format
+- Can be protected or public
+- Can have validation rules
+- Can have before/after hooks
+
+## Action Anatomy
+
+Here's a complete action definition with all the key parts:
+
+```typescript
+{
+  name: 'create',
+  description: 'Create a new user account',
+  isProtected: true,  // Requires authentication (default)
+  handler: async (data, context) => {
+    // Your business logic here
+    return {
+      status: true,
+      message: 'Account created successfully',
+      data: { id: '123', ...data }
+    };
+  },
+  validation: {
+    zodSchema: z.object({
+      name: z.string(),
+      email: z.string().email()
+    })
+  },
+  hooks: {
+    before: [logAction, checkPermissions],
+    after: [sendWelcomeEmail, logSuccess]
+  }
+}
+```
+
+Let's break down each part:
+
+**name:** Identifies the action within the service
+
+**description:** Human-readable explanation of what the action does
+
+**isProtected:** Whether authentication is required (true by default)
+
+**handler:** The function that executes your business logic
+
+**validation:** Zod schema for validating input data
+
+**hooks:** Functions to run before and after the action
+
+## The Handler Function
+
+The handler is where your business logic lives. It receives two arguments:
+
+```typescript
+async (data, context) => {
+  // data: The validated input payload
+  // context: Execution context including user info, request details, etc.
+  
+  // Your logic here
+  
+  // Return a consistent response
+  return {
+    status: true,
+    message: 'Success message',
+    data: { /* your response data */ }
+  };
+}
+```
+
+**Context object includes:**
+
+- `user` - Authenticated user information (if protected)
+- `request` - HTTP request details
+- `headers` - Request headers
+- `organizationId` - Organization context (if applicable)
+
+## Auto-Generated CRUD with Subs
+
+For simple database operations, Nile can auto-generate actions from your Drizzle schemas. These are called **SubServices** or **Subs**.
+
+```typescript
+import { z } from 'zod';
+
+export const usersSubs = [{
+  name: 'users',
+  tableName: 'users',
+  idName: 'id',
+  validation: {
+    zodSchema: z.object({
+      name: z.string(),
+      email: z.string().email(),
+    }),
+  },
+}];
+```
+
+This single configuration automatically generates these actions:
+
+- `create` - Insert a new record
+- `update` - Update an existing record
+- `delete` - Delete a record
+- `getAll` - List all records
+- `getOne` - Get a single record
+
+**Registering Subs:**
+
+```typescript
+import { composeSubs } from '@nile-squad/nile';
+import { usersSubs } from './subs/users';
+
+export const dbService = {
+  name: 'db',
+  description: 'Database operations',
+  subs: composeSubs([...usersSubs]),
+  actions: [
+    // Add custom actions here
+  ],
+};
+```
+
+## Multi-Protocol Access
+
+Every action you define is automatically available through multiple protocols:
+
+### REST-RPC
+
+HTTP-based discovery and execution:
+
+```bash
+# Discover services
+GET /services
+
+# Execute action
+POST /services/accounts
+{
+  "action": "create",
+  "payload": { "name": "John", "email": "john@example.com" }
+}
+```
+
+### WebSocket RPC
+
+Real-time bidirectional communication:
+
+```javascript
+socket.emit('executeAction', {
+  service: 'accounts',
+  action: 'create',
+  payload: { name: 'John', email: 'john@example.com' }
+}, callback);
+```
+
+### In-Process RPC
+
+Direct function calls for internal service-to-service communication:
+
+```typescript
+const rpc = createRPC({ serverConfig });
+const result = await rpc.executeServiceAction('accounts', {
+  action: 'create',
+  payload: { name: 'John', email: 'john@example.com' }
+});
+```
+
+### Agentic Endpoint
+
+Natural language interface for AI agents:
+
+```bash
+POST /agentic
+{
+  "input": "Create an account for John with email john@example.com"
+}
+```
+
+All four protocols share the same underlying logic, ensuring consistency across your entire API.
+
+## Hooks System
+
+Hooks allow you to run code before or after actions execute. They're perfect for cross-cutting concerns like:
+
+- Authentication and authorization
+- Audit logging
+- Data transformation
+- Rate limiting
+- Caching
+
+**Global hooks** run for every action:
+
+```typescript
+const serverConfig = {
+  onActionHandler: async (context, action, payload) => {
+    // Runs before every action
+    console.log(`Executing ${action.name}`);
+    return Ok(true); // Allow the action to proceed
+  },
+};
+```
+
+**Action-specific hooks** run only for that action:
+
+```typescript
+{
+  name: 'create',
+  handler: async (data) => { /* ... */ },
+  hooks: {
+    before: [validateInput, checkQuota],
+    after: [sendNotification, updateMetrics]
+  }
+}
+```
+
+## Error Handling Pattern
+
+Nile uses a consistent error handling pattern with `SafeResult` objects:
+
+```typescript
+import { Ok, safeError, isError } from '@nile-squad/nile';
+
+export const createAccount = async (data) => {
+  // Check if email exists
+  const existing = await findUserByEmail(data.email);
+  
+  if (isError(existing)) {
+    return existing; // Propagate error
+  }
+  
+  if (existing.data) {
+    return safeError('Email already in use', 'duplicate-email');
+  }
+  
+  // Create the account
+  const result = await insertUser(data);
+  
+  if (isError(result)) {
+    return result; // Propagate error
+  }
+  
+  return Ok(result.data);
+};
+```
+
+**Key functions:**
+
+- `Ok(data)` - Return successful result
+- `safeError(message, errorId)` - Return error result
+- `isError(result)` - Check if result is an error
+
+This pattern ensures:
+
+- Consistent error handling throughout your app
+- No uncaught exceptions
+- Traceable error IDs for debugging
+- Type-safe error checking
+
+## Validation
+
+Nile uses Zod for runtime type validation. Define your schemas once and use them everywhere:
+
+```typescript
+import { z } from 'zod';
+
+const createUserSchema = z.object({
+  name: z.string().min(1),
+  email: z.string().email(),
+  age: z.number().int().positive().optional(),
+  role: z.enum(['admin', 'user', 'guest']).default('user')
+});
+```
+
+Use in your action:
+
+```typescript
+{
+  name: 'create',
+  handler: async (data) => { /* data is already validated */ },
+  validation: {
+    zodSchema: createUserSchema
+  }
+}
+```
+
+If validation fails, Nile automatically returns a formatted error response.
+
+## Security by Default
+
+All actions are **protected by default**. Users must be authenticated to call them.
+
+**Make an action public:**
+
+```typescript
+{
+  name: 'getPublicInfo',
+  isProtected: false,  // Anyone can call this
+  handler: async () => { /* ... */ }
+}
+```
+
+**Service-level public actions:**
+
+```typescript
+{
+  name: 'accounts',
+  publicActions: ['getPublicProfile', 'register'],
+  actions: [/* ... */]
+}
+```
+
+## Next Steps
+
+Now that you understand the core concepts, dive deeper:
+
+- **[Architecture Guide](/docs/guides/architecture)** - Learn the layered architecture
+- **[Authentication](/docs/guides/authentication)** - Secure your services properly
+- **[Action Hooks](/docs/guides/hooks)** - Master the hooks system
+- **[REST-RPC API](/docs/api-reference/rest-rpc)** - Complete protocol reference
+
+**Author:** [Hussein Kizz](https://github.com/Hussseinkizz) at [Nile Squad Labz](https://github.com/nile-squad)
+
+*This documentation reflects the current implementation and is subject to evolution. Contributions and feedback are welcome.*

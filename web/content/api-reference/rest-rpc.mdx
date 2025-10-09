@@ -1,0 +1,448 @@
+---
+title: REST-RPC Specification
+description: Complete REST-RPC protocol specification with discovery and execution patterns
+---
+
+**Version:** 1.0  
+**Date:** January 16, 2025  
+**Author:** Hussein Kizz
+
+## Overview
+
+REST-RPC is a service-oriented architecture that bridges REST discovery with RPC execution, enabling:
+
+- Service discovery through HTTP GET endpoints
+- Action execution via standardized POST requests
+- Self-documenting APIs with schema introspection
+- Hook-based workflows for complex business logic
+- Agent integration for AI-driven interactions
+
+## Core Philosophy
+
+### Why Service-Action Oriented?
+
+Business operations map naturally to named actions rather than CRUD operations. This approach:
+
+- Makes APIs self-documenting
+- Supports complex workflows through hook composition
+- Works for both human and agent-driven interactions
+- Eliminates HTTP method confusion
+
+### Why Dual-Method Approach?
+
+- `GET` requests for exploration and discovery
+- `POST` requests for all action execution
+- Consistent response format across all endpoints
+- Clear separation between read and write operations
+
+## Discovery Flow
+
+### Service Enumeration
+
+**Endpoint:** `GET /services`
+
+List all available services in your application.
+
+**Example:**
+
+```bash
+curl http://localhost:3000/services
+```
+
+**Response:**
+
+```json
+{
+  "status": true,
+  "data": {
+    "services": [
+      {
+        "name": "accounts",
+        "description": "User account management",
+        "actionCount": 5
+      },
+      {
+        "name": "messaging",
+        "description": "Email and notification handling",
+        "actionCount": 3
+      }
+    ]
+  }
+}
+```
+
+### Service Inspection
+
+**Endpoint:** `GET /services/{serviceName}`
+
+Get details about a specific service including all available actions.
+
+**Example:**
+
+```bash
+curl http://localhost:3000/services/accounts
+```
+
+**Response:**
+
+```json
+{
+  "status": true,
+  "data": {
+    "name": "accounts",
+    "description": "User account management",
+    "actions": [
+      {
+        "name": "create",
+        "description": "Create a new user account",
+        "isProtected": true
+      },
+      {
+        "name": "update",
+        "description": "Update account information",
+        "isProtected": true
+      },
+      {
+        "name": "getPublicProfile",
+        "description": "Get public profile information",
+        "isProtected": false
+      }
+    ]
+  }
+}
+```
+
+### Action Introspection
+
+**Endpoint:** `GET /services/{serviceName}/{actionName}`
+
+Get detailed information about a specific action including validation schema.
+
+**Example:**
+
+```bash
+curl http://localhost:3000/services/accounts/create
+```
+
+**Response:**
+
+```json
+{
+  "status": true,
+  "data": {
+    "name": "create",
+    "description": "Create a new user account",
+    "isProtected": true,
+    "validation": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        }
+      },
+      "required": ["name", "email"]
+    },
+    "hooks": {
+      "before": ["validateInput", "checkQuota"],
+      "after": ["sendWelcomeEmail", "logSuccess"]
+    }
+  }
+}
+```
+
+## Action Execution
+
+### Standard Execution Pattern
+
+**Endpoint:** `POST /services/{serviceName}`
+
+Execute an action on a service.
+
+**Request Format:**
+
+```json
+{
+  "action": "actionName",
+  "payload": {
+    "param1": "value1",
+    "param2": "value2"
+  }
+}
+```
+
+**Example:**
+
+```bash
+curl -X POST http://localhost:3000/services/accounts \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{
+    "action": "create",
+    "payload": {
+      "name": "John Doe",
+      "email": "john@example.com"
+    }
+  }'
+```
+
+**Success Response:**
+
+```json
+{
+  "status": true,
+  "message": "Account created successfully",
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "createdAt": "2025-01-16T10:30:00Z"
+  }
+}
+```
+
+**Error Response:**
+
+```json
+{
+  "status": false,
+  "message": "Validation failed",
+  "error": {
+    "id": "validation-failed",
+    "issues": [
+      {
+        "path": ["email"],
+        "message": "Invalid email format"
+      }
+    ]
+  }
+}
+```
+
+## Authentication
+
+### JWT Token Authentication
+
+Include JWT token in the Authorization header:
+
+```bash
+curl -X POST http://localhost:3000/services/accounts \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "create",
+    "payload": { "name": "John", "email": "john@example.com" }
+  }'
+```
+
+### Session Cookie Authentication
+
+Use session cookies for browser-based authentication:
+
+```bash
+curl -X POST http://localhost:3000/services/accounts \
+  -H "Cookie: better-auth.session_token=<session-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "create",
+    "payload": { "name": "John", "email": "john@example.com" }
+  }'
+```
+
+### Public Actions
+
+Actions marked as public don't require authentication:
+
+```bash
+curl -X POST http://localhost:3000/services/accounts \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "getPublicProfile",
+    "payload": { "username": "johndoe" }
+  }'
+```
+
+## Error Handling
+
+### Common Error Codes
+
+**Authentication Errors:**
+
+```json
+{
+  "status": false,
+  "message": "Authentication required",
+  "error": {
+    "id": "auth-required",
+    "details": "This action requires authentication"
+  }
+}
+```
+
+**Validation Errors:**
+
+```json
+{
+  "status": false,
+  "message": "Validation failed",
+  "error": {
+    "id": "validation-failed",
+    "issues": [
+      {
+        "path": ["email"],
+        "message": "Invalid email format"
+      }
+    ]
+  }
+}
+```
+
+**Not Found Errors:**
+
+```json
+{
+  "status": false,
+  "message": "Service not found",
+  "error": {
+    "id": "service-not-found",
+    "details": "The service 'unknown' does not exist"
+  }
+}
+```
+
+**Permission Errors:**
+
+```json
+{
+  "status": false,
+  "message": "Access denied",
+  "error": {
+    "id": "access-denied",
+    "details": "Insufficient permissions for this action"
+  }
+}
+```
+
+## CORS Configuration
+
+Configure CORS in your server configuration:
+
+```typescript
+const serverConfig = {
+  allowedOrigins: [
+    'http://localhost:3000',
+    'https://yourdomain.com'
+  ],
+  // ... other config
+};
+```
+
+Nile automatically handles CORS preflight requests.
+
+## Rate Limiting
+
+Default rate limits apply:
+
+- 100 requests per minute per IP
+- 1000 requests per hour per user
+- 10000 requests per day per user
+
+When rate limit is exceeded:
+
+```json
+{
+  "status": false,
+  "message": "Rate limit exceeded",
+  "error": {
+    "id": "rate-limit-exceeded",
+    "retryAfter": 60,
+    "limit": 100,
+    "remaining": 0
+  }
+}
+```
+
+## HTTP Status Codes
+
+Nile uses standard HTTP status codes:
+
+| Code | Meaning | When |
+|------|---------|------|
+| 200 | OK | Successful operation |
+| 400 | Bad Request | Invalid request format or validation error |
+| 401 | Unauthorized | Missing or invalid authentication |
+| 403 | Forbidden | Insufficient permissions |
+| 404 | Not Found | Service or action doesn't exist |
+| 429 | Too Many Requests | Rate limit exceeded |
+| 500 | Internal Server Error | Server-side error occurred |
+
+## Best Practices
+
+### Discovery First
+
+Always discover services before executing actions in production:
+
+```typescript
+// 1. List services
+const services = await fetch('/services').then(r => r.json());
+
+// 2. Get action schema
+const schema = await fetch('/services/accounts/create').then(r => r.json());
+
+// 3. Execute with validated data
+const result = await fetch('/services/accounts', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    action: 'create',
+    payload: validatedData
+  })
+});
+```
+
+### Error Handling
+
+Always check the `status` field in responses:
+
+```typescript
+const response = await fetch('/services/accounts', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ action: 'create', payload: data })
+});
+
+const result = await response.json();
+
+if (!result.status) {
+  console.error('Operation failed:', result.message);
+  console.error('Error details:', result.error);
+  return;
+}
+
+console.log('Success:', result.data);
+```
+
+### Consistent Headers
+
+Always include appropriate headers:
+
+```typescript
+const headers = {
+  'Content-Type': 'application/json',
+  'Authorization': `Bearer ${token}`,
+  'Accept': 'application/json'
+};
+```
+
+## Next Steps
+
+- **[WebSocket RPC](/docs/api-reference/websocket-rpc)** - Real-time alternative
+- **[Authentication Guide](/docs/guides/authentication)** - Secure your API
+- **[Action Hooks](/docs/guides/hooks)** - Add custom logic to actions
+
+**Author:** [Hussein Kizz](https://github.com/Hussseinkizz) at [Nile Squad Labz](https://github.com/nile-squad)
+
+*This specification reflects the current implementation and is subject to evolution. Contributions and feedback are welcome.*

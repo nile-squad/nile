@@ -1,0 +1,25 @@
+{
+  "title": "Nile Documentation",
+  "pages": [
+    "index",
+    "getting-started",
+    "core-concepts",
+    {
+      "title": "API Reference",
+      "pages": [
+        "api-reference/index",
+        "api-reference/rest-rpc",
+        "api-reference/websocket-rpc",
+        "api-reference/agentic"
+      ]
+    },
+    {
+      "title": "Guides",
+      "pages": [
+        "guides/architecture",
+        "guides/authentication",
+        "guides/hooks"
+      ]
+    }
+  ]
+}

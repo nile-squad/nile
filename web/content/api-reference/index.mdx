@@ -1,0 +1,185 @@
+---
+title: API Reference
+description: Complete API reference for all Nile protocols
+---
+
+**Version:** 1.0  
+**Date:** January 16, 2025  
+**Author:** Hussein Kizz
+
+## Overview
+
+Nile provides multiple protocols for interacting with your services. All protocols share the same underlying logic and provide consistent behavior.
+
+## Available Protocols
+
+### REST-RPC
+
+HTTP-based protocol combining REST discovery with RPC execution.
+
+**Use when:**
+
+- Building web applications
+- Need HTTP-based communication
+- Want self-documenting APIs
+- Integrating with external systems
+
+**Key features:**
+
+- Self-documenting through GET endpoints
+- Standard HTTP methods and status codes
+- Works with any HTTP client
+- Compatible with API gateways and proxies
+
+**Learn more:** [REST-RPC Specification](/docs/api-reference/rest-rpc)
+
+### WebSocket RPC
+
+Real-time bidirectional communication over WebSocket connections.
+
+**Use when:**
+
+- Need real-time updates
+- Want lower latency
+- Building chat or collaborative features
+- Maintaining persistent connections
+
+**Key features:**
+
+- Event-based communication
+- Full parity with REST-RPC
+- Automatic reconnection
+- Built on Socket.IO
+
+**Learn more:** [WebSocket RPC Specification](/docs/api-reference/websocket-rpc)
+
+### In-Process RPC
+
+Direct function calls for internal service communication.
+
+**Use when:**
+
+- Calling services from within your backend
+- Building internal tools
+- Need maximum performance
+- Want type-safe calls
+
+**Key features:**
+
+- Zero network overhead
+- Full TypeScript support
+- Same validation and hooks
+- Direct function calls
+
+**Learn more:** [In-Process RPC](/docs/api-reference/in-process-rpc)
+
+### Agentic Endpoint
+
+Natural language interface for AI agents and automation.
+
+**Use when:**
+
+- Building AI-powered features
+- Want natural language interaction
+- Creating chatbots or assistants
+- Enabling non-technical users
+
+**Key features:**
+
+- Natural language understanding
+- Automatic service discovery
+- Context-aware responses
+- Multi-turn conversations
+
+**Learn more:** [Agentic System Specification](/docs/api-reference/agentic)
+
+## Response Format
+
+All protocols use a consistent response format:
+
+**Success Response:**
+
+```json
+{
+  "status": true,
+  "message": "Operation completed successfully",
+  "data": {
+    "id": "123",
+    "name": "Example"
+  }
+}
+```
+
+**Error Response:**
+
+```json
+{
+  "status": false,
+  "message": "Operation failed",
+  "error": {
+    "id": "error-uuid",
+    "details": "Additional error information"
+  }
+}
+```
+
+## Authentication
+
+All protocols support the same authentication mechanisms:
+
+**JWT Token:**
+
+```bash
+Authorization: Bearer <token>
+```
+
+**Session Cookie:**
+
+```bash
+Cookie: better-auth.session_token=<token>
+```
+
+**Custom Header:**
+
+```bash
+X-Auth-Token: <token>
+```
+
+See [Authentication Guide](/docs/guides/authentication) for detailed setup.
+
+## Rate Limiting
+
+Rate limits apply across all protocols for a given user or IP address. Default limits:
+
+- 100 requests per minute
+- 1000 requests per hour
+- 10000 requests per day
+
+Configure custom limits in your server configuration.
+
+## Error Codes
+
+Common error codes across all protocols:
+
+| Code | Description |
+|------|-------------|
+| `auth-required` | Authentication is required |
+| `auth-invalid` | Invalid authentication credentials |
+| `validation-failed` | Input validation failed |
+| `not-found` | Service or action not found |
+| `access-denied` | Insufficient permissions |
+| `rate-limit` | Rate limit exceeded |
+| `server-error` | Internal server error |
+
+## Next Steps
+
+Explore the detailed documentation for each protocol:
+
+- **[REST-RPC](/docs/api-reference/rest-rpc)** - HTTP-based protocol
+- **[WebSocket RPC](/docs/api-reference/websocket-rpc)** - Real-time protocol
+- **[In-Process RPC](/docs/api-reference/in-process-rpc)** - Direct calls
+- **[Agentic System](/docs/api-reference/agentic)** - AI agent protocol
+
+**Author:** [Hussein Kizz](https://github.com/Hussseinkizz) at [Nile Squad Labz](https://github.com/nile-squad)
+
+*This documentation reflects the current implementation and is subject to evolution. Contributions and feedback are welcome.*

@@ -1,0 +1,148 @@
+---
+title: Welcome to Nile
+description: TypeScript-first, service-oriented backend framework for building modern, AI-ready backends
+---
+
+**Version:** 1.0  
+**Date:** January 16, 2025  
+**Author:** Hussein Kizz
+
+## What is Nile?
+
+Nile is a TypeScript-first, service-oriented backend framework designed for building modern, AI-ready backends with the simplest developer experience and speed.
+
+Built at [Nile Squad Labz](https://nilesquad.com) to power B2B SaaS products and services, Nile is now open-sourced for the community.
+
+## Why Choose Nile?
+
+**No MVC or REST Clutter**
+
+Nile uses a simple service-and-action model. Define your business logic as actions, and Nile exposes them everywhere you need.
+
+**Multi-Protocol by Default**
+
+Call your actions via REST, WebSocket, in-process, or even through an AI agent endpoint—all with the same code.
+
+**Agentic Workflows Built-In**
+
+Nile is designed for agentic (AI-driven) automation and orchestration from day one.
+
+## Key Features
+
+**Unified Service-Action Model**
+
+No controllers, no routes, no REST duplication. Just clean, organized business logic.
+
+**Automatic API Discovery**
+
+Self-documenting endpoints that can be explored programmatically.
+
+**Secure by Default**
+
+All actions are protected unless you explicitly mark them as public.
+
+**Powerful Hooks System**
+
+Global and per-action hooks for cross-cutting concerns.
+
+**Type-Safe CRUD**
+
+Auto-generated from your Drizzle DB schemas.
+
+**First-Class AI Support**
+
+Built-in agentic endpoint for natural language interactions.
+
+## Built With Modern Tools
+
+Nile leverages the best tools in the TypeScript ecosystem:
+
+- **TypeScript** - Full type safety across your entire backend
+- **Hono** - Lightning-fast web framework
+- **Zod** - Runtime type validation
+- **Drizzle** - Type-safe ORM
+
+## Quick Example
+
+Here's how simple it is to create a service with Nile:
+
+```typescript
+import { createRestRPC } from '@nile-squad/nile/rest-rpc';
+import { z } from 'zod';
+
+const app = createRestRPC({
+  port: 3000,
+  services: [
+    {
+      name: 'accounts',
+      description: 'User account management',
+      actions: [
+        {
+          name: 'create',
+          description: 'Create a new user account',
+          isProtected: false,
+          handler: async (data) => {
+            return {
+              status: true,
+              message: 'Account created successfully',
+              data: { id: '123', ...data }
+            };
+          },
+          validation: {
+            zodSchema: z.object({
+              name: z.string(),
+              email: z.string().email()
+            })
+          }
+        }
+      ]
+    }
+  ]
+});
+
+app.listen(3000, () => {
+  console.log('Nile server running on http://localhost:3000');
+});
+```
+
+Call it via REST-RPC:
+
+```bash
+curl -X POST http://localhost:3000/services/accounts \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "create",
+    "payload": {
+      "name": "John Doe",
+      "email": "john@example.com"
+    }
+  }'
+```
+
+Or via the Agentic endpoint:
+
+```bash
+curl -X POST http://localhost:3000/agentic \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "Create a new user named John Doe with email john@example.com"
+  }'
+```
+
+## Next Steps
+
+Ready to build with Nile? Start with our Getting Started guide:
+
+- **[Getting Started](/docs/getting-started)** - Install and create your first service
+- **[Core Concepts](/docs/core-concepts)** - Understand the architecture
+- **[API Reference](/docs/api-reference)** - Complete protocol documentation
+
+## Project Status
+
+Nile has been in development for over seven months and is actively used in production at Nile Squad Labz with up to 90% test coverage.
+
+However, it is an ongoing project and will continue to evolve. It is not yet recommended for production use for those uncomfortable with potential breaking changes or the need to consult the source code where documentation may be incomplete.
+
+**Author:** [Hussein Kizz](https://github.com/Hussseinkizz) at [Nile Squad Labz](https://github.com/nile-squad)
+
+*This documentation reflects the current implementation and is subject to evolution. Contributions and feedback are welcome.*

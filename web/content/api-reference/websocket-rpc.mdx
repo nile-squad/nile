@@ -1,0 +1,588 @@
+---
+title: WebSocket RPC Specification
+description: Real-time bidirectional communication protocol for Nile services
+---
+
+**Version:** 1.0  
+**Date:** January 16, 2025  
+**Author:** Hussein Kizz
+
+## Overview
+
+WebSocket RPC provides real-time, bidirectional communication with your Nile services. It offers full feature parity with REST-RPC while adding real-time capabilities.
+
+Built on Socket.IO, WebSocket RPC is perfect for:
+
+- Real-time applications
+- Chat and messaging systems
+- Collaborative features
+- Live dashboards and monitoring
+- Low-latency interactions
+
+## Why WebSocket RPC?
+
+**Persistent Connections**
+
+Maintain an open connection instead of creating new connections for each request.
+
+**Lower Latency**
+
+Reduced overhead compared to HTTP requests for frequent operations.
+
+**Bidirectional**
+
+Server can push updates to clients without polling.
+
+**Full Feature Parity**
+
+Everything available in REST-RPC works identically in WebSocket RPC.
+
+## Client Setup
+
+### JavaScript/TypeScript Client
+
+```typescript
+import { io } from 'socket.io-client';
+
+// Connect with authentication
+const socket = io('http://localhost:3000', {
+  auth: {
+    token: 'your-jwt-token'
+  }
+});
+
+// Wait for connection
+socket.on('connect', () => {
+  console.log('Connected:', socket.id);
+});
+
+// Handle errors
+socket.on('connect_error', (error) => {
+  console.error('Connection error:', error.message);
+});
+```
+
+### React Hook
+
+```typescript
+import { useEffect, useState } from 'react';
+import { io, Socket } from 'socket.io-client';
+
+export function useSocket(token: string) {
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [connected, setConnected] = useState(false);
+
+  useEffect(() => {
+    const socketInstance = io('http://localhost:3000', {
+      auth: { token }
+    });
+
+    socketInstance.on('connect', () => {
+      setConnected(true);
+    });
+
+    socketInstance.on('disconnect', () => {
+      setConnected(false);
+    });
+
+    setSocket(socketInstance);
+
+    return () => {
+      socketInstance.disconnect();
+    };
+  }, [token]);
+
+  return { socket, connected };
+}
+```
+
+## Discovery Events
+
+### List Services
+
+**Event:** `listServices`
+
+```typescript
+socket.emit('listServices', {}, (response) => {
+  console.log('Services:', response.data.services);
+});
+```
+
+**Response:**
+
+```json
+{
+  "status": true,
+  "data": {
+    "services": [
+      {
+        "name": "accounts",
+        "description": "User account management",
+        "actionCount": 5
+      }
+    ]
+  }
+}
+```
+
+### Get Service Details
+
+**Event:** `getService`
+
+```typescript
+socket.emit('getService', {
+  service: 'accounts'
+}, (response) => {
+  console.log('Service details:', response.data);
+});
+```
+
+**Response:**
+
+```json
+{
+  "status": true,
+  "data": {
+    "name": "accounts",
+    "description": "User account management",
+    "actions": [
+      {
+        "name": "create",
+        "description": "Create a new user account",
+        "isProtected": true
+      }
+    ]
+  }
+}
+```
+
+### Get Action Details
+
+**Event:** `getAction`
+
+```typescript
+socket.emit('getAction', {
+  service: 'accounts',
+  action: 'create'
+}, (response) => {
+  console.log('Action details:', response.data);
+});
+```
+
+## Action Execution
+
+### Execute Action
+
+**Event:** `executeAction`
+
+```typescript
+socket.emit('executeAction', {
+  service: 'accounts',
+  action: 'create',
+  payload: {
+    name: 'John Doe',
+    email: 'john@example.com'
+  }
+}, (response) => {
+  if (response.status) {
+    console.log('Success:', response.data);
+  } else {
+    console.error('Error:', response.message);
+  }
+});
+```
+
+**Success Response:**
+
+```json
+{
+  "status": true,
+  "message": "Account created successfully",
+  "data": {
+    "id": "123",
+    "name": "John Doe",
+    "email": "john@example.com"
+  }
+}
+```
+
+**Error Response:**
+
+```json
+{
+  "status": false,
+  "message": "Validation failed",
+  "error": {
+    "id": "validation-failed",
+    "issues": [
+      {
+        "path": ["email"],
+        "message": "Invalid email format"
+      }
+    ]
+  }
+}
+```
+
+## Authentication
+
+### Token Authentication
+
+Pass JWT token during connection:
+
+```typescript
+const socket = io('http://localhost:3000', {
+  auth: {
+    token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+  }
+});
+```
+
+### Session Authentication
+
+Use cookies for session-based auth:
+
+```typescript
+const socket = io('http://localhost:3000', {
+  withCredentials: true // Include cookies
+});
+```
+
+### Reconnection with Auth
+
+Handle authentication on reconnection:
+
+```typescript
+socket.on('disconnect', () => {
+  console.log('Disconnected');
+});
+
+socket.on('connect', () => {
+  console.log('Reconnected with auth');
+});
+```
+
+## Real-Time Updates
+
+### Server Push Example
+
+Server can push updates to connected clients:
+
+```typescript
+// Server-side
+io.to(userId).emit('notification', {
+  type: 'account-updated',
+  data: {
+    accountId: '123',
+    changes: ['email']
+  }
+});
+```
+
+Client receives update:
+
+```typescript
+// Client-side
+socket.on('notification', (data) => {
+  console.log('Received notification:', data);
+  // Update UI accordingly
+});
+```
+
+### Room-Based Updates
+
+Join rooms for targeted updates:
+
+```typescript
+// Client joins a room
+socket.emit('joinRoom', { room: 'team-updates' });
+
+// Client receives room updates
+socket.on('team-update', (data) => {
+  console.log('Team update:', data);
+});
+```
+
+## Error Handling
+
+### Connection Errors
+
+```typescript
+socket.on('connect_error', (error) => {
+  if (error.message === 'Authentication failed') {
+    // Refresh token and reconnect
+    refreshToken().then(newToken => {
+      socket.auth.token = newToken;
+      socket.connect();
+    });
+  }
+});
+```
+
+### Action Errors
+
+```typescript
+socket.emit('executeAction', {
+  service: 'accounts',
+  action: 'create',
+  payload: { /* ... */ }
+}, (response) => {
+  if (!response.status) {
+    // Handle specific error types
+    switch (response.error?.id) {
+      case 'validation-failed':
+        console.error('Validation errors:', response.error.issues);
+        break;
+      case 'access-denied':
+        console.error('Permission denied');
+        break;
+      default:
+        console.error('Operation failed:', response.message);
+    }
+  }
+});
+```
+
+## Advanced Patterns
+
+### Request Queue
+
+Queue requests when disconnected:
+
+```typescript
+class SocketClient {
+  private queue: Array<{
+    event: string;
+    data: any;
+    callback: (response: any) => void;
+  }> = [];
+
+  constructor(private socket: Socket) {
+    socket.on('connect', () => {
+      this.flushQueue();
+    });
+  }
+
+  emit(event: string, data: any, callback: (response: any) => void) {
+    if (this.socket.connected) {
+      this.socket.emit(event, data, callback);
+    } else {
+      this.queue.push({ event, data, callback });
+    }
+  }
+
+  private flushQueue() {
+    while (this.queue.length > 0) {
+      const { event, data, callback } = this.queue.shift()!;
+      this.socket.emit(event, data, callback);
+    }
+  }
+}
+```
+
+### Typed Client
+
+Create a type-safe client:
+
+```typescript
+interface ServiceActions {
+  accounts: {
+    create: {
+      payload: { name: string; email: string };
+      response: { id: string; name: string; email: string };
+    };
+    update: {
+      payload: { id: string; name?: string; email?: string };
+      response: { id: string; name: string; email: string };
+    };
+  };
+}
+
+class TypedSocketClient<T extends ServiceActions> {
+  constructor(private socket: Socket) {}
+
+  executeAction<
+    S extends keyof T,
+    A extends keyof T[S]
+  >(
+    service: S,
+    action: A,
+    payload: T[S][A]['payload']
+  ): Promise<T[S][A]['response']> {
+    return new Promise((resolve, reject) => {
+      this.socket.emit('executeAction', {
+        service,
+        action,
+        payload
+      }, (response) => {
+        if (response.status) {
+          resolve(response.data);
+        } else {
+          reject(new Error(response.message));
+        }
+      });
+    });
+  }
+}
+
+// Usage
+const client = new TypedSocketClient<ServiceActions>(socket);
+const account = await client.executeAction('accounts', 'create', {
+  name: 'John',
+  email: 'john@example.com'
+});
+```
+
+## Performance Considerations
+
+### Connection Pooling
+
+Reuse socket connections:
+
+```typescript
+// Singleton pattern
+class SocketManager {
+  private static instance: Socket | null = null;
+
+  static getSocket(token: string): Socket {
+    if (!this.instance || !this.instance.connected) {
+      this.instance = io('http://localhost:3000', {
+        auth: { token }
+      });
+    }
+    return this.instance;
+  }
+}
+```
+
+### Batching Requests
+
+Batch multiple actions:
+
+```typescript
+const batchActions = async (actions: Array<{
+  service: string;
+  action: string;
+  payload: any;
+}>) => {
+  return Promise.all(
+    actions.map(({ service, action, payload }) =>
+      new Promise((resolve) => {
+        socket.emit('executeAction', {
+          service,
+          action,
+          payload
+        }, resolve);
+      })
+    )
+  );
+};
+```
+
+### Timeout Handling
+
+Add timeouts to prevent hanging:
+
+```typescript
+const executeWithTimeout = (
+  event: string,
+  data: any,
+  timeout: number = 5000
+): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error('Request timeout'));
+    }, timeout);
+
+    socket.emit(event, data, (response) => {
+      clearTimeout(timer);
+      resolve(response);
+    });
+  });
+};
+```
+
+## Migration from REST-RPC
+
+WebSocket RPC maintains identical response formats:
+
+**REST-RPC:**
+
+```bash
+curl -X POST http://localhost:3000/services/accounts \
+  -H "Authorization: Bearer <token>" \
+  -d '{"action": "create", "payload": {...}}'
+```
+
+**WebSocket RPC:**
+
+```typescript
+socket.emit('executeAction', {
+  service: 'accounts',
+  action: 'create',
+  payload: { /* ... */ }
+}, callback);
+```
+
+Both return the same response structure.
+
+## Testing
+
+### Unit Tests
+
+```typescript
+describe('Socket Client', () => {
+  let socket: Socket;
+
+  beforeEach(() => {
+    socket = io('http://localhost:3000', {
+      auth: { token: 'test-token' }
+    });
+  });
+
+  afterEach(() => {
+    socket.disconnect();
+  });
+
+  it('should execute action', (done) => {
+    socket.emit('executeAction', {
+      service: 'accounts',
+      action: 'create',
+      payload: { name: 'John', email: 'john@example.com' }
+    }, (response) => {
+      expect(response.status).toBe(true);
+      done();
+    });
+  });
+});
+```
+
+### Integration Tests
+
+```typescript
+describe('WebSocket RPC Integration', () => {
+  it('should handle full workflow', async () => {
+    // List services
+    const services = await emitAsync(socket, 'listServices', {});
+    expect(services.data.services).toHaveLength(1);
+
+    // Execute action
+    const result = await emitAsync(socket, 'executeAction', {
+      service: 'accounts',
+      action: 'create',
+      payload: { name: 'John', email: 'john@example.com' }
+    });
+    expect(result.status).toBe(true);
+  });
+});
+```
+
+## Next Steps
+
+- **[REST-RPC](/docs/api-reference/rest-rpc)** - HTTP-based alternative
+- **[Authentication](/docs/guides/authentication)** - Secure WebSocket connections
+- **[Core Concepts](/docs/core-concepts)** - Understand the basics
+
+**Author:** [Hussein Kizz](https://github.com/Hussseinkizz) at [Nile Squad Labz](https://github.com/nile-squad)
+
+*This specification reflects the current implementation and is subject to evolution. Contributions and feedback are welcome.*
