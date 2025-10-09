@@ -1,18 +1,19 @@
 # Authentication System Documentation
 
-**Version:** 2.1  
-**Date:** September 22, 2025  
+**Version:** 2.2  
+**Date:** January 16, 2025  
 **Author:** Hussein Kizz
 
 ## 1. Overview
 
-This project implements a comprehensive multi-tenant authentication system with three distinct authentication modes:
+This project implements a comprehensive multi-tenant authentication system with three distinct authentication modes and **configurable token extraction methods**:
 
 - **Better Auth Sessions** - Primary authentication for web applications using secure HTTP-only cookies
 - **JWT Bearer Tokens** - API access for programmatic clients and legacy integrations  
 - **Agent Authentication** - Internal system access for AI agents and automated operations
+- **Configurable Token Sources** - Flexible token extraction from payload, cookies, or headers
 
-The system provides organization-based multi-tenancy with automatic context injection and security-by-default architecture.
+The system provides organization-based multi-tenancy with automatic context injection, security-by-default architecture, and **developer-configurable authentication methods**.
 
 ## 2. Architecture Principles
 
@@ -71,9 +72,128 @@ The system supports three authentication modes with automatic prioritization:
 2. **JWT Bearer Token** (Secondary) - Authorization header for API access
 3. **Agent Mode** (Internal) - System-level access for AI operations
 
-## 3. Authentication Modes
+## 3. Configurable Authentication System
 
-### 3.1 Better Auth Session (Primary)
+### 3.1 Server Configuration
+
+Nile now supports **developer-configurable authentication methods** through the `serverOptions.auth` configuration. This allows developers to explicitly specify where JWT tokens should be extracted from, eliminating auto-detection and providing full control over the authentication flow.
+
+**Basic Configuration:**
+```typescript
+import { createRESTRPC } from '@nile-squad/nile/rest-rpc';
+
+const serverConfig = {
+  serverName: 'my-api',
+  baseUrl: '/api',
+  apiVersion: 'v1',
+  services: [/* your services */],
+  
+  // Configurable authentication
+  auth: {
+    method: 'payload',        // 'payload' | 'cookie' | 'header'
+    secret: process.env.AUTH_SECRET,
+    cookieName: 'auth_token', // Optional: custom cookie name (default: 'auth_token')
+    headerName: 'authorization' // Optional: custom header name (default: 'authorization')
+  }
+};
+```
+
+### 3.2 Authentication Methods
+
+#### 3.2.1 Payload Method (Default)
+Extract JWT tokens from the request payload body.
+
+```typescript
+// Server configuration
+auth: {
+  method: 'payload',
+  secret: process.env.AUTH_SECRET
+}
+
+// Client usage
+const response = await fetch('/api/services/customers', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    action: 'create',
+    payload: { name: 'John Doe' },
+    auth: { token: 'your-jwt-token' }  // Token in payload
+  })
+});
+```
+
+#### 3.2.2 Cookie Method (HttpOnly)
+Extract JWT tokens from HTTP-only cookies for enhanced security.
+
+```typescript
+// Server configuration
+auth: {
+  method: 'cookie',
+  secret: process.env.AUTH_SECRET,
+  cookieName: 'auth_token'  // Optional: defaults to 'auth_token'
+}
+
+// Client usage (cookie set by server)
+const response = await fetch('/api/services/customers', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  credentials: 'include',  // Include cookies
+  body: JSON.stringify({
+    action: 'create',
+    payload: { name: 'John Doe' }
+    // No auth object needed - token comes from cookie
+  })
+});
+```
+
+#### 3.2.3 Header Method (Bearer Token)
+Extract JWT tokens from Authorization headers.
+
+```typescript
+// Server configuration
+auth: {
+  method: 'header',
+  secret: process.env.AUTH_SECRET,
+  headerName: 'authorization'  // Optional: defaults to 'authorization'
+}
+
+// Client usage
+const response = await fetch('/api/services/customers', {
+  method: 'POST',
+  headers: { 
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer your-jwt-token'  // Token in header
+  },
+  body: JSON.stringify({
+    action: 'create',
+    payload: { name: 'John Doe' }
+  })
+});
+```
+
+### 3.3 Custom Configuration Options
+
+You can customize cookie and header names for your specific needs:
+
+```typescript
+// Custom cookie name
+auth: {
+  method: 'cookie',
+  secret: process.env.AUTH_SECRET,
+  cookieName: 'custom_auth_token'  // Custom cookie name
+}
+
+// Custom header name
+auth: {
+  method: 'header',
+  secret: process.env.AUTH_SECRET,
+  headerName: 'x-custom-auth'  // Custom header name
+}
+```
+
+## 4. Authentication Modes
+
+### 4.1 Better Auth Session (Primary)
 
 **Use Case:** Web applications, browser-based clients
 
@@ -111,7 +231,7 @@ curl -X POST http://localhost:8000/Delta/api/v1/services/customers \
   }'
 ```
 
-### 3.2 JWT Bearer Token (API Access)
+### 4.2 JWT Bearer Token (API Access)
 
 **Use Case:** Programmatic access, API integrations, mobile applications
 
@@ -141,7 +261,7 @@ curl -X POST http://localhost:8000/Delta/api/v1/services/customers \
   }'
 ```
 
-### 3.3 Agent Authentication (Internal)
+### 4.3 Agent Authentication (Internal)
 
 **Use Case:** AI agents, automated systems, internal operations
 
@@ -179,9 +299,9 @@ const agentToken = {
 };
 ```
 
-## 4. Multi-Tenant Organization System
+## 5. Multi-Tenant Organization System
 
-### 4.1 Organization Management
+### 5.1 Organization Management
 
 **Create Organization:**
 ```bash
@@ -228,7 +348,7 @@ curl -X GET http://localhost:8000/auth/get-session \
 }
 ```
 
-### 4.2 Data Isolation Strategy
+### 5.2 Data Isolation Strategy
 
 **Organization-Level Separation:**
 - All business data includes `organization_id` for tenant isolation
@@ -247,9 +367,9 @@ CREATE TABLE customers (
 );
 ```
 
-## 5. Frontend Integration Guide
+## 6. Frontend Integration Guide
 
-### 5.1 Better Auth Client Setup
+### 6.1 Better Auth Client Setup
 
 **React/Next.js Integration:**
 ```typescript
@@ -267,7 +387,7 @@ const { data: organizations } = authClient.useListOrganizations();
 const { data: activeOrg } = authClient.useActiveOrganization();
 ```
 
-### 5.2 Service Integration Pattern
+### 6.2 Service Integration Pattern
 
 **Authenticated Service Calls:**
 ```typescript
@@ -290,7 +410,7 @@ async function createCustomer(customerData: CustomerData) {
 }
 ```
 
-### 5.3 Permission-Based UI
+### 6.3 Permission-Based UI
 
 **Conditional Rendering Based on Authentication:**
 ```typescript
@@ -311,9 +431,9 @@ function CustomerManagement() {
 }
 ```
 
-## 6. AI Agent Integration
+## 7. AI Agent Integration
 
-### 6.1 Agentic Endpoint Authentication
+### 7.1 Agentic Endpoint Authentication
 
 **User-Triggered Agent Actions:**
 ```bash
@@ -328,7 +448,7 @@ curl -X POST http://localhost:8000/Delta/api/v1/services/agentic \
   }'
 ```
 
-### 6.2 Agent Internal Flow
+### 7.2 Agent Internal Flow
 
 **Authentication Context Propagation:**
 ```typescript
@@ -358,7 +478,7 @@ const agenticHandler = async (payload: { input: string; user_id: string; organiz
 };
 ```
 
-### 6.3 Agent Restrictions
+### 7.3 Agent Restrictions
 
 **Action-Level Agent Control:**
 ```typescript
@@ -549,7 +669,7 @@ const fullAuthFlow = {
 
 This layered approach ensures both secure authentication and flexible authorization for complex multi-role systems.
 
-### 7.1 Authentication Validation Flow
+### 7.5 Authentication Validation Flow
 
 **Request Processing Pipeline:**
 ```
@@ -560,7 +680,7 @@ This layered approach ensures both secure authentication and flexible authorizat
 5. Execute action → With enriched, validated context
 ```
 
-### 7.2 Context Injection Implementation
+### 7.6 Context Injection Implementation
 
 **HTTP REST Mode:**
 ```typescript
@@ -588,7 +708,7 @@ function enrichRPCPayload(payload: any, config: RPCConfig) {
 }
 ```
 
-### 7.3 Security Features
+### 7.7 Security Features
 
 **Session Security:**
 - HTTP-only cookies prevent XSS attacks
@@ -791,9 +911,124 @@ meta: {
 }
 ```
 
-## 10. Troubleshooting Guide
+## 10. Testing Configurable Authentication
 
-### 10.1 Common Authentication Issues
+### 10.1 Authentication Test Suite
+
+Nile includes comprehensive authentication tests covering all configurable authentication methods:
+
+**Test Coverage:**
+- ✅ Token extraction from payload, cookies, and headers
+- ✅ Custom cookie and header names
+- ✅ Authentication failure scenarios
+- ✅ Agent authentication flows
+- ✅ Action authorization checks
+
+**Running Authentication Tests:**
+```bash
+# Run all authentication tests
+pnpm test src/rest-rpc/rpc-utils/action-utils.test.ts
+
+# Run all Nile tests
+pnpm test
+```
+
+### 10.2 Testing Different Authentication Methods
+
+**Payload Method Testing:**
+```typescript
+// Test payload-based authentication
+const response = await fetch('/api/services/test', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    action: 'test',
+    payload: { data: 'test' },
+    auth: { token: 'valid-jwt-token' }
+  })
+});
+```
+
+**Cookie Method Testing:**
+```typescript
+// Test cookie-based authentication
+const response = await fetch('/api/services/test', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  credentials: 'include', // Include cookies
+  body: JSON.stringify({
+    action: 'test',
+    payload: { data: 'test' }
+    // Token comes from HttpOnly cookie
+  })
+});
+```
+
+**Header Method Testing:**
+```typescript
+// Test header-based authentication
+const response = await fetch('/api/services/test', {
+  method: 'POST',
+  headers: { 
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer valid-jwt-token'
+  },
+  body: JSON.stringify({
+    action: 'test',
+    payload: { data: 'test' }
+  })
+});
+```
+
+### 10.3 Custom Configuration Testing
+
+**Custom Cookie Name:**
+```typescript
+// Server configuration
+auth: {
+  method: 'cookie',
+  secret: process.env.AUTH_SECRET,
+  cookieName: 'custom_auth_token'
+}
+
+// Client testing
+const response = await fetch('/api/services/test', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  credentials: 'include',
+  body: JSON.stringify({
+    action: 'test',
+    payload: { data: 'test' }
+  })
+});
+```
+
+**Custom Header Name:**
+```typescript
+// Server configuration
+auth: {
+  method: 'header',
+  secret: process.env.AUTH_SECRET,
+  headerName: 'x-custom-auth'
+}
+
+// Client testing
+const response = await fetch('/api/services/test', {
+  method: 'POST',
+  headers: { 
+    'Content-Type': 'application/json',
+    'x-custom-auth': 'Bearer valid-jwt-token'
+  },
+  body: JSON.stringify({
+    action: 'test',
+    payload: { data: 'test' }
+  })
+});
+```
+
+## 11. Troubleshooting Guide
+
+### 11.1 Common Authentication Issues
 
 **Issue: "Authentication required" for public endpoints**
 ```typescript
@@ -819,7 +1054,7 @@ const rpc = createRPC({
 });
 ```
 
-### 10.2 Authentication Debugging
+### 11.2 Authentication Debugging
 
 **Check Session Status:**
 ```bash
@@ -844,6 +1079,62 @@ try {
 const rpc = createRPC({ agentMode: true, organization_id: 'test-org' });
 const result = await rpc.executeServiceAction('testing', { action: 'simpleAction', payload: {} });
 console.log('Agent auth result:', result);
+```
+
+**Test Agent Authentication:**
+```typescript
+const rpc = createRPC({ agentMode: true, organization_id: 'test-org' });
+const result = await rpc.executeServiceAction('testing', { action: 'simpleAction', payload: {} });
+console.log('Agent auth result:', result);
+```
+
+### 11.3 Configurable Authentication Troubleshooting
+
+**Issue: "No authentication token found" with cookie method**
+```typescript
+// Problem: Cookie not being sent
+// Solution: Ensure credentials: 'include' in fetch requests
+const response = await fetch('/api/services/test', {
+  method: 'POST',
+  credentials: 'include', // Required for cookie authentication
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ action: 'test', payload: {} })
+});
+```
+
+**Issue: "Unauthorized - token verification failed" with header method**
+```typescript
+// Problem: Invalid Bearer token format
+// Solution: Ensure proper Bearer token format
+headers: {
+  'Authorization': 'Bearer your-jwt-token'  // Must include "Bearer " prefix
+}
+```
+
+**Issue: Server configuration error**
+```typescript
+// Problem: Missing auth configuration
+// Solution: Provide auth configuration
+const serverConfig = {
+  auth: {
+    method: 'payload',
+    secret: process.env.AUTH_SECRET  // Required
+  }
+};
+```
+
+**Issue: Custom cookie/header names not working**
+```typescript
+// Problem: Mismatched names between server and client
+// Solution: Ensure consistent naming
+// Server
+auth: {
+  method: 'cookie',
+  cookieName: 'custom_token'  // Server expects this name
+}
+
+// Client - cookie must be set with same name
+document.cookie = 'custom_token=your-jwt-token; path=/';
 ```
 
 **Author:** [Hussein Kizz](https://github.com/Hussseinkizz) at Nile Squad Labz

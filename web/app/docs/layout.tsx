@@ -5,7 +5,6 @@ import { source } from '@/lib/source';
 export default function RootDocsLayout({ children }: { children: ReactNode }) {
   return (
     <DocsLayout
-      tree={source.pageTree}
       nav={{
         title: '🌊 Nile',
         url: '/',
@@ -13,6 +12,7 @@ export default function RootDocsLayout({ children }: { children: ReactNode }) {
       sidebar={{
         defaultOpenLevel: 0,
       }}
+      tree={source.pageTree}
     >
       {children}
     </DocsLayout>

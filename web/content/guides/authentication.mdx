@@ -3,13 +3,111 @@ title: Authentication Guide
 description: Learn how to secure your Nile services with authentication and authorization
 ---
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Date:** January 16, 2025  
 **Author:** Hussein Kizz
 
 ## Overview
 
-Nile is secure by default. All actions require authentication unless explicitly marked as public. This guide shows you how to set up and use authentication in your Nile application.
+Nile is secure by default. All actions require authentication unless explicitly marked as public. This guide shows you how to set up and use authentication in your Nile application with **configurable authentication methods**.
+
+## Configurable Authentication
+
+Nile now supports **developer-configurable authentication methods** through the `serverOptions.auth` configuration. You can explicitly specify where JWT tokens should be extracted from:
+
+### Server Configuration
+
+```typescript
+import { createRESTRPC } from '@nile-squad/nile/rest-rpc';
+
+const serverConfig = {
+  serverName: 'my-api',
+  baseUrl: '/api',
+  apiVersion: 'v1',
+  services: [/* your services */],
+  
+  // Configurable authentication
+  auth: {
+    method: 'payload',        // 'payload' | 'cookie' | 'header'
+    secret: process.env.AUTH_SECRET,
+    cookieName: 'auth_token', // Optional: custom cookie name
+    headerName: 'authorization' // Optional: custom header name
+  }
+};
+```
+
+### Authentication Methods
+
+#### Payload Method (Default)
+Extract JWT tokens from the request payload body.
+
+```typescript
+// Server configuration
+auth: {
+  method: 'payload',
+  secret: process.env.AUTH_SECRET
+}
+
+// Client usage
+const response = await fetch('/api/services/customers', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    action: 'create',
+    payload: { name: 'John Doe' },
+    auth: { token: 'your-jwt-token' }  // Token in payload
+  })
+});
+```
+
+#### Cookie Method (HttpOnly)
+Extract JWT tokens from HTTP-only cookies for enhanced security.
+
+```typescript
+// Server configuration
+auth: {
+  method: 'cookie',
+  secret: process.env.AUTH_SECRET,
+  cookieName: 'auth_token'  // Optional: defaults to 'auth_token'
+}
+
+// Client usage (cookie set by server)
+const response = await fetch('/api/services/customers', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  credentials: 'include',  // Include cookies
+  body: JSON.stringify({
+    action: 'create',
+    payload: { name: 'John Doe' }
+    // No auth object needed - token comes from cookie
+  })
+});
+```
+
+#### Header Method (Bearer Token)
+Extract JWT tokens from Authorization headers.
+
+```typescript
+// Server configuration
+auth: {
+  method: 'header',
+  secret: process.env.AUTH_SECRET,
+  headerName: 'authorization'  // Optional: defaults to 'authorization'
+}
+
+// Client usage
+const response = await fetch('/api/services/customers', {
+  method: 'POST',
+  headers: { 
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer your-jwt-token'  // Token in header
+  },
+  body: JSON.stringify({
+    action: 'create',
+    payload: { name: 'John Doe' }
+  })
+});
+```
 
 ## Authentication Modes
 
@@ -28,14 +126,18 @@ Standard user authentication for client applications.
 **Setup:**
 
 ```typescript
-// Configure JWT secret
+// Configure JWT authentication
 const serverConfig = {
-  authSecret: process.env.AUTH_SECRET,
+  auth: {
+    method: 'header',  // or 'payload' or 'cookie'
+    secret: process.env.AUTH_SECRET,
+    headerName: 'authorization'  // Optional: defaults to 'authorization'
+  },
   // ... other config
 };
 ```
 
-**Client usage:**
+**Client usage (Header method):**
 
 ```bash
 curl -X POST http://localhost:3000/services/accounts \
@@ -44,6 +146,18 @@ curl -X POST http://localhost:3000/services/accounts \
   -d '{
     "action": "create",
     "payload": { "name": "John", "email": "john@example.com" }
+  }'
+```
+
+**Client usage (Payload method):**
+
+```bash
+curl -X POST http://localhost:3000/services/accounts \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "create",
+    "payload": { "name": "John", "email": "john@example.com" },
+    "auth": { "token": "<jwt-token>" }
   }'
 ```
 
@@ -56,6 +170,7 @@ Browser-based session authentication using cookies.
 - Building traditional web applications
 - Need CSRF protection
 - Want automatic session management
+- Enhanced security with HttpOnly cookies
 
 **Setup:**
 
@@ -70,7 +185,15 @@ const auth = betterAuth({
   },
 });
 
-// Nile automatically recognizes Better Auth cookies
+// Nile configuration for cookie-based authentication
+const serverConfig = {
+  auth: {
+    method: 'cookie',
+    secret: process.env.AUTH_SECRET,
+    cookieName: 'better-auth.session_token'  // Match Better Auth cookie name
+  },
+  // ... other config
+};
 ```
 
 **Client usage:**
@@ -331,6 +454,26 @@ const response = await fetch('/services/accounts', {
     payload: { name: 'John', email: 'john@example.com' }
   })
 });
+```
+
+## Custom Configuration
+
+You can customize cookie and header names for your specific needs:
+
+```typescript
+// Custom cookie name
+auth: {
+  method: 'cookie',
+  secret: process.env.AUTH_SECRET,
+  cookieName: 'custom_auth_token'  // Custom cookie name
+}
+
+// Custom header name
+auth: {
+  method: 'header',
+  secret: process.env.AUTH_SECRET,
+  headerName: 'x-custom-auth'  // Custom header name
+}
 ```
 
 ## Custom Authentication

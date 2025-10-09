@@ -1668,7 +1668,15 @@ const config = {
   serverName: 'Delta Business Platform',
   baseUrl: '/api',
   apiVersion: 'v1',
-  authSecret: 'your-secret-key',
+  
+  // Configurable authentication
+  auth: {
+    method: 'payload',  // 'payload' | 'cookie' | 'header'
+    secret: 'your-secret-key',
+    cookieName: 'auth_token',     // Optional: custom cookie name
+    headerName: 'authorization'   // Optional: custom header name
+  },
+  
   services: {
     users: {
       create: { handler: createUser, validation: userSchema },

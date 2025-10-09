@@ -395,7 +395,15 @@ A typical Nile backend project uses several configuration files to manage enviro
       serverName: 'My Nile Server',
       port: String(PORT),
       allowedOrigins: ALLOWED_ORIGINS,
-      authSecret: AUTH_SECRET,
+      
+      // Configurable authentication
+      auth: {
+        method: 'payload',  // 'payload' | 'cookie' | 'header'
+        secret: AUTH_SECRET,
+        cookieName: 'auth_token',     // Optional: custom cookie name
+        headerName: 'authorization'   // Optional: custom header name
+      },
+      
       services,
       // ...other config
     };

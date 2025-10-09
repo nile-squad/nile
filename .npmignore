@@ -50,3 +50,4 @@ nilesquad-nile-*.tgz
 *.log
 .tmp/
 temp/
+.next/

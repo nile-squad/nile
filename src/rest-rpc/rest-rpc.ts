@@ -72,7 +72,13 @@ export type ServerConfig = {
       handler: (request: Request) => Promise<Response> | Response;
     };
   };
-  authSecret?: string;
+  authSecret?: string; // Deprecated: use auth.secret instead
+  auth?: {
+    secret: string;
+    method: 'cookie' | 'payload' | 'header';
+    cookieName?: string;
+    headerName?: string;
+  };
   websocket?: WSConfig;
   onActionHandler?: import('../types/action-hook.js').ActionHookHandler;
 };

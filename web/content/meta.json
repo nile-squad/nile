@@ -15,11 +15,7 @@
     },
     {
       "title": "Guides",
-      "pages": [
-        "guides/architecture",
-        "guides/authentication",
-        "guides/hooks"
-      ]
+      "pages": ["guides/architecture", "guides/authentication", "guides/hooks"]
     }
   ]
 }

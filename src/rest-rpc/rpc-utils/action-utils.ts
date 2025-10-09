@@ -22,6 +22,41 @@ const sanitizeForUrlSafety = (s: string): string => {
     .replace(/^-+|-+$/g, '');
 };
 
+export const extractAuthToken = (params: {
+  auth?: { token: string };
+  context?: any;
+  config: ServerConfig;
+}): string | null => {
+  const { auth, context, config } = params;
+
+  // If no auth config, fall back to payload (backward compatibility)
+  if (!config.auth) {
+    return auth?.token || null;
+  }
+
+  const {
+    method,
+    cookieName = 'auth_token',
+    headerName = 'authorization',
+  } = config.auth;
+
+  switch (method) {
+    case 'cookie':
+      return context?.req?.cookie?.(cookieName) || null;
+
+    case 'payload':
+      return auth?.token || null;
+
+    case 'header': {
+      const authHeader = context?.req?.header?.(headerName);
+      return authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
+    }
+
+    default:
+      return null;
+  }
+};
+
 const getFinalServices = (serverConfig?: ServerConfig): Service[] => {
   const config = serverConfig || getAutoConfig();
   if (!config) {
@@ -38,16 +73,18 @@ const getFinalServices = (serverConfig?: ServerConfig): Service[] => {
  * Resolve user context for RPC call based on mode and auth claims
  * Industry standard approach: extract user/org from auth token claims
  */
-const resolveUserContext = async (params: {
+export const resolveUserContext = async (params: {
   agentMode?: boolean;
   organizationId?: string;
   auth?: { token: string };
+  context?: any;
   serverConfig?: ServerConfig;
 }) => {
   const {
     agentMode = false,
     organizationId: explicitOrgId,
     auth,
+    context,
     serverConfig,
   } = params;
 
@@ -55,16 +92,21 @@ const resolveUserContext = async (params: {
   let authClaims: any = null;
 
   // Extract claims from auth token if available
-  if (auth?.token && config?.authSecret) {
-    try {
-      const { error, result } = await safeTry(() =>
-        verify(auth.token, config.authSecret as string)
-      );
-      if (!error && result) {
-        authClaims = result;
+  const token = config ? extractAuthToken({ auth, context, config }) : null;
+
+  if (token && config) {
+    const authSecret = config.auth?.secret || config.authSecret;
+    if (authSecret) {
+      try {
+        const { error, result } = await safeTry(() =>
+          verify(token, authSecret)
+        );
+        if (!error && result) {
+          authClaims = result;
+        }
+      } catch {
+        // Token verification failed, continue without claims
       }
-    } catch {
-      // Token verification failed, continue without claims
     }
   }
 
@@ -123,7 +165,7 @@ const resolveUserContext = async (params: {
   };
 };
 
-const checkAction = async (params: {
+export const checkAction = async (params: {
   actionName: string;
   service: Service;
   userContext: {
@@ -133,9 +175,11 @@ const checkAction = async (params: {
     triggeredBy?: string;
   };
   auth?: { token: string };
+  context?: any;
   serverConfig?: ServerConfig;
 }) => {
-  const { actionName, service, userContext, auth, serverConfig } = params;
+  const { actionName, service, userContext, auth, context, serverConfig } =
+    params;
   const config = serverConfig || getAutoConfig();
 
   if (!config) {
@@ -186,35 +230,56 @@ const checkAction = async (params: {
     }
 
     // Standard user authentication (HTTP layer)
-    if (!auth?.token) {
+    const token = extractAuthToken({ auth, context, config });
+
+    if (!token) {
       const error_id = logger.error({
-        message: 'Unauthorized - token required',
-        data: { actionName, serviceName: service.name, userContext },
+        message: 'Unauthorized - no authentication token found',
+        data: {
+          actionName,
+          serviceName: service.name,
+          userContext,
+          authMethod: config.auth?.method,
+        },
         atFunction: 'checkAction',
       });
       return {
         status: false,
-        message: 'Unauthorized - token required',
+        message: 'Unauthorized - no authentication token found',
         data: { error_id },
       };
     }
 
-    if (!config.authSecret) {
+    if (!(config.auth?.secret || config.authSecret)) {
       const error_id = logger.error({
-        message: 'Server configuration error - authSecret not configured',
+        message:
+          'Server configuration error - auth.secret or authSecret not configured',
         data: { actionName, serviceName: service.name },
         atFunction: 'checkAction',
       });
       return {
         status: false,
-        message: 'Server configuration error - authSecret not configured',
+        message:
+          'Server configuration error - auth.secret or authSecret not configured',
         data: { error_id },
       };
     }
 
-    const { error } = await safeTry(() =>
-      verify(auth.token, config.authSecret as string)
-    );
+    const authSecret = config.auth?.secret || config.authSecret;
+    if (!authSecret) {
+      const error_id = logger.error({
+        message: 'Server configuration error - auth secret not found',
+        data: { actionName, serviceName: service.name },
+        atFunction: 'checkAction',
+      });
+      return {
+        status: false,
+        message: 'Server configuration error - auth secret not found',
+        data: { error_id },
+      };
+    }
+
+    const { error } = await safeTry(() => verify(token, authSecret));
     if (error) {
       const error_id = logger.error({
         message: 'Unauthorized - token verification failed',
@@ -288,6 +353,7 @@ export const executeServiceAction = async <
 >(params: {
   serviceName: string;
   payload: ActionPayload;
+  context?: any;
   resultsMode?: TMode;
   agentMode?: boolean;
   organizationId?: string;
@@ -296,6 +362,7 @@ export const executeServiceAction = async <
   const {
     serviceName,
     payload,
+    context,
     resultsMode = 'data' as TMode,
     agentMode = false,
     organizationId,
@@ -307,6 +374,7 @@ export const executeServiceAction = async <
     agentMode,
     organizationId,
     auth: payload.auth,
+    context,
     serverConfig,
   });
 
@@ -352,6 +420,7 @@ export const executeServiceAction = async <
     service,
     userContext,
     auth: processedPayload.auth,
+    context,
     serverConfig,
   });
 
