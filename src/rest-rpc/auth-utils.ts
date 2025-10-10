@@ -1,4 +1,5 @@
 import type { Context } from 'hono';
+import { getCookie } from 'hono/cookie';
 import { verify } from 'hono/jwt';
 import type { AppContext, ServerConfig } from './rest-rpc';
 
@@ -11,19 +12,62 @@ export interface AuthResult {
 }
 
 /**
- * Authenticate using JWT (legacy method)
+ * Extract authentication token based on configured method
+ */
+function extractAuthToken(
+  c: Context<AppContext>,
+  config: ServerConfig,
+  requestData?: any
+): string | null {
+  // If no auth config, fall back to legacy Authorization header
+  if (!config.auth) {
+    const authHeader = c.req.header('Authorization');
+    return authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
+  }
+
+  const {
+    method,
+    cookieName = 'auth_token',
+    headerName = 'authorization',
+  } = config.auth;
+
+  switch (method) {
+    case 'cookie':
+      return getCookie(c, cookieName) || null;
+
+    case 'header': {
+      const authHeader = c.req.header(headerName);
+      return authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
+    }
+
+    case 'payload':
+      // For payload method, extract token from request body
+      return requestData?.auth?.token || null;
+
+    default:
+      return null;
+  }
+}
+
+/**
+ * Authenticate using JWT with configurable token extraction
  */
 export async function authenticateWithJWT(
   c: Context<AppContext>,
-  authSecret: string
+  config: ServerConfig,
+  requestData?: any
 ): Promise<AuthResult> {
   try {
-    const authHeader = c.req.header('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return { isAuthenticated: false, error: 'No Bearer token found' };
+    const token = extractAuthToken(c, config, requestData);
+    if (!token) {
+      return { isAuthenticated: false, error: 'No authentication token found' };
     }
 
-    const token = authHeader.substring(7);
+    const authSecret = config.auth?.secret || config.authSecret;
+    if (!authSecret) {
+      return { isAuthenticated: false, error: 'Auth secret not configured' };
+    }
+
     const payload = await verify(token, authSecret);
 
     if (!payload) {
@@ -49,7 +93,8 @@ export async function authenticateWithJWT(
  */
 export async function authenticate(
   c: Context<AppContext>,
-  config: ServerConfig
+  config: ServerConfig,
+  requestData?: any
 ): Promise<AuthResult> {
   const session = c.var.session;
   const user = c.var.user;
@@ -66,9 +111,9 @@ export async function authenticate(
   // Better Auth present but no session: do not short-circuit here.
   // Allow fallback to JWT (and other methods) to proceed.
 
-  // Fallback to JWT authentication if authSecret is provided
-  if (config.authSecret) {
-    const jwtResult = await authenticateWithJWT(c, config.authSecret);
+  // Fallback to JWT authentication if auth config is provided
+  if (config.auth?.secret || config.authSecret) {
+    const jwtResult = await authenticateWithJWT(c, config, requestData);
     if (jwtResult.isAuthenticated) {
       return jwtResult;
     }

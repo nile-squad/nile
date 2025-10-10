@@ -87,6 +87,11 @@ const postRequestSchema = z.object({
   resourceId: z.string().optional(),
   action: z.string(),
   payload: z.object({}),
+  auth: z
+    .object({
+      token: z.string(),
+    })
+    .optional(),
 });
 
 const sanitizeForUrlSafety = (s: string) => {
@@ -250,7 +255,18 @@ export const createRestRPC = (config: ServerConfig) => {
     const shouldProtect = targetAction.isProtected !== false;
 
     if (shouldProtect) {
-      const authResult = await authenticate(c, _config);
+      // Get request data for payload-based auth
+      let requestData: any = null;
+      try {
+        const contentType = c.req.header('content-type') ?? '';
+        if (contentType.includes('application/json')) {
+          requestData = await c.req.json().catch(() => null);
+        }
+      } catch {
+        // Ignore errors, requestData will remain null
+      }
+
+      const authResult = await authenticate(c, _config, requestData);
 
       if (!authResult.isAuthenticated) {
         return c.json(
@@ -471,6 +487,12 @@ export const createRestRPC = (config: ServerConfig) => {
       );
     }
 
+    // remove isOk and isError stuff - only needed internally
+    const cleanResult = <T extends Record<string, any>>(oldResult: T) => {
+      const { isOk: _isOk, isError: _isError, ...rest } = oldResult;
+      return rest;
+    };
+
     // Use hook executor if action has hooks, otherwise execute normally
     if (targetAction.hooks?.before || targetAction.hooks?.after) {
       const result = await actionHookExecutor.executeActionWithHooks(
@@ -479,16 +501,16 @@ export const createRestRPC = (config: ServerConfig) => {
         c
       );
       if (isError(result)) {
-        return c.json(result, 200);
+        return c.json(cleanResult(result), 200);
       }
-      return c.json(result);
+      return c.json(cleanResult(result));
     }
 
     const result = await targetAction.handler(enrichedPayload, c);
     if (isError(result)) {
-      return c.json(result, 200);
+      return c.json(cleanResult(result), 200);
     }
-    return c.json(result);
+    return c.json(cleanResult(result));
   };
 
   const processAction = async (
@@ -715,7 +737,7 @@ export const createRestRPC = (config: ServerConfig) => {
     }
 
     // Authentication check for agentic endpoint
-    const authResult = await authenticate(c, config);
+    const authResult = await authenticate(c, config, payload);
     if (!authResult.isAuthenticated) {
       return c.json(
         {
