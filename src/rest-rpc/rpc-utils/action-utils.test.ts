@@ -48,7 +48,7 @@ describe('Authentication Utils', () => {
       const config = {
         ...mockServerConfig,
         auth: {
-          method: 'payload',
+          method: 'payload' as const,
           secret: 'test-secret',
         },
       };
@@ -64,12 +64,12 @@ describe('Authentication Utils', () => {
       const config = {
         ...mockServerConfig,
         auth: {
-          method: 'cookie',
+          method: 'cookie' as const,
           secret: 'test-secret',
           cookieName: 'auth_token',
         },
       };
-      const auth = {};
+      const auth = { token: 'test-token' };
       const context = {
         req: {
           cookie: vi.fn().mockReturnValue('cookie-token'),
@@ -86,12 +86,12 @@ describe('Authentication Utils', () => {
       const config = {
         ...mockServerConfig,
         auth: {
-          method: 'cookie',
+          method: 'cookie' as const,
           secret: 'test-secret',
           cookieName: 'custom_token',
         },
       };
-      const auth = {};
+      const auth = { token: 'test-token' };
       const context = {
         req: {
           cookie: vi.fn().mockReturnValue('custom-cookie-token'),
@@ -108,12 +108,12 @@ describe('Authentication Utils', () => {
       const config = {
         ...mockServerConfig,
         auth: {
-          method: 'header',
+          method: 'header' as const,
           secret: 'test-secret',
           headerName: 'authorization',
         },
       };
-      const auth = {};
+      const auth = { token: 'test-token' };
       const context = {
         req: {
           header: vi.fn().mockReturnValue('Bearer header-token'),
@@ -130,12 +130,12 @@ describe('Authentication Utils', () => {
       const config = {
         ...mockServerConfig,
         auth: {
-          method: 'header',
+          method: 'header' as const,
           secret: 'test-secret',
           headerName: 'x-auth-token',
         },
       };
-      const auth = {};
+      const auth = { token: 'test-token' };
       const context = {
         req: {
           header: vi.fn().mockReturnValue('Bearer custom-header-token'),
@@ -152,11 +152,11 @@ describe('Authentication Utils', () => {
       const config = {
         ...mockServerConfig,
         auth: {
-          method: 'header',
+          method: 'header' as const,
           secret: 'test-secret',
         },
       };
-      const auth = {};
+      const auth = { token: 'test-token' };
       const context = {
         req: {
           header: vi.fn().mockReturnValue('Invalid header-token'),
@@ -188,14 +188,13 @@ describe('Authentication Utils', () => {
       const config = {
         ...mockServerConfig,
         auth: {
-          method: 'payload',
+          method: 'payload' as const,
           secret: 'test-secret',
         },
       };
-      const auth = {};
       const context = {};
 
-      const result = extractAuthToken({ auth, context, config });
+      const result = extractAuthToken({ context, config });
 
       expect(result).toBeNull();
     });
@@ -214,7 +213,7 @@ describe('Authentication Utils', () => {
       const config = {
         ...mockServerConfig,
         auth: {
-          method: 'payload',
+          method: 'payload' as const,
           secret: 'test-secret',
         },
       };
@@ -273,13 +272,12 @@ describe('Authentication Utils', () => {
       const config = {
         ...mockServerConfig,
         auth: {
-          method: 'payload',
+          method: 'payload' as const,
           secret: 'test-secret',
         },
       };
 
       const params = {
-        auth: {},
         context: {},
         serverConfig: config,
       };
@@ -299,7 +297,7 @@ describe('Authentication Utils', () => {
       const config = {
         ...mockServerConfig,
         auth: {
-          method: 'payload',
+          method: 'payload' as const,
           secret: 'test-secret',
         },
       };
@@ -330,7 +328,7 @@ describe('Authentication Utils', () => {
       const config = {
         ...mockServerConfig,
         auth: {
-          method: 'payload',
+          method: 'payload' as const,
           secret: 'test-secret',
         },
       };
@@ -358,14 +356,21 @@ describe('Authentication Utils', () => {
   describe('checkAction', () => {
     const mockService = {
       name: 'test-service',
+      description: 'Test service for unit tests',
       actions: [
         {
           name: 'protected-action',
+          description: 'Protected action for testing',
           isProtected: true,
+          handler: async () => ({ status: true as const, message: 'Success', data: {}, isOk: true as const, isError: false as const }),
+          validation: { zodSchema: null },
         },
         {
           name: 'public-action',
+          description: 'Public action for testing',
           isProtected: false,
+          handler: async () => ({ status: true as const, message: 'Success', data: {}, isOk: true as const, isError: false as const }),
+          validation: { zodSchema: null },
         },
       ],
     };
@@ -374,7 +379,7 @@ describe('Authentication Utils', () => {
       const config = {
         ...mockServerConfig,
         auth: {
-          method: 'payload',
+          method: 'payload' as const,
           secret: 'test-secret',
         },
       };
@@ -387,14 +392,17 @@ describe('Authentication Utils', () => {
           organizationId: 'test-org',
           isAgent: false,
         },
-        auth: {},
+        auth: { token: 'test-token' },
         context: {},
         serverConfig: config,
       });
 
       expect(result).toEqual({
         name: 'public-action',
+        description: 'Public action for testing',
         isProtected: false,
+        handler: expect.any(Function),
+        validation: { zodSchema: null },
       });
     });
 
@@ -410,7 +418,7 @@ describe('Authentication Utils', () => {
       const config = {
         ...mockServerConfig,
         auth: {
-          method: 'payload',
+          method: 'payload' as const,
           secret: 'test-secret',
         },
       };
@@ -430,7 +438,10 @@ describe('Authentication Utils', () => {
 
       expect(result).toEqual({
         name: 'protected-action',
+        description: 'Protected action for testing',
         isProtected: true,
+        handler: expect.any(Function),
+        validation: { zodSchema: null },
       });
     });
 
@@ -438,7 +449,7 @@ describe('Authentication Utils', () => {
       const config = {
         ...mockServerConfig,
         auth: {
-          method: 'payload',
+          method: 'payload' as const,
           secret: 'test-secret',
         },
       };
@@ -451,7 +462,6 @@ describe('Authentication Utils', () => {
           organizationId: 'test-org',
           isAgent: false,
         },
-        auth: {},
         context: {},
         serverConfig: config,
       });
@@ -469,7 +479,7 @@ describe('Authentication Utils', () => {
       const config = {
         ...mockServerConfig,
         auth: {
-          method: 'payload',
+          method: 'payload' as const,
           secret: 'test-secret',
         },
       };
@@ -548,7 +558,10 @@ describe('Authentication Utils', () => {
 
       expect(result).toEqual({
         name: 'protected-action',
+        description: 'Protected action for testing',
         isProtected: true,
+        handler: expect.any(Function),
+        validation: { zodSchema: null },
       });
     });
 
@@ -564,7 +577,7 @@ describe('Authentication Utils', () => {
       const config = {
         ...mockServerConfig,
         auth: {
-          method: 'cookie',
+          method: 'cookie' as const,
           secret: 'test-secret',
           cookieName: 'auth_token',
         },
@@ -584,14 +597,17 @@ describe('Authentication Utils', () => {
           organizationId: 'test-org',
           isAgent: false,
         },
-        auth: {},
+        auth: { token: 'test-token' },
         context,
         serverConfig: config,
       });
 
       expect(result).toEqual({
         name: 'protected-action',
+        description: 'Protected action for testing',
         isProtected: true,
+        handler: expect.any(Function),
+        validation: { zodSchema: null },
       });
       expect(context.req.cookie).toHaveBeenCalledWith('auth_token');
       expect(verify).toHaveBeenCalledWith('cookie-token', 'test-secret');
@@ -609,7 +625,7 @@ describe('Authentication Utils', () => {
       const config = {
         ...mockServerConfig,
         auth: {
-          method: 'header',
+          method: 'header' as const,
           secret: 'test-secret',
           headerName: 'authorization',
         },
@@ -629,14 +645,17 @@ describe('Authentication Utils', () => {
           organizationId: 'test-org',
           isAgent: false,
         },
-        auth: {},
+        auth: { token: 'test-token' },
         context,
         serverConfig: config,
       });
 
       expect(result).toEqual({
         name: 'protected-action',
+        description: 'Protected action for testing',
         isProtected: true,
+        handler: expect.any(Function),
+        validation: { zodSchema: null },
       });
       expect(context.req.header).toHaveBeenCalledWith('authorization');
       expect(verify).toHaveBeenCalledWith('header-token', 'test-secret');

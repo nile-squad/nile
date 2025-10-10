@@ -2,14 +2,16 @@ import { DocsBody, DocsPage } from 'fumadocs-ui/page';
 import { notFound } from 'next/navigation';
 import { source } from '@/lib/source';
 
-export default async function Page({
+export default function Page({
   params,
 }: {
   params: { slug?: string[] };
 }) {
   const page = source.getPage(params.slug);
 
-  if (!page) notFound();
+  if (!page) {
+    notFound();
+  }
 
   const MDX = page.data.exports.default;
 
@@ -23,14 +25,16 @@ export default async function Page({
   );
 }
 
-export async function generateStaticParams() {
+export function generateStaticParams() {
   return source.generateParams();
 }
 
 export function generateMetadata({ params }: { params: { slug?: string[] } }) {
   const page = source.getPage(params.slug);
 
-  if (!page) notFound();
+  if (!page) {
+    notFound();
+  }
 
   return {
     title: page.data.title,
