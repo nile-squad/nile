@@ -386,13 +386,22 @@ export const createRestRPC = (config: ServerConfig) => {
       return payload || {};
     }
 
-    const enrichedPayload = {
+    let enrichedPayload = {
       ...(payload || {}),
       user_id: userId,
       organization_id: organizationId,
       userId,
       organizationId,
     };
+
+    // inject better auth casing claims, it works with camelCase and snake_case
+    if(config.betterAuth?.instance) {
+      enrichedPayload = {
+        ...enrichedPayload,
+        userId,
+        organizationId,
+      };
+    }
 
     // Add triggered_by for agent users
     if (
