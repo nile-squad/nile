@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { createLog } from '../logging';
 import type { Action, ActionHandler, SubService } from '../types/actions';
 import { Ok, safeError } from '../utils';
+import { getValidationSchema } from '../utils/validation-utils';
 import { createModel, type Model, type ModelOptions } from './create-models';
 
 export const newServiceActionsFactory = (
@@ -105,14 +106,20 @@ const generateCreateAction = (
     }
     return Ok(result as any);
   };
-  // Create action - let model handle validation
+  // Create action - generate validation schema from table
   const newAction: Action = {
     name: 'create',
     type: 'auto',
     description: `Create a new record in ${sub.tableName}`,
     isProtected: !sub.publicActions?.includes('create'), // Protected by default, only public if explicitly listed
     handler: createActionHandler,
-    validation: sub.validation || {},
+    validation: {
+      zodSchema: getValidationSchema({
+        inferTable: table,
+        context: { operation: 'create' },
+        ...sub.validation,
+      }),
+    },
   };
 
   return newAction;
@@ -306,14 +313,20 @@ const generateUpdateAction = (
     }
     return Ok(result as any);
   };
-  // Update action - let model handle validation
+  // Update action - generate validation schema from table
   const newAction: Action = {
     name: 'update',
     type: 'auto',
     description: `Update a record in ${sub.tableName}`,
     isProtected: !sub.publicActions?.includes('update'), // Protected by default, only public if explicitly listed
     handler: updateActionHandler,
-    validation: sub.validation || {},
+    validation: {
+      zodSchema: getValidationSchema({
+        inferTable: table,
+        context: { operation: 'update' },
+        ...sub.validation,
+      }),
+    },
   };
 
   return newAction;

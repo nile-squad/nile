@@ -125,6 +125,10 @@ export const createRestRPC = (config: ServerConfig) => {
   const origin = (() => {
     try {
       const u = new URL(host);
+      // Ensure port is included if not already present
+      if (!u.port && port !== '80' && port !== '443') {
+        u.port = port;
+      }
       return u.origin;
     } catch {
       const h = host.replace(TRAILING_SLASH_REGEX, '');
