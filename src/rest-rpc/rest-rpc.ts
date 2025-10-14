@@ -130,7 +130,12 @@ export const createRestRPC = (config: ServerConfig) => {
       const h = host.replace(TRAILING_SLASH_REGEX, '');
       if (HTTP_SCHEME_REGEX.test(h)) {
         try {
-          return new URL(h).origin;
+          const url = new URL(h);
+          // Ensure port is included if not already present
+          if (!url.port && port !== '80' && port !== '443') {
+            url.port = port;
+          }
+          return url.origin;
         } catch {
           return h;
         }
@@ -395,7 +400,7 @@ export const createRestRPC = (config: ServerConfig) => {
     };
 
     // inject better auth casing claims, it works with camelCase and snake_case
-    if(config.betterAuth?.instance) {
+    if (config.betterAuth?.instance) {
       enrichedPayload = {
         ...enrichedPayload,
         userId,

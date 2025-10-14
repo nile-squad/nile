@@ -1,7 +1,7 @@
+import { z } from 'zod';
 import { createLog } from '../logging';
 import type { Action, ActionHandler, SubService } from '../types/actions';
 import { Ok, safeError } from '../utils';
-import { getValidationSchema } from '../utils/validation-utils';
 import { createModel, type Model, type ModelOptions } from './create-models';
 
 export const newServiceActionsFactory = (
@@ -105,17 +105,14 @@ const generateCreateAction = (
     }
     return Ok(result as any);
   };
-  // Create action validation schema with create context
+  // Create action - let model handle validation
   const newAction: Action = {
     name: 'create',
     type: 'auto',
     description: `Create a new record in ${sub.tableName}`,
     isProtected: !sub.publicActions?.includes('create'), // Protected by default, only public if explicitly listed
     handler: createActionHandler,
-    validation: {
-      ...sub.validation,
-      zodSchema: getValidationSchema({ ...sub.validation, inferTable: table }),
-    },
+    validation: sub.validation || {},
   };
 
   return newAction;
@@ -128,20 +125,20 @@ const generateGetAllAction = (
   model: Model
 ) => {
   const getAllActionHandler: ActionHandler = async (data) => {
-    if (!data.organization_id) {
+    if (!data.property || data.value === undefined) {
       const error_id = createLog({
-        message: 'Missing organization_id in payload',
+        message: 'Missing property and value in payload',
         data,
         type: 'error',
         atFunction: 'getAllActionHandler',
         appName: 'main',
       });
-      return safeError('Missing organization_id in payload', error_id);
+      return safeError('Missing property and value in payload', error_id);
     }
 
     const { data: result, errors } = await model.getMany({
-      basedOnProperty: 'organization_id',
-      withValue: data.organization_id,
+      basedOnProperty: data.property,
+      withValue: data.value,
     });
     if (errors.length) {
       const error_id = createLog({
@@ -166,7 +163,12 @@ const generateGetAllAction = (
     description: `Get all records from ${sub.tableName}`,
     isProtected: !sub.publicActions?.includes('getAll'), // Protected by default, only public if explicitly listed
     handler: getAllActionHandler,
-    validation: {},
+    validation: {
+      zodSchema: z.object({
+        property: z.string().min(1, 'Property name is required'),
+        value: z.any(),
+      }),
+    },
   };
 
   return newAction;
@@ -196,7 +198,7 @@ const generateGetEveryAction = (
     return Ok(result as any);
   };
 
-  // create action
+  // GetEvery action - no validation needed
   const newAction: Action = {
     name: 'getEvery',
     type: 'auto',
@@ -250,7 +252,11 @@ const generateGetOneAction = (
     description: `Get one record from ${sub.tableName}`,
     isProtected: !sub.publicActions?.includes('getOne'), // Protected by default, only public if explicitly listed
     handler: getOneActionHandler,
-    validation: {},
+    validation: {
+      zodSchema: z.object({
+        [sub.idName]: z.string().min(1, `${sub.idName} is required`),
+      }),
+    },
   };
 
   return newAction;
@@ -300,21 +306,14 @@ const generateUpdateAction = (
     }
     return Ok(result as any);
   };
-  // Update action validation schema with update context
+  // Update action - let model handle validation
   const newAction: Action = {
     name: 'update',
     type: 'auto',
     description: `Update a record in ${sub.tableName}`,
     isProtected: !sub.publicActions?.includes('update'), // Protected by default, only public if explicitly listed
     handler: updateActionHandler,
-    validation: {
-      ...sub.validation,
-      zodSchema: getValidationSchema({
-        ...sub.validation,
-        inferTable: table,
-        context: { operation: 'update' },
-      }),
-    },
+    validation: sub.validation || {},
   };
 
   return newAction;
@@ -366,7 +365,11 @@ export const generateDeleteAction = ({
     description: `Delete a record from ${sub.tableName}`,
     isProtected: !sub.publicActions?.includes('delete'), // Protected by default, only public if explicitly listed
     handler: deleteActionHandler,
-    validation: {},
+    validation: {
+      zodSchema: z.object({
+        [sub.idName]: z.string().min(1, `${sub.idName} is required`),
+      }),
+    },
   };
 
   return newAction;
@@ -401,7 +404,7 @@ export const generateDeleteAllAction = ({
     return Ok(result as any);
   };
 
-  // create action
+  // DeleteAll action - no validation needed
   const newAction: Action = {
     name: 'deleteAll',
     type: 'auto',
@@ -452,7 +455,21 @@ const generateGetManyWithAction = (
     description: `Get all records from ${sub.tableName}`,
     isProtected: !sub.publicActions?.includes('getManyWith'), // Protected by default, only public if explicitly listed
     handler: getManyWithActionHandler,
-    validation: {},
+    validation: {
+      zodSchema: z.object({
+        page: z.number().int().positive().optional(),
+        perPage: z.number().int().positive().optional(),
+        sort: z
+          .array(
+            z.object({
+              field: z.string(),
+              direction: z.enum(['asc', 'desc']),
+            })
+          )
+          .optional(),
+        filters: z.record(z.string(), z.any()).optional(),
+      }),
+    },
   };
 
   return newAction;
@@ -490,7 +507,11 @@ const generateGetOneWithAction = (
     description: `Get one record from ${sub.tableName}`,
     isProtected: !sub.publicActions?.includes('getOneWith'), // Protected by default, only public if explicitly listed
     handler: getOneWithActionHandler,
-    validation: {},
+    validation: {
+      zodSchema: z.object({
+        filters: z.record(z.string(), z.any()).optional(),
+      }),
+    },
   };
 
   return newAction;
@@ -530,7 +551,12 @@ const generateGetOneWithRelationsAction = (
     description: `Get one record from ${sub.tableName} with relations`,
     isProtected: !sub.publicActions?.includes('getOneWithRelations'), // Protected by default, only public if explicitly listed
     handler: getOneWithRelationsActionHandler,
-    validation: {},
+    validation: {
+      zodSchema: z.object({
+        id: z.string().min(1, 'ID is required'),
+        with: z.array(z.string()).optional(),
+      }),
+    },
   };
 
   return newAction;

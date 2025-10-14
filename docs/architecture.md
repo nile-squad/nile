@@ -1,5 +1,9 @@
 # Nile Framework: Official Backend Architecture
 
+**Version:** 1.0  
+**Date:** August 13, 2025  
+**Author:** Hussein Kizz
+
 This document outlines the official, layered architecture for building robust and scalable backend systems using the Nile framework. Adherence to this structure is crucial for maintainability, testability, and team collaboration.
 
 ## 1. Core Principles
@@ -90,10 +94,12 @@ This is where all business processes are defined. It has two components:
 #### A. Auto-Generated CRUD Services (`subs`)
 
 - **Location**: `backend/services/db/subs/`
-- **Role**: A **configuration layer** that instructs the Nile framework to automatically generate a standard set of simple CRUD `actions` for a given table. Validation is automatically inferred from the database schema.
+- **Purpose**: Define configuration objects that tell Nile to automatically generate CRUD actions for your database tables. This eliminates boilerplate while maintaining full control over validation and behavior.
+- **Why Use This**: Instead of writing repetitive CRUD handlers, you configure once and get a complete, validated API for each table.
 - **Rules**:
     - **MUST**: Only contain configuration objects conforming to the `SubService` type.
     - **SHOULD**: Only provide a `validation` property if you need to override or customize the default validation behavior. By default, Nile infers the schema from the Drizzle table definition.
+    - **SEPARATION OF CONCERNS**: Focus on configuration, let Nile handle the implementation details
 - **Example (`backend/services/db/subs/wifi.ts`):**
   ```typescript
   import { createComplaintSchema } from '@/validations/complaints';
@@ -107,6 +113,25 @@ This is where all business processes are defined. It has two components:
     validation: { zodSchema: createComplaintSchema },
   }];
   ```
+
+##### Flexible Filtering with getAll Action
+
+The auto-generated `getAll` action supports flexible filtering by accepting any property/value pair, making your APIs more adaptable:
+
+```typescript
+// Example: Filter by any column in your table
+const result = await model.getMany({
+  basedOnProperty: 'organization_id',  // Any database column
+  withValue: '550e8400-e29b-41d4-a716-446655440000'
+});
+```
+
+**Why This Matters for Your Application:**
+- **Dynamic Filtering**: Filter by any database column, not just hardcoded fields
+- **Reusable Actions**: Same action works for different filtering needs across your app
+- **Type-Safe**: Nile ensures the property exists in your schema
+- **Consistent Patterns**: Same approach works across all your auto-generated actions
+- **Future-Proof**: Add new columns to your schema and immediately filter by them
 
 ##### Advanced Validation Customization
 The `validation` object provides powerful customization options beyond a simple schema override. These are especially useful for tailoring the auto-generated `create` and `update` actions.
@@ -267,3 +292,7 @@ export const signupHandler: ActionHandler = async (payload) => {
   };
   ```
 This architecture ensures a clean, decoupled, and highly scalable system.
+
+**Author:** [Hussein Kizz](https://github.com/Hussseinkizz) at Nile Squad Labz
+
+*This specification reflects the current implementation and is subject to evolution. Contributions and feedback are welcome.*

@@ -17,6 +17,8 @@ A service-oriented architecture that bridges REST discovery with RPC execution, 
 - **Multi-Modal Execution** (HTTP, WebSocket RPC, direct RPC, agent-based)
 - **Real-Time Communication** through WebSocket RPC events
 
+This specification can be implemented in any programming language or framework.
+
 ## 2. Core Philosophy
 
 ### 2.1 Design Principles
@@ -246,24 +248,27 @@ The framework can automatically generate CRUD services from database schemas:
 
 **Standard CRUD:**
 
-- `createItem` - Insert new records with validation
-- `getAll` - Retrieve all records with optional pagination
+- `create` - Insert new records with validation
+- `getAll` - Retrieve records filtered by any property/value pair
 - `getOne` - Find single record by field value
-- `updateItem` - Update existing records with merge logic
-- `deleteOne` - Remove single record
+- `update` - Update existing records with merge logic
+- `delete` - Remove single record
 - `getMany` - Retrieve multiple records with filtering
 
 **Advanced Queries:**
 
+- `getEvery` - Retrieve all records without filtering
 - `getManyWith` - Complex filtering, sorting, pagination
 - `getOneWith` - Multi-field filtering
 - `getOneWithRelations` - Join queries with related data
+- `deleteAll` - Remove all records from table
 
 ### Validation Strategy
 
-**Auto-Inference:** Database schema drives validation rules
-**Custom Validation:** Override with Zod schemas for complex requirements
+**Auto-Inference:** Database schema automatically drives validation rules
+**Custom Validation:** Override with validation schemas for complex requirements  
 **Context-Aware:** Different validation for create vs update operations
+**Consistent Processing:** All validation handled uniformly across operations
 
 ### Benefits
 
@@ -287,7 +292,7 @@ RPC utilities enable internal service communication without HTTP overhead:
 
 ```typescript
 const rpc = createRPC({
-  resultsMode: 'data',    // Return SafeResult objects
+  resultsMode: 'data',    // Return structured result objects
   agentMode: true,        // Enable agent authentication
   serverConfig            // Access to service definitions
 });
@@ -297,7 +302,7 @@ const rpc = createRPC({
 
 **Data Mode** (`resultsMode: 'data'`)
 
-- Returns `SafeResult<T>` objects with success/error handling
+- Returns structured result objects with success/error handling
 - Optimized for programmatic consumption
 - Type-safe error handling
 
@@ -494,7 +499,7 @@ User context (`user_id`, `organization_id`) is automatically injected by the aut
 }
 ```
 
-## 9.5. Action Hook System (Global Pre-Action Hooks)
+## 10. Action Hook System (Global Pre-Action Hooks)
 
 **Action Hooks** provide global pre-action execution logic for cross-cutting concerns like authorization, rate limiting, and audit logging. Unlike action-level hooks which run within a specific action's workflow, Action Hooks run before **every** action across **all** services.
 
@@ -642,13 +647,41 @@ Action Hook errors are automatically handled by the framework:
 4. **Async Support**: Use async/await for database lookups
 5. **Single Responsibility**: One hook function per concern (auth, rate limiting, etc.)
 
-## 10. Data Handling Patterns
+## 11. Data Handling Patterns
 
-### Pagination Strategy
+### Flexible Filtering with getAll
+
+The `getAll` action demonstrates a key philosophical principle: **dynamic adaptability over static configuration**. Instead of hardcoding specific filter fields, the action accepts any property/value pair, making it adaptable to different data access patterns:
 
 ```json
 {
   "action": "getAll",
+  "payload": {
+    "property": "organization_id",
+    "value": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+**Philosophical Benefits:**
+- **Dynamic Filtering**: Filter by any database column, not just hardcoded fields
+- **Reusable Actions**: Same action works for different filtering needs across your application
+- **Type-Safe**: Framework ensures property exists in your schema
+- **Consistent API**: Same pattern across all auto-generated actions
+- **Future-Proof**: Add new columns to your schema and immediately filter by them
+
+**Implementation Considerations:**
+- Property names should be validated against the database schema
+- Value types should match the expected column types
+- Error handling should provide clear feedback for invalid properties
+
+### Pagination Strategy
+
+For pagination and complex filtering, use `getManyWith`:
+
+```json
+{
+  "action": "getManyWith",
   "payload": {
     "page": 2,
     "perPage": 25,
@@ -688,7 +721,7 @@ Action Hook errors are automatically handled by the framework:
 - Automatic parsing/stringification
 - Merge logic for updates
 
-## 11. Error Handling Strategy
+## 12. Error Handling Strategy
 
 ### Validation Errors
 
@@ -719,7 +752,7 @@ Detailed validation failure responses:
 **Service Unavailability:** Informative error responses
 **Validation Failures:** Detailed field-level feedback
 
-## 12. Architectural Benefits
+## 13. Architectural Benefits
 
 ### Development Velocity
 
@@ -763,7 +796,7 @@ Detailed validation failure responses:
 - Complex business logic assembly
 - Testable workflow segments
 
-## 13. Use Case Scenarios
+## 14. Use Case Scenarios
 
 ### When REST-RPC Excels
 
@@ -801,7 +834,7 @@ Detailed validation failure responses:
 - CDN integration requirements
 - Static resource serving
 
-## 14. WebSocket RPC Support
+## 15. WebSocket RPC Support
 
 ### 14.1 Real-Time Integration
 
@@ -849,7 +882,7 @@ socket.emit('executeAction', {
 
 For complete WebSocket RPC documentation, see [WebSocket RPC Specification](./ws-rpc.spec.md).
 
-## 15. Future Considerations
+## 16. Future Considerations
 
 ### Extensibility Points
 
@@ -887,7 +920,7 @@ For complete WebSocket RPC documentation, see [WebSocket RPC Specification](./ws
 
 The REST-RPC architecture provides a foundation for building discoverable, composable, and AI-friendly service-oriented systems while maintaining the simplicity and predictability that developers expect.
 
-## 15. Protocol
+## 17. Protocol Specification
 
 ### 3.1. Service Discovery
 
@@ -1630,7 +1663,7 @@ By default, adding new actions or services under the same API version (e.g., `v1
 
 Clients choose which version to call via the URL segment; no headers or query‑params are used.
 
-## 16. When to Use This Architecture?
+## 18. When to Use This Architecture?
 
 **Consider To Use This For:**
 
@@ -1654,7 +1687,7 @@ Clients choose which version to call via the URL segment; no headers or query‑
 
 However otherwise this implementation provides a robust, scalable foundation for service-oriented APIs with excellent developer experience through comprehensive documentation and validation and no surprises.
 
-## 17. Complete Example: AI-Powered User Management
+## 19. Complete Example: AI-Powered User Management
 
 Here's a comprehensive example showing how to use the agentic endpoint and RPC utilities together:
 
@@ -1749,16 +1782,29 @@ if (users.success) {
 
 This example demonstrates how the three interaction methods (traditional REST-RPC, agentic endpoint, and RPC utilities) can work together to provide a flexible and powerful API architecture.
 
-## 18. Frequently Asked Questions
+## 20. Frequently Asked Questions
 
 If you still have questions or need more explanations, you can check out some I have answered already, see [commonly asked questions](./rest-rpc.spec.faq.md)
 
-## 19. License & Contributing
+## 21. Implementation Notes
 
-This architecture can be implemented in any language following the same protocols. Currently, it is implemented in the `Nile` framework used internally at Nile Squad Labz under the `@nile-squad/nile` package. The idea is transferable and can also work with other protocols like WebSockets following the same principles.
+### Language Agnostic Design
 
-But it should be also noted that this architecture is still experimental and subject to change. So contributions, criticism and feedback are welcome.
+This specification is designed to be implemented in any programming language or framework. The core principles and patterns can be adapted to:
+
+- **Backend Frameworks**: Express.js, FastAPI, Spring Boot, ASP.NET Core, etc.
+- **Languages**: TypeScript/JavaScript, Python, Java, C#, Go, Rust, etc.
+- **Protocols**: HTTP REST, WebSocket, gRPC, GraphQL, etc.
+- **Databases**: PostgreSQL, MySQL, MongoDB, DynamoDB, etc.
+
+### Reference Implementation
+
+Currently, this specification is implemented in the `Nile` framework (`@nile-squad/nile` package) as a TypeScript-first solution, but the architectural patterns and philosophical principles are universally applicable.
+
+### Evolution and Feedback
+
+This specification is experimental and subject to evolution based on community feedback and real-world usage patterns. Contributions, criticism, and feedback are welcome.
 
 **Author:** [Hussein Kizz](https://github.com/Hussseinkizz) at Nile Squad Labz
 
-*This specification reflects the current implementation and is subject to evolution. Contributions and feedback are welcome.*
+*This specification provides a philosophical and methodological foundation that can be adapted to various implementation contexts. Contributions and feedback are welcome.*

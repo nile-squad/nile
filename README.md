@@ -44,15 +44,19 @@ And right now its not perfect yet, some things are still being figured out and d
 
 For detailed guides and specifications, see the `docs` directory:
 
-- **[Architecture](./docs/architecture.md)**
-- **[REST-RPC Specification](./docs/rest-rpc.spec.md)**
-- **[WebSocket RPC Specification](./docs/ws-rpc.spec.md)**
-- **[Agentic System (AI endpoint)](./docs/agentic.spec.md)**
-- **[Authentication Guide](./docs/auth.md)**
-- **[Action Hooks](./docs/action-hooks.md)**
-- **[Task Runner](./docs/task-runner.spec.md)**
-- **[Meta System](./docs/meta-system.md)**
-- **[Invoke Service Action](./docs/invoke-service-action.md)**
+### Framework Usage (For Developers Using Nile)
+- **[Architecture](./docs/architecture.md)** - How to structure your Nile applications
+- **[REST-RPC Specification](./docs/rest-rpc.spec.md)** - Complete API specification
+- **[WebSocket RPC Specification](./docs/ws-rpc.spec.md)** - Real-time API capabilities
+- **[Agentic System (AI endpoint)](./docs/agentic.spec.md)** - AI integration guide
+- **[Authentication Guide](./docs/auth.md)** - Security and auth patterns
+- **[Action Hooks](./docs/action-hooks.md)** - Workflow composition
+- **[Task Runner](./docs/task-runner.spec.md)** - Background job processing
+- **[Meta System](./docs/meta-system.md)** - Metadata management
+- **[Invoke Service Action](./docs/invoke-service-action.md)** - Service communication
+
+### Internal Development (For Nile Framework Contributors)
+- **[Implementation Guide](./docs/implementation-guide.md)** - Internal patterns and architecture
 
 
 ## Installation
