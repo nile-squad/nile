@@ -1,147 +1,147 @@
 {
-  "name": "@nile-squad/nile",
-  "version": "1.2.8",
-  "author": "Hussein Kizz",
-  "type": "module",
-  "sideEffects": false,
-  "files": [
-    "dist"
-  ],
-  "main": "./dist/index.umd.js",
-  "module": "./dist/index.es.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
-    },
-    "./logging": {
-      "types": "./dist/src/logging/index.d.ts",
-      "import": "./dist/src/logging/index.js",
-      "require": "./dist/src/logging/index.cjs"
-    },
-    "./rest-rpc": {
-      "types": "./dist/src/rest-rpc/index.d.ts",
-      "import": "./dist/src/rest-rpc/index.js",
-      "require": "./dist/src/rest-rpc/index.cjs"
-    },
-    "./rpc-utils": {
-      "types": "./dist/src/rest-rpc/rpc-utils/index.d.ts",
-      "import": "./dist/src/rest-rpc/rpc-utils/index.js",
-      "require": "./dist/src/rest-rpc/rpc-utils/index.cjs"
-    },
-    "./utils": {
-      "types": "./dist/src/utils/index.d.ts",
-      "import": "./dist/src/utils/index.js",
-      "require": "./dist/src/utils/index.cjs"
-    },
-    "./task-runner": {
-      "types": "./dist/src/task-runner/index.d.ts",
-      "import": "./dist/src/task-runner/index.js",
-      "require": "./dist/src/task-runner/index.cjs"
-    },
-    "./types": {
-      "types": "./dist/src/types/index.d.ts",
-      "import": "./dist/src/types/index.js",
-      "require": "./dist/src/types/index.cjs"
-    }
-  },
-  "engines": {
-    "node": ">=18",
-    "pnpm": ">=8"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/nilesquad/nile.git"
-  },
-  "bugs": {
-    "url": "https://github.com/nilesquad/nile/issues"
-  },
-  "homepage": "https://nilesquad.github.io/nile",
-  "description": "TypeScript first, service-oriented backend framework.",
-  "keywords": [
-    "typescript",
-    "backend",
-    "framework",
-    "rest-rpc",
-    "websocket",
-    "rpc",
-    "zod",
-    "drizzle",
-    "hooks",
-    "crud",
-    "nile"
-  ],
-  "scripts": {
-    "build": "tsup",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "type-check": "tsc --noEmit",
-    "format": "pnpm ultracite format",
-    "lint": "pnpm ultracite lint",
-    "check-exports": "attw --pack . --ignore-rules=cjs-resolves-to-esm",
-    "prepare": "pnpm build",
-    "preversion": "pnpm type-check && pnpm lint && pnpm test",
-    "version": "changeset version && git add -A",
-    "postversion": "git push origin main --follow-tags",
-    "prepublishOnly": "pnpm export",
-    "publish": "changeset publish",
-    "clean": "rm -rf dist",
-    "export": "pnpm clean && pnpm type-check && pnpm format && pnpm test && pnpm build"
-  },
-  "devDependencies": {
-    "@arethetypeswrong/cli": "^0.16.4",
-    "@biomejs/biome": "2.1.1",
-    "@changesets/cli": "^2.29.5",
-    "@size-limit/preset-small-lib": "^11.2.0",
-    "@types/better-sqlite3": "^7.6.13",
-    "@vitest/coverage-istanbul": "3.0.8",
-    "@vitest/coverage-v8": "^1.6.1",
-    "drizzle-kit": "^0.31.4",
-    "fast-glob": "^3.3.3",
-    "husky": "^9.1.7",
-    "rollup-plugin-dts": "^6.2.1",
-    "tsup": "^8.5.0",
-    "tsx": "^4.20.3",
-    "typescript": "^5.8.3",
-    "ultracite": "5.0.36",
-    "vitest": "^3.2.4"
-  },
-  "peerDependencies": {
-    "typescript": "^5.0.0"
-  },
-  "dependencies": {
-    "@faker-js/faker": "^9.9.0",
-    "@google-cloud/storage": "^7.16.0",
-    "@hono/node-server": "^1.17.0",
-    "@hono/oauth-providers": "^0.7.1",
-    "@regist/regist": "^0.0.3",
-    "@types/jsonwebtoken": "^9.0.10",
-    "@z-fetch/fetch": "^0.0.10",
-    "better-sqlite3": "^9.6.0",
-    "croner": "^9.1.0",
-    "date-fns": "^4.1.0",
-    "date-fns-tz": "^3.2.0",
-    "deep-object-diff": "^1.1.9",
-    "dotenv": "^16.6.1",
-    "drizzle-orm": "^0.44.3",
-    "drizzle-zod": "^0.8.2",
-    "hono": "^4.8.5",
-    "hono-rate-limiter": "^0.4.2",
-    "jsonwebtoken": "^9.0.2",
-    "just-diff": "^6.0.2",
-    "nanoid": "^5.1.5",
-    "pino": "^9.7.0",
-    "pino-pretty": "^13.0.0",
-    "resend": "^4.7.0",
-    "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1",
-    "zod": "^4.0.8",
-    "zod-validation-error": "^4.0.1"
-  }
+	"name": "@nile-squad/nile",
+	"version": "1.2.9",
+	"author": "Hussein Kizz",
+	"type": "module",
+	"sideEffects": false,
+	"files": [
+		"dist"
+	],
+	"main": "./dist/index.umd.js",
+	"module": "./dist/index.es.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.cjs"
+		},
+		"./logging": {
+			"types": "./dist/src/logging/index.d.ts",
+			"import": "./dist/src/logging/index.js",
+			"require": "./dist/src/logging/index.cjs"
+		},
+		"./rest-rpc": {
+			"types": "./dist/src/rest-rpc/index.d.ts",
+			"import": "./dist/src/rest-rpc/index.js",
+			"require": "./dist/src/rest-rpc/index.cjs"
+		},
+		"./rpc-utils": {
+			"types": "./dist/src/rest-rpc/rpc-utils/index.d.ts",
+			"import": "./dist/src/rest-rpc/rpc-utils/index.js",
+			"require": "./dist/src/rest-rpc/rpc-utils/index.cjs"
+		},
+		"./utils": {
+			"types": "./dist/src/utils/index.d.ts",
+			"import": "./dist/src/utils/index.js",
+			"require": "./dist/src/utils/index.cjs"
+		},
+		"./task-runner": {
+			"types": "./dist/src/task-runner/index.d.ts",
+			"import": "./dist/src/task-runner/index.js",
+			"require": "./dist/src/task-runner/index.cjs"
+		},
+		"./types": {
+			"types": "./dist/src/types/index.d.ts",
+			"import": "./dist/src/types/index.js",
+			"require": "./dist/src/types/index.cjs"
+		}
+	},
+	"engines": {
+		"node": ">=18",
+		"pnpm": ">=8"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/nilesquad/nile.git"
+	},
+	"bugs": {
+		"url": "https://github.com/nilesquad/nile/issues"
+	},
+	"homepage": "https://nilesquad.github.io/nile",
+	"description": "TypeScript first, service-oriented backend framework.",
+	"keywords": [
+		"typescript",
+		"backend",
+		"framework",
+		"rest-rpc",
+		"websocket",
+		"rpc",
+		"zod",
+		"drizzle",
+		"hooks",
+		"crud",
+		"nile"
+	],
+	"scripts": {
+		"build": "tsup",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test:coverage": "vitest run --coverage",
+		"type-check": "tsc --noEmit",
+		"format": "pnpm ultracite format",
+		"lint": "pnpm ultracite lint",
+		"check-exports": "attw --pack . --ignore-rules=cjs-resolves-to-esm",
+		"prepare": "pnpm build",
+		"preversion": "pnpm type-check && pnpm lint && pnpm test",
+		"version": "changeset version && git add -A",
+		"postversion": "git push origin main --follow-tags",
+		"prepublishOnly": "pnpm export",
+		"publish": "changeset publish",
+		"clean": "rm -rf dist",
+		"export": "pnpm clean && pnpm type-check && pnpm format && pnpm test && pnpm build"
+	},
+	"devDependencies": {
+		"@arethetypeswrong/cli": "^0.16.4",
+		"@biomejs/biome": "2.1.1",
+		"@changesets/cli": "^2.29.5",
+		"@size-limit/preset-small-lib": "^11.2.0",
+		"@types/better-sqlite3": "^7.6.13",
+		"@vitest/coverage-istanbul": "3.0.8",
+		"@vitest/coverage-v8": "^1.6.1",
+		"drizzle-kit": "^0.31.4",
+		"fast-glob": "^3.3.3",
+		"husky": "^9.1.7",
+		"rollup-plugin-dts": "^6.2.1",
+		"tsup": "^8.5.0",
+		"tsx": "^4.20.3",
+		"typescript": "^5.8.3",
+		"ultracite": "5.0.36",
+		"vitest": "^3.2.4"
+	},
+	"peerDependencies": {
+		"typescript": "^5.0.0"
+	},
+	"dependencies": {
+		"@faker-js/faker": "^9.9.0",
+		"@google-cloud/storage": "^7.16.0",
+		"@hono/node-server": "^1.17.0",
+		"@hono/oauth-providers": "^0.7.1",
+		"@regist/regist": "^0.0.3",
+		"@types/jsonwebtoken": "^9.0.10",
+		"@z-fetch/fetch": "^0.0.10",
+		"better-sqlite3": "^9.6.0",
+		"croner": "^9.1.0",
+		"date-fns": "^4.1.0",
+		"date-fns-tz": "^3.2.0",
+		"deep-object-diff": "^1.1.9",
+		"dotenv": "^16.6.1",
+		"drizzle-orm": "^0.44.3",
+		"drizzle-zod": "^0.8.2",
+		"hono": "^4.8.5",
+		"hono-rate-limiter": "^0.4.2",
+		"jsonwebtoken": "^9.0.2",
+		"just-diff": "^6.0.2",
+		"nanoid": "^5.1.5",
+		"pino": "^9.7.0",
+		"pino-pretty": "^13.0.0",
+		"resend": "^4.7.0",
+		"socket.io": "^4.8.1",
+		"socket.io-client": "^4.8.1",
+		"zod": "^4.0.8",
+		"zod-validation-error": "^4.0.1"
+	}
 }
