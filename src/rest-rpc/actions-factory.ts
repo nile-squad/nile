@@ -71,6 +71,13 @@ export const newServiceActionsFactory = (
   return returnValue;
 };
 
+const itemsKeysToPatchOut = [
+  'user_id',
+  'organization_id',
+  'userId',
+  'organizationId',
+];
+
 const generateCreateAction = (
   sub: SubService,
   tableName: string,
@@ -92,6 +99,11 @@ const generateCreateAction = (
             },
           } as ModelOptions['validation'],
         };
+
+    // patch out auto injected data items
+    for (const item of itemsKeysToPatchOut) {
+      delete data[item];
+    }
 
     const { data: result, errors } = await model.createItem(data, _options);
     if (errors.length) {
@@ -287,6 +299,11 @@ const generateUpdateAction = (
       return safeError(`Missing ${sub.idName} in payload!`, error_id);
     }
 
+    // patch out auto injected data items
+    for (const item of itemsKeysToPatchOut) {
+      delete data[item];
+    }
+
     const { data: result, errors } = await model.updateItem({
       basedOnProperty: sub.idName,
       withValue: data[sub.idName],
@@ -313,7 +330,7 @@ const generateUpdateAction = (
     }
     return Ok(result as any);
   };
-  // Update action - generate validation schema from table
+  // Update action - generate validation schema with id field + partial table fields
   const newAction: Action = {
     name: 'update',
     type: 'auto',
@@ -324,6 +341,11 @@ const generateUpdateAction = (
       zodSchema: getValidationSchema({
         inferTable: table,
         context: { operation: 'update' },
+        customValidations: {
+          [sub.idName]: z
+            .string()
+            .min(1, `${sub.idName} is required for update`),
+        },
         ...sub.validation,
       }),
     },
