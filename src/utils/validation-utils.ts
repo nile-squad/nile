@@ -50,21 +50,12 @@ export const getValidationSchema = (
     schema = schema.extend(validation.customValidations);
   }
 
-  // Step 3: Add auto-injected auth fields as optional
-  const authFields = {
-    user_id: z.string().optional(),
-    organization_id: z.string().optional(),
-    userId: z.string().optional(),
-    organizationId: z.string().optional(),
-  };
-  schema = schema.extend(authFields);
-
-  // Step 4: Apply validation modifier handler
+  // Step 3: Apply validation modifier handler
   if (validation.validationModifierHandler) {
     schema = validation.validationModifierHandler(schema);
   }
 
-  // Step 5: Apply validation mode with auto-detection
+  // Step 4: Apply validation mode with auto-detection
   const mode = validation.validationMode ?? 'auto';
   schema = handleValidationMode(schema, mode, operation);
 
