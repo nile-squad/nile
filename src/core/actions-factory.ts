@@ -50,6 +50,22 @@ export const newServiceActionsFactory = (
     table,
     model
   );
+  const newGetOneWithRelationsAction = generateGetOneWithRelationsAction(
+    sub,
+    tableName,
+    table,
+    model
+  );
+  const newDeleteAllAction = generateDeleteAllAction({
+    sub,
+    tableName,
+    table,
+    model,
+  });
+  console.log(
+    '[FACTORY DEBUG] Generated deleteAll action:',
+    newDeleteAllAction.name
+  );
 
   actions.push(newCreateAction);
   actions.push(newGetAllAction);
@@ -59,14 +75,8 @@ export const newServiceActionsFactory = (
   actions.push(newEveryAction);
   actions.push(newGetManyWithAction);
   actions.push(newGetOneWithAction);
-  const newGetOneWithRelationsAction = generateGetOneWithRelationsAction(
-    sub,
-    tableName,
-    table,
-    model
-  );
-
   actions.push(newGetOneWithRelationsAction);
+  actions.push(newDeleteAllAction);
 
   return returnValue;
 };
@@ -589,7 +599,7 @@ const generateGetOneWithRelationsAction = (
     validation: {
       zodSchema: z.object({
         id: z.string().min(1, 'ID is required'),
-        with: z.array(z.string()).optional(),
+        with: z.record(z.string(), z.any()).optional(),
       }),
     },
   };

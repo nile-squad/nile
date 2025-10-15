@@ -38,7 +38,7 @@ The system provides organization-based multi-tenancy with automatic context inje
 
 ### 2.2 Context Injection Architecture
 
-User context is automatically injected by the authentication layer to prevent client-side tampering:
+User context is automatically injected by the authentication layer and made available through the action context to prevent client-side tampering:
 
 **Client Request:**
 ```json
@@ -51,17 +51,23 @@ User context is automatically injected by the authentication layer to prevent cl
 }
 ```
 
-**System-Enriched Payload:**
-```json
-{
-  "action": "createCustomer",
-  "payload": {
-    "name": "John Doe",
-    "email": "john@example.com", 
-    "user_id": "550e8400-e29b-41d4-a716-446655440001",
-    "organization_id": "550e8400-e29b-41d4-a716-446655440000"
-  }
-}
+**Server-Side Context Access:**
+```typescript
+// Auth data available via context, not payload
+export const createCustomer: ActionHandler = async (payload, context) => {
+  const auth = context.getAuth();
+  // auth.userId: "550e8400-e29b-41d4-a716-446655440001"
+  // auth.organization_id: "550e8400-e29b-41d4-a716-446655440000"
+  
+  // Use auth data in your business logic
+  const customer = await db.insert({
+    ...payload,
+    user_id: auth.userId,
+    organization_id: auth.organization_id
+  });
+  
+  return Ok(customer);
+};
 ```
 
 ### 2.3 Multi-Mode Authentication Strategy
@@ -674,38 +680,65 @@ This layered approach ensures both secure authentication and flexible authorizat
 **Request Processing Pipeline:**
 ```
 1. HTTP Request → Extract auth credentials (session/token)
-2. Validate credentials → Better Auth or JWT verification
+2. Validate credentials → Custom auth handler (e.g., Better Auth or JWT verification)
 3. Extract user context → user_id, organization_id from claims
-4. Enrich payload → Inject context into action payload
-5. Execute action → With enriched, validated context
+4. Inject into context → Make auth data available via context.getAuth()
+5. Execute action → Handler accesses auth data through context
 ```
 
-### 7.6 Context Injection Implementation
+### 7.6 Custom Auth Handler System
 
-**HTTP REST Mode:**
+Nile uses a configurable authentication handler system. You provide your own auth handler in the server configuration:
+
+**Configuring Custom Auth Handler:**
 ```typescript
-// nile/src/rest-rpc/rest-rpc.ts
-function enrichPayloadWithUserContext(payload: any, authResult: any) {
-  if (authResult?.userId) {
-    payload.user_id = authResult.userId;
+// server.config.ts
+import type { ServerConfig } from '@nile-squad/nile';
+import { betterAuth } from './auth/better-auth';
+
+export const serverConfig: ServerConfig = {
+  serverName: 'My API',
+  services: [/* your services */],
+  
+  // Custom auth handler - can be Better Auth, JWT, or your own
+  authHandler: async (request, context) => {
+    // Extract token from request (cookie, header, or payload)
+    const token = extractToken(request);
+    
+    // Validate using your auth system (Better Auth, JWT, etc.)
+    const authResult = await betterAuth.api.getSession({ headers: request.headers });
+    
+    if (!authResult?.session) {
+      return { authenticated: false };
+    }
+    
+    // Return auth data to be injected into context
+    return {
+      authenticated: true,
+      userId: authResult.user.id,
+      organization_id: authResult.session.activeOrganizationId,
+      // ...other auth data
+    };
   }
-  if (authResult?.organization_id) {
-    payload.organization_id = authResult.organization_id;
-  }
-  return payload;
-}
+};
 ```
 
-**RPC Mode:**
+**Accessing Auth Data in Handlers:**
 ```typescript
-// nile/src/rest-rpc/rpc-utils/rpc-utils.ts  
-function enrichRPCPayload(payload: any, config: RPCConfig) {
-  if (config.organization_id) {
-    payload.organization_id = config.organization_id;
-    payload.user_id = config.user_id || generateAgentUserId(config.organization_id);
+export const myHandler: ActionHandler = async (payload, context) => {
+  // Auth data available via context
+  const auth = context.getAuth();
+  
+  if (!auth) {
+    return safeError('Unauthorized', 'auth-required');
   }
-  return payload;
-}
+  
+  // Use auth data safely
+  const userId = auth.userId;
+  const orgId = auth.organization_id;
+  
+  return Ok({ userId, orgId });
+};
 ```
 
 ### 7.7 Security Features
@@ -926,8 +959,11 @@ Nile includes comprehensive authentication tests covering all configurable authe
 
 **Running Authentication Tests:**
 ```bash
-# Run all authentication tests
-pnpm test src/rest-rpc/rpc-utils/action-utils.test.ts
+# Run REST authentication tests
+pnpm test src/interfaces/rest/rest-jwt-auth.test.ts
+
+# Run RPC authentication tests
+pnpm test src/interfaces/rpc/rpc-auth-handler.test.ts
 
 # Run all Nile tests
 pnpm test

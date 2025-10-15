@@ -1,5 +1,5 @@
 import type { Socket } from 'socket.io';
-import type { ServerConfig } from '../rest-rpc';
+import type { ServerConfig } from '../rest/rest-server';
 import type { WSAuthResult } from './types';
 
 interface WSContext {

@@ -13,4 +13,5 @@ export {
   safeError,
   safeTry,
 } from './safe-try';
+export { sanitizeForUrlSafety } from './url-safety';
 export { getValidationSchema, type Validation } from './validation-utils';

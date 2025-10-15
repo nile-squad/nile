@@ -1,6 +1,6 @@
 import { sign } from 'hono/jwt';
-import type { AuthResult } from '../auth-utils';
-import { getAutoConfig } from '../rest-rpc';
+import type { AuthResult } from '../../types/auth-handler';
+import { getAutoConfig } from '../rest/rest-server';
 
 /**
  * Create an agent authentication token

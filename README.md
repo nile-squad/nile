@@ -72,11 +72,15 @@ pnpm install @nile-squad/nile
 Here’s a minimal example of a Nile server. The `createRestRPC` function returns a standard Hono app instance, so you can apply any Hono middleware or functionality you need.
 
 ```typescript
-import { createRestRPC } from '@nile-squad/nile/rest-rpc';
+import { createRestRPC } from '@nile-squad/nile/rest';
 import { z } from 'zod';
 
 const app = createRestRPC({
   port: 3000,
+  auth: {
+    method: 'payload',
+    secret: 'your-secret-key-here'
+  },
   services: [
     {
       name: 'accounts',
@@ -371,7 +375,7 @@ A typical Nile backend project uses several configuration files to manage enviro
     ```typescript
     import 'dotenv/config';
     import { serve } from '@hono/node-server';
-    import { createRestRPC } from '@nile-squad/nile/rest-rpc';
+    import { createRestRPC } from '@nile-squad/nile/rest';
     import { serverConfig } from './server.config';
 
     const app = createRestRPC(serverConfig);
@@ -391,7 +395,7 @@ A typical Nile backend project uses several configuration files to manage enviro
   - Example:
 
     ```typescript
-    import type { ServerConfig } from '@nile-squad/nile/rest-rpc';
+    import type { ServerConfig } from '@nile-squad/nile/rest';
     import { PORT, AUTH_SECRET, ALLOWED_ORIGINS } from './config';
     import { services } from './services';
 

@@ -1,5 +1,5 @@
 import type { Socket, Server as SocketIOServer } from 'socket.io';
-import type { ServerConfig } from '../rest-rpc';
+import type { ServerConfig } from '../rest/rest-server';
 
 export interface WSConfig {
   enabled?: boolean;

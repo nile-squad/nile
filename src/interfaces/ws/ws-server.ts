@@ -1,10 +1,8 @@
 import { z } from 'zod';
-import type { Action, Services } from '../../types/actions';
-import { isError } from '../../utils';
-import { formatError } from '../../utils/erorr-formatter';
-import { getValidationSchema } from '../../utils/validation-utils';
-import { newServiceActionsFactory } from '../actions-factory';
-import { createHookExecutor } from '../hooks';
+import { newServiceActionsFactory } from '../../core/actions-factory';
+import { executeUnified } from '../../core/unified-executor';
+import type { Services } from '../../types/actions';
+import { sanitizeForUrlSafety } from '../../utils';
 import type {
   WSExecuteActionRequest,
   WSGetActionDetailsRequest,
@@ -21,123 +19,44 @@ import {
   handleWSError,
 } from './ws-utils';
 
-const sanitizeForUrlSafety = (s: string) => {
-  return s
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '');
-};
-
-const enrichPayloadWithUserContext = (payload: any, authResult: any) => {
-  if (!authResult?.isAuthenticated) {
-    return payload || {};
-  }
-
-  const userId =
-    authResult.user?.userId || authResult.user?.id || authResult.user?.sub;
-  const organizationId =
-    authResult.user?.organizationId ||
-    authResult.user?.organization_id ||
-    authResult.session?.organizationId;
-
-  if (!(userId && organizationId)) {
-    return payload || {};
-  }
-
-  const enrichedPayload = {
-    ...(payload || {}),
-    user_id: userId,
-    organization_id: organizationId,
-    userId,
-    organizationId,
-  };
-
-  if (
-    authResult.method === 'agent' &&
-    (authResult.session?.triggeredBy || authResult.user?.triggeredBy)
-  ) {
-    enrichedPayload.triggered_by =
-      authResult.session?.triggeredBy || authResult.user?.triggeredBy;
-  }
-
-  return enrichedPayload;
-};
-
-/**
- * Helper function to find and validate service
- */
 function findService(finalServices: any[], serviceName: string) {
   return finalServices.find(
     (s) => sanitizeForUrlSafety(s.name) === sanitizeForUrlSafety(serviceName)
   );
 }
 
-/**
- * Helper function to find and validate action
- */
-function findAction(service: any, actionName: string) {
-  return service.actions.find((a: any) => a.name === actionName);
-}
+function extractWSAuthInput(socket: WSSocket) {
+  const authHeaders = new Headers();
+  const authCookies: Record<string, string> = {};
 
-/**
- * Helper function to check action protection
- */
-function checkActionProtection(action: any, authResult: any) {
-  const shouldProtect = action.isProtected !== false;
-  if (shouldProtect && !authResult?.isAuthenticated) {
-    return { isAuthorized: false, error: authResult?.error };
+  let token: string | undefined;
+  if (socket.handshake.auth?.token) {
+    token = socket.handshake.auth.token;
+    if (token?.startsWith('Bearer ')) {
+      authHeaders.set('Authorization', token);
+    } else if (token) {
+      authHeaders.set('Authorization', `Bearer ${token}`);
+    }
+  } else if (socket.handshake.headers.authorization) {
+    authHeaders.set('Authorization', socket.handshake.headers.authorization);
   }
-  return { isAuthorized: true };
-}
 
-/**
- * Helper function to validate payload
- */
-function validateActionPayload(payload: any, action: any) {
-  if (payload && Object.keys(payload).length > 0) {
-    const actionPayloadValidation = getValidationSchema(action.validation);
-    const actionPayloadParsed = actionPayloadValidation.safeParse(payload);
-    if (!actionPayloadParsed.success) {
-      return {
-        isValid: false,
-        error: formatError(actionPayloadParsed.error),
-      };
+  if (socket.handshake.headers.cookie) {
+    const cookies = socket.handshake.headers.cookie.split(';');
+    for (const cookie of cookies) {
+      const [key, value] = cookie.trim().split('=');
+      if (key && value) {
+        authCookies[key] = value;
+      }
     }
   }
-  return { isValid: true };
+
+  return {
+    headers: authHeaders,
+    cookies: authCookies,
+    payloadAuthToken: token,
+  };
 }
-
-/**
- * Helper function to execute action with or without hooks
- */
-async function executeActionHandler(
-  action: any,
-  payload: any,
-  hookExecutor: any
-) {
-  if (!action.handler) {
-    throw new Error(`Handler not found for action ${action.name}`);
-  }
-
-  if (action.hooks?.before || action.hooks?.after) {
-    return await hookExecutor.executeActionWithHooks(
-      action,
-      payload,
-      undefined // WS doesn't have Hono context
-    );
-  }
-
-  return await action.handler(payload, undefined);
-}
-
-const _isAction = (value: unknown): value is Action =>
-  typeof value === 'object' &&
-  value !== null &&
-  'name' in value &&
-  'handler' in value;
 
 export function createWSRPCServer(options: WSServerOptions): void {
   const { io, namespace = '/ws/rpc', serverConfig } = options;
@@ -179,10 +98,6 @@ export function createWSRPCServer(options: WSServerOptions): void {
   const finalServices = [...services, ...generatedServices].filter(
     (s) => s.actions.length
   );
-
-  // Create hook executor (reuse from rest-rpc.ts line 201)
-  const allActions: Action[] = finalServices.flatMap((s) => s.actions);
-  const hookExecutor = createHookExecutor(allActions);
 
   // Authentication middleware
   nsp.use(async (socket: WSSocket, next: (err?: Error) => void) => {
@@ -263,7 +178,9 @@ export function createWSRPCServer(options: WSServerOptions): void {
             return;
           }
 
-          const targetAction = findAction(targetService, action);
+          const targetAction = targetService.actions.find(
+            (a: any) => a.name === action
+          );
           if (!targetAction) {
             ack(
               createErrorResponse(
@@ -334,71 +251,20 @@ export function createWSRPCServer(options: WSServerOptions): void {
       async (request: WSExecuteActionRequest, ack: (response: any) => void) => {
         try {
           const { service, action, payload } = request;
+          const authInput = extractWSAuthInput(socket);
 
-          // Find service
-          const targetService = findService(finalServices, service);
-          if (!targetService) {
-            ack(createErrorResponse(`Service ${service} not found`));
-            return;
-          }
-
-          // Find action
-          const targetAction = findAction(targetService, action);
-          if (!targetAction) {
-            ack(
-              createErrorResponse(
-                `Action ${action} not found in service ${service}`
-              )
-            );
-            return;
-          }
-
-          // Check protection
-          const authResult = socket.data.authResult;
-          const authCheck = checkActionProtection(targetAction, authResult);
-          if (!authCheck.isAuthorized) {
-            ack(createErrorResponse('Unauthorized', authCheck.error));
-            return;
-          }
-
-          // Enrich payload with user context
-          const enrichedPayload = enrichPayloadWithUserContext(
+          const result = await executeUnified({
+            serviceName: service,
+            actionName: action,
             payload,
-            authResult
-          );
+            serverConfig,
+            authInput,
+            interfaceContext: {
+              ws: socket,
+            },
+          });
 
-          // Validate payload
-          const validation = validateActionPayload(
-            enrichedPayload,
-            targetAction
-          );
-          if (!validation.isValid) {
-            ack(
-              createErrorResponse('Invalid request format', validation.error)
-            );
-            return;
-          }
-
-          // Execute action
-          console.log(
-            '[WS SERVER] Executing action:',
-            service,
-            action,
-            enrichedPayload
-          );
-          const result = await executeActionHandler(
-            targetAction,
-            enrichedPayload,
-            hookExecutor
-          );
-          console.log('[WS SERVER] Action result:', result);
-
-          // Handle result
-          if (isError(result)) {
-            ack(result);
-          } else {
-            ack(result);
-          }
+          ack(result);
         } catch (error) {
           ack(handleWSError(error));
         }

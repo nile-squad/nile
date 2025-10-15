@@ -1,6 +1,6 @@
 {
 	"name": "@nile-squad/nile",
-	"version": "1.2.9",
+	"version": "1.3.0",
 	"author": "Hussein Kizz",
 	"type": "module",
 	"sideEffects": false,
@@ -21,16 +21,16 @@
 			"import": "./dist/src/logging/index.js",
 			"require": "./dist/src/logging/index.cjs"
 		},
-		"./rest-rpc": {
-			"types": "./dist/src/rest-rpc/index.d.ts",
-			"import": "./dist/src/rest-rpc/index.js",
-			"require": "./dist/src/rest-rpc/index.cjs"
-		},
-		"./rpc-utils": {
-			"types": "./dist/src/rest-rpc/rpc-utils/index.d.ts",
-			"import": "./dist/src/rest-rpc/rpc-utils/index.js",
-			"require": "./dist/src/rest-rpc/rpc-utils/index.cjs"
-		},
+	"./rest": {
+		"types": "./dist/src/interfaces/rest/index.d.ts",
+		"import": "./dist/src/interfaces/rest/index.js",
+		"require": "./dist/src/interfaces/rest/index.cjs"
+	},
+	"./rpc": {
+		"types": "./dist/src/interfaces/rpc/index.d.ts",
+		"import": "./dist/src/interfaces/rpc/index.js",
+		"require": "./dist/src/interfaces/rpc/index.cjs"
+	},
 		"./utils": {
 			"types": "./dist/src/utils/index.d.ts",
 			"import": "./dist/src/utils/index.js",

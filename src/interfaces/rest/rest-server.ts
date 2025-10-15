@@ -1,19 +1,17 @@
 import path from 'node:path';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { type Context, Hono } from 'hono';
+import { getCookie } from 'hono/cookie';
 import { cors } from 'hono/cors';
 import { createMiddleware } from 'hono/factory';
 import { rateLimiter } from 'hono-rate-limiter';
 import { z } from 'zod';
-import { executeActionHook } from '../hooks/action-hooks.js';
-import type { Action, Service, Services } from '../types/actions';
-import { isError } from '../utils';
-import { formatError } from '../utils/erorr-formatter';
-import { getValidationSchema } from '../utils/validation-utils';
-import { authenticate } from './auth-utils';
-import { createHookExecutor } from './hooks';
-import { processServices } from './rpc-utils/service-utils';
-import type { WSConfig } from './ws/types';
+import { executeUnified } from '../../core/unified-executor';
+import type { Services } from '../../types/actions';
+import { formatError } from '../../utils/erorr-formatter';
+import { sanitizeForUrlSafety } from '../../utils/url-safety';
+import { processServices } from '../rpc/service-utils';
+import type { WSConfig } from '../ws/types';
 
 // Extend Hono context type to include custom variables
 export type AppContext = {
@@ -27,6 +25,7 @@ export type AppContext = {
 export const app = new Hono<AppContext>();
 
 let CONFIG: ServerConfig | null = null;
+let CURRENT_APP: Hono<AppContext> | null = null;
 
 export type AgenticHandler = (payload: {
   input: string;
@@ -78,9 +77,13 @@ export type ServerConfig = {
     method: 'cookie' | 'payload' | 'header';
     cookieName?: string;
     headerName?: string;
+    authHandler?:
+      | import('../../types/auth-handler.js').AuthHandler
+      | 'betterauth'
+      | 'jwt';
   };
   websocket?: WSConfig;
-  onActionHandler?: import('../types/action-hook.js').ActionHookHandler;
+  onActionHandler?: import('../../types/action-hook.js').ActionHookHandler;
 };
 
 const postRequestSchema = z.object({
@@ -94,16 +97,6 @@ const postRequestSchema = z.object({
     .optional(),
 });
 
-const sanitizeForUrlSafety = (s: string) => {
-  return s
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '-') // replace spaces with hyphens
-    .replace(/[^a-z0-9-]/g, '-') // remove special characters except hyphens
-    .replace(/-+/g, '-') // replace multiple hyphens with single hyphen
-    .replace(/^-+|-+$/g, ''); // remove hyphens from start and end
-};
-
 const ASSETS_REGEX = /^\/assets\//;
 const TRAILING_SLASH_REGEX = /\/+$/;
 const HTTP_SCHEME_REGEX = /^https?:\/\//;
@@ -116,6 +109,8 @@ const JOIN_EDGE_SLASHES_REGEX = /^\/+|\/+$/g;
  */
 export const createRestRPC = (config: ServerConfig) => {
   CONFIG = config;
+  const restApp = new Hono<AppContext>();
+  CURRENT_APP = restApp;
   const createdRoutes: Record<string, any>[] = [];
   const prefix = `${config.baseUrl}/${config.apiVersion}/services`;
   const host = config.host || '0.0.0.0';
@@ -161,7 +156,7 @@ export const createRestRPC = (config: ServerConfig) => {
       )
       .join('/');
 
-  app.use(
+  restApp.use(
     '*',
     cors({
       origin: (reqOrigin) => {
@@ -210,10 +205,10 @@ export const createRestRPC = (config: ServerConfig) => {
     await next();
   });
 
-  app.use('*', authMiddleware);
+  restApp.use('*', authMiddleware);
 
   if (config.rateLimiting?.limitingHeader) {
-    app.use(
+    restApp.use(
       rateLimiter({
         windowMs: config.rateLimiting.windowMs || 15 * 60 * 1000, // 15 minutes
         limit: config.rateLimiting.limit || 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes).
@@ -230,88 +225,23 @@ export const createRestRPC = (config: ServerConfig) => {
     );
   }
 
-  app.get('/', (c) => {
+  restApp.get('/', (c) => {
     return c.text('OK');
   });
 
   // Process services using the reusable utility
   const finalServices = processServices(config);
 
-  async function checkAction({
-    actionName,
-    s,
-    c,
-    config: _config,
-  }: {
-    actionName: string;
-    s: Service;
-    c: Context<AppContext>;
-    config: ServerConfig;
-  }): Promise<Action | Response> {
-    const targetAction = s.actions.find(
-      (a) => a.name === actionName && a.visibility?.rest !== false
-    );
-    if (!targetAction) {
-      return c.json({
-        status: false,
-        message: `Action ${actionName} not found in service ${s.name}`,
-        data: {},
-      });
-    }
+  // Update config to use processed services so executeUnified() sees the generated actions
+  config.services = finalServices;
 
-    // Default to protected unless explicitly set to false
-    // This implements secure-by-default for all POST service actions
-    const shouldProtect = targetAction.isProtected !== false;
-
-    if (shouldProtect) {
-      // Get request data for payload-based auth
-      let requestData: any = null;
-      try {
-        const contentType = c.req.header('content-type') ?? '';
-        if (contentType.includes('application/json')) {
-          requestData = await c.req.json().catch(() => null);
-        }
-      } catch {
-        // Ignore errors, requestData will remain null
-      }
-
-      const authResult = await authenticate(c, _config, requestData);
-
-      if (!authResult.isAuthenticated) {
-        return c.json(
-          {
-            status: false,
-            message: 'Unauthorized',
-            data: { error: authResult.error },
-          },
-          401
-        );
-      }
-
-      // Store auth result in context for later use
-      c.set('authResult', authResult);
-    }
-
-    return targetAction;
-  }
-
-  const isAction = (value: unknown): value is Action =>
-    typeof value === 'object' &&
-    value !== null &&
-    'name' in value &&
-    'handler' in value;
-
-  // Create hook executor with all actions from all services
-  const allActions: Action[] = finalServices.flatMap((s) =>
-    s.actions.filter((a) => a.visibility?.rpc !== false)
-  );
-  const hookExecutor = createHookExecutor(allActions);
   const handleFormRequest = async (c: Context<AppContext>) => {
     const formData = await c.req.formData().catch(() => null);
     if (!formData) {
       return {
         actionName: null,
         payload: null,
+        payloadAuthToken: null,
         error: c.json({
           status: false,
           message: 'No form data provided',
@@ -319,295 +249,94 @@ export const createRestRPC = (config: ServerConfig) => {
         }),
       };
     }
+
     const requestAction = formData.get('action');
     if (!requestAction || typeof requestAction !== 'string') {
       return {
         actionName: null,
         payload: null,
+        payloadAuthToken: null,
         error: c.json({
           status: false,
-          message: 'No action specified or invalid in form fields!',
+          message: 'No action specified or invalid in form fields',
           data: {},
         }),
       };
     }
-    return { actionName: requestAction, payload: null, error: null };
+
+    // Convert FormData to payload object
+    const payload: Record<string, any> = {};
+    formData.forEach((value, key) => {
+      if (key !== 'action') {
+        payload[key] = value;
+      }
+    });
+
+    const authToken = formData.get('auth_token');
+    return {
+      actionName: requestAction,
+      payload,
+      payloadAuthToken: authToken ? String(authToken) : null,
+      error: null,
+    };
   };
 
-  const handleJsonRequest = async (
-    c: Context<AppContext>,
-    _config: ServerConfig
-  ) => {
+  const handleJsonRequest = async (c: Context<AppContext>) => {
     const requestData = await c.req.json().catch(() => null);
     if (!requestData) {
       return {
         actionName: null,
         payload: null,
-        error: c.json({
-          status: false,
-          message: 'No json data provided',
-          data: {},
-        }),
+        payloadAuthToken: null,
+        error: c.json(
+          {
+            status: false,
+            message: 'No json data provided',
+            data: {},
+          },
+          400
+        ),
       };
     }
 
-    let extendedSchema = postRequestSchema;
-    if (_config.payloadSchema) {
-      extendedSchema = postRequestSchema.extend({
-        payload: _config.payloadSchema,
-      });
-    }
-    const parsedData = extendedSchema.safeParse(requestData);
+    const parsedData = postRequestSchema.safeParse(requestData);
     if (!parsedData.success) {
       return {
         actionName: null,
         payload: null,
-        error: c.json({
-          status: false,
-          message: 'Invalid request format',
-          data: formatError(parsedData.error),
-        }),
+        payloadAuthToken: null,
+        error: c.json(
+          {
+            status: false,
+            message: 'Invalid request format',
+            data: formatError(parsedData.error),
+          },
+          400
+        ),
       };
     }
-    const { action, payload } = requestData;
-    return { actionName: action, payload, error: null };
-  };
-
-  /**
-   * Enrich payload with user context from authentication
-   */
-  const enrichPayloadWithUserContext = (payload: any, authResult: any) => {
-    if (!authResult?.isAuthenticated) {
-      return payload || {};
-    }
-
-    // Extract user and organization context from auth result
-    // For JWT auth: user contains the JWT payload with userId/organizationId
-    // For Better Auth: user has id, session has organizationId
-    const userId =
-      authResult.user?.userId || authResult.user?.id || authResult.user?.sub;
-    const organizationId =
-      authResult.user?.organizationId ||
-      authResult.user?.organization_id ||
-      authResult.session?.organizationId;
-
-    if (!(userId && organizationId)) {
-      return payload || {};
-    }
-
-    let enrichedPayload = {
-      ...(payload || {}),
-      user_id: userId,
-      organization_id: organizationId,
-      userId,
-      organizationId,
+    const { action, payload, auth } = requestData;
+    return {
+      actionName: action,
+      payload,
+      payloadAuthToken: auth?.token,
+      error: null,
     };
-
-    // inject better auth casing claims, it works with camelCase and snake_case
-    if (config.betterAuth?.instance) {
-      enrichedPayload = {
-        ...enrichedPayload,
-        userId,
-        organizationId,
-      };
-    }
-
-    // Add triggered_by for agent users
-    if (
-      authResult.method === 'agent' &&
-      (authResult.session?.triggeredBy || authResult.user?.triggeredBy)
-    ) {
-      enrichedPayload.triggered_by =
-        authResult.session?.triggeredBy || authResult.user?.triggeredBy;
-    }
-
-    return enrichedPayload;
   };
 
-  const executeHookIfConfigured = async (
-    _config: ServerConfig,
-    c: Context<AppContext>,
-    action: Action,
-    enrichedPayload: any,
-    service?: Service
-  ) => {
-    if (!_config.onActionHandler) {
-      return null; // No hook to execute
-    }
-
-    try {
-      const hookContext = {
-        user: c.get('user'),
-        session: c.get('session'),
-        request: c.req,
-        service,
-      };
-
-      const hookResult = await executeActionHook(
-        _config.onActionHandler,
-        hookContext,
-        action,
-        enrichedPayload
-      );
-
-      if (hookResult.isError === true) {
-        return c.json(hookResult, 200);
-      }
-      // If isOk, allow action to proceed
-      return null;
-    } catch (error) {
-      if (
-        error &&
-        typeof error === 'object' &&
-        error !== null &&
-        'status' in error &&
-        (error as any).status === false
-      ) {
-        return c.json(error, 200);
-      }
-      throw error;
-    }
-  };
-
-  const validateActionPayload = (
-    enrichedPayload: any,
-    targetAction: Action,
-    c: Context<AppContext>
-  ) => {
-    if (enrichedPayload && Object.keys(enrichedPayload).length > 0) {
-      const actionPayloadValidation = getValidationSchema(
-        targetAction.validation
-      );
-      const actionPayloadParsed =
-        actionPayloadValidation.safeParse(enrichedPayload);
-      if (!actionPayloadParsed.success) {
-        return c.json({
-          status: false,
-          message: 'Invalid request format',
-          data: formatError(actionPayloadParsed.error),
-        });
-      }
-    }
-    return null; // Validation passed
-  };
-
-  const executeActionHandler = async (
-    targetAction: Action,
-    enrichedPayload: any,
-    c: Context<AppContext>,
-    actionHookExecutor: ReturnType<typeof createHookExecutor>,
-    actionName: string,
-    serviceName: string
-  ) => {
-    if (!targetAction.handler) {
-      throw new Error(
-        `Handler not found for action ${actionName} of service ${serviceName}`
-      );
-    }
-
-    // remove isOk and isError stuff - only needed internally
-    const cleanResult = <T extends Record<string, any>>(oldResult: T) => {
-      const { isOk: _isOk, isError: _isError, ...rest } = oldResult;
-      return rest;
-    };
-
-    // Use hook executor if action has hooks, otherwise execute normally
-    if (targetAction.hooks?.before || targetAction.hooks?.after) {
-      const result = await actionHookExecutor.executeActionWithHooks(
-        targetAction,
-        enrichedPayload,
-        c
-      );
-      if (isError(result)) {
-        return c.json(cleanResult(result), 200);
-      }
-      return c.json(cleanResult(result));
-    }
-
-    const result = await targetAction.handler(enrichedPayload, c);
-    if (isError(result)) {
-      return c.json(cleanResult(result), 200);
-    }
-    return c.json(cleanResult(result));
-  };
-
-  const processAction = async (
-    c: Context<AppContext>,
-    s: Service,
-    actionName: string,
-    _payload: any,
-    _config: ServerConfig,
-    actionHookExecutor: ReturnType<typeof createHookExecutor>
-  ) => {
-    const targetAction = await checkAction({
-      actionName,
-      s,
-      c,
-      config: _config,
-    });
-
-    if (!isAction(targetAction)) {
-      return targetAction;
-    }
-
-    // Enrich payload with user context from authentication
-    const authResult = c.var.authResult;
-    const enrichedPayload = enrichPayloadWithUserContext(_payload, authResult);
-
-    // Execute action hook if configured
-    const hookResponse = await executeHookIfConfigured(
-      _config,
-      c,
-      targetAction,
-      enrichedPayload,
-      s
-    );
-    if (hookResponse) {
-      return hookResponse;
-    }
-
-    // Validate payload
-    const validationResponse = validateActionPayload(
-      enrichedPayload,
-      targetAction,
-      c
-    );
-    if (validationResponse) {
-      return validationResponse;
-    }
-
-    // Execute action handler
-    return executeActionHandler(
-      targetAction,
-      enrichedPayload,
-      c,
-      actionHookExecutor,
-      actionName,
-      s.name
-    );
-  };
-
-  // console.log(finalServices);
   finalServices.forEach((s) => {
-    // POST - /services/service
-    app.post(`${prefix}/${sanitizeForUrlSafety(s.name)}`, async (c) => {
-      const contentType = c.req.header('content-type') ?? '';
-      const isFormRequest =
+    restApp.post(`${prefix}/${sanitizeForUrlSafety(s.name)}`, async (c) => {
+      // Determine content type and handle accordingly
+      const contentType = c.req.header('content-type') || '';
+      const isFormData =
         contentType.includes('multipart/form-data') ||
         contentType.includes('application/x-www-form-urlencoded');
 
-      let requestDetails: {
-        actionName: string | null;
-        payload: any;
-        error: any;
-      };
-      if (isFormRequest) {
-        requestDetails = await handleFormRequest(c);
-      } else {
-        requestDetails = await handleJsonRequest(c, config);
-      }
+      const requestDetails = isFormData
+        ? await handleFormRequest(c)
+        : await handleJsonRequest(c);
 
-      const { actionName, payload, error } = requestDetails;
+      const { actionName, payload, payloadAuthToken, error } = requestDetails;
 
       if (error) {
         return error;
@@ -621,13 +350,37 @@ export const createRestRPC = (config: ServerConfig) => {
         });
       }
 
-      return processAction(c, s, actionName, payload, config, hookExecutor);
+      const result = await executeUnified({
+        serviceName: sanitizeForUrlSafety(s.name),
+        actionName,
+        payload,
+        serverConfig: config,
+        authInput: {
+          headers: c.req.raw.headers,
+          cookies: getCookie(c),
+          payloadAuthToken,
+        },
+        interfaceContext: { hono: c },
+      });
+
+      let statusCode: 200 | 400 | 401 = 200;
+      if (!result.status) {
+        if (
+          result.data?.error_id === 'auth-failed' ||
+          result.data?.error_id === 'no-auth-handler'
+        ) {
+          statusCode = 401;
+        } else {
+          statusCode = 400;
+        }
+      }
+      return c.json(result, statusCode);
     });
     createdRoutes.push(s);
   });
 
   // GET - /services
-  app.get(`${prefix}`, (c) => {
+  restApp.get(`${prefix}`, (c) => {
     return c.json({
       status: true,
       message: `List of all available services on ${config.serverName}.`,
@@ -639,7 +392,7 @@ export const createRestRPC = (config: ServerConfig) => {
   console.log('Generating Services Docs...');
   finalServices.forEach((s) => {
     // GET - /services/schema
-    app.get(`${prefix}/schema`, (c) => {
+    restApp.get(`${prefix}/schema`, (c) => {
       return c.json({
         status: true,
         message: `${config.serverName} Services actions zod Schemas`,
@@ -666,7 +419,7 @@ export const createRestRPC = (config: ServerConfig) => {
     });
 
     // GET - /services/service
-    app.get(`${prefix}/${sanitizeForUrlSafety(s.name)}`, (c) => {
+    restApp.get(`${prefix}/${sanitizeForUrlSafety(s.name)}`, (c) => {
       return c.json({
         status: true,
         message: 'Service Details',
@@ -682,7 +435,7 @@ export const createRestRPC = (config: ServerConfig) => {
 
     // GET - /services/service/action
     s.actions.forEach((a) => {
-      app.get(
+      restApp.get(
         `${prefix}/${sanitizeForUrlSafety(s.name)}/${sanitizeForUrlSafety(
           a.name
         )}`,
@@ -728,7 +481,7 @@ export const createRestRPC = (config: ServerConfig) => {
 
   // handle any other businesses
   if (config.enableStatic) {
-    app.get(
+    restApp.get(
       '/assets/*',
       serveStatic({
         root: path.resolve(process.cwd(), 'assets'),
@@ -737,42 +490,23 @@ export const createRestRPC = (config: ServerConfig) => {
     );
   }
 
-  // Agentic endpoint under services prefix
-  app.post(`${prefix}/agentic`, async (c) => {
-    const requestDetails = await handleJsonRequest(c, config);
-    const { actionName, payload, error } = requestDetails;
-
-    if (error) {
-      return error;
-    }
-
-    if (!actionName || actionName !== 'agent') {
-      return c.json({
-        status: false,
-        message: "Agentic endpoint requires action: 'agent'",
-        data: {},
-      });
-    }
-
-    // Authentication check for agentic endpoint
-    const authResult = await authenticate(c, config, payload);
-    if (!authResult.isAuthenticated) {
-      return c.json(
-        {
-          status: false,
-          message: 'Unauthorized',
-          data: { error: authResult.error },
-        },
-        401
-      );
-    }
-
+  // Agentic endpoint - Special case: bypasses unified execution flow
+  // This endpoint uses betterauth middleware directly instead of the unified auth handler
+  // to provide a simplified interface for agentic/AI interactions
+  restApp.post(`${prefix}/agentic`, async (c) => {
     if (!config.agenticConfig?.handler) {
       return c.json({
         status: false,
         message: 'Agentic handler not configured',
         data: {},
       });
+    }
+
+    const requestDetails = await handleJsonRequest(c);
+    const { payload, error } = requestDetails;
+
+    if (error) {
+      return error;
     }
 
     if (!payload?.input || typeof payload.input !== 'string') {
@@ -783,22 +517,26 @@ export const createRestRPC = (config: ServerConfig) => {
       });
     }
 
+    const user = c.get('user');
+    const session = c.get('session');
+
+    if (!(user && session)) {
+      return c.json(
+        {
+          status: false,
+          message: 'Unauthorized',
+          data: {},
+        },
+        401
+      );
+    }
+
     try {
-      // Enrich payload with auth context (user/org)
-      const enriched = enrichPayloadWithUserContext(payload, authResult);
-      const userId =
-        enriched.user_id ??
-        authResult.user?.userId ??
-        authResult.user?.sub ??
-        authResult.user?.id;
-      const organizationId =
-        enriched.organization_id ??
-        authResult.user?.organizationId ??
-        authResult.user?.organization_id ??
-        authResult.session?.organizationId;
+      const userId = user.id || user.userId;
+      const organizationId = session.organizationId;
 
       const agentPayload = {
-        input: enriched.input,
+        input: payload.input,
         user_id: userId,
         organization_id: organizationId,
       };
@@ -824,7 +562,7 @@ export const createRestRPC = (config: ServerConfig) => {
   // Better Auth endpoints
   if (config.betterAuth?.instance) {
     // Mount Better Auth handler at /auth/* - this is the single handler approach
-    app.on(['GET', 'POST'], '/auth/*', (c) => {
+    restApp.on(['GET', 'POST'], '/auth/*', (c) => {
       const auth = config.betterAuth?.instance;
       if (!auth) {
         return c.json({ status: false, message: 'Auth not configured' }, 500);
@@ -838,7 +576,7 @@ export const createRestRPC = (config: ServerConfig) => {
   }
 
   if (config.enableStatus) {
-    app.get('/status', (c) => {
+    restApp.get('/status', (c) => {
       return c.json({
         status: true,
         message: `${config.serverName} Server running well 😎`,
@@ -852,18 +590,23 @@ export const createRestRPC = (config: ServerConfig) => {
   console.log(`Access agent at: ${joinUrl(origin, prefix, 'agentic')}`);
   console.log(`check server status: ${joinUrl(origin, 'status')}`);
 
-  app.notFound((c) => {
-    return c.text(
-      'Oops, route not found, remember GET is for services info and POST is for actions!',
+  restApp.notFound((c) => {
+    return c.json(
+      {
+        status: false,
+        message:
+          'Route not found. GET is for service info, POST is for actions.',
+        data: {},
+      },
       404
     );
   });
 
-  return app;
+  return restApp;
 };
 
 /** Get the main Hono app instance */
-export const useAppInstance = () => app;
+export const useAppInstance = () => CURRENT_APP || app;
 
 /** Get the current server configuration */
 export const getAutoConfig = () => CONFIG;

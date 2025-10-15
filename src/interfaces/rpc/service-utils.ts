@@ -1,18 +1,9 @@
 import { z } from 'zod';
+import { newServiceActionsFactory } from '../../core/actions-factory';
 import type { Service, Services } from '../../types/actions';
-import { newServiceActionsFactory } from '../actions-factory';
-import { getAutoConfig, type ServerConfig } from '../rest-rpc';
+import { sanitizeForUrlSafety } from '../../utils/url-safety';
+import { getAutoConfig, type ServerConfig } from '../rest/rest-server';
 import type { ResultsMode, RPCResult } from './types';
-
-const sanitizeForUrlSafety = (s: string) => {
-  return s
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '-') // replace spaces with hyphens
-    .replace(/[^a-z0-9-]/g, '-') // remove special characters except hyphens
-    .replace(/-+/g, '-') // replace multiple hyphens with single hyphen
-    .replace(/^-+|-+$/g, ''); // remove hyphens from start and end
-};
 
 /**
  * Process services with the same logic as rest-rpc.ts

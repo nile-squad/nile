@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
 import { getCookie } from 'hono/cookie';
 import { verify } from 'hono/jwt';
-import type { AppContext, ServerConfig } from './rest-rpc';
+import type { AppContext, ServerConfig } from '../interfaces/rest/rest-server';
 
 export interface AuthResult {
   isAuthenticated: boolean;

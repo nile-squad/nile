@@ -1,5 +1,5 @@
 import type { SafeResult } from '../../utils/safe-try';
-import type { ServerConfig } from '../rest-rpc';
+import type { ServerConfig } from '../rest/rest-server';
 
 export interface RPCConfig {
   resultsMode?: 'data' | 'json'; // defaults to 'data'

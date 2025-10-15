@@ -318,18 +318,17 @@ export const createModel = ({
     const currentOther = currentData?.other ?? null;
     const newOther = newData?.other ?? null;
 
-    if (!(currentOther || newOther)) {
-      return null;
-    }
-
-    const otherWithChanges = mergeTwoObjects(currentOther, newOther);
-
     let dataChanges = getChanges(currentData, newData);
-    if (otherWithChanges) {
-      dataChanges.other = otherWithChanges;
+
+    if (currentOther || newOther) {
+      const otherWithChanges = mergeTwoObjects(currentOther, newOther);
+      if (otherWithChanges) {
+        dataChanges.other = otherWithChanges;
+      }
     }
+
     dataChanges = stringifyOtherColumn(dataChanges);
-    return dataChanges;
+    return Object.keys(dataChanges).length > 0 ? dataChanges : null;
   };
 
   const executeUpdate = async (
@@ -395,6 +394,10 @@ export const createModel = ({
     }
 
     const dataChanges = prepareUpdateData(currentData, args.dataInput);
+
+    console.log('DEBUG UPDATE - currentData:', currentData);
+    console.log('DEBUG UPDATE - args.dataInput:', args.dataInput);
+    console.log('DEBUG UPDATE - dataChanges:', dataChanges);
 
     if (dataChanges === null || Object.keys(dataChanges).length === 0) {
       createLog({
