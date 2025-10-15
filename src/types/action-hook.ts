@@ -1,13 +1,6 @@
-import type { Action } from './actions';
-
-export type Context = {
-  user: any | null;
-  session: any | null;
-  request: any;
-  service?: any;
-};
-
+import type { NileContext } from '../core/context';
 import type { SafeResult } from '../utils/safe-try';
+import type { Action } from './actions';
 export type ActionHookResult = SafeResult<any>;
 
 /**
@@ -15,7 +8,7 @@ export type ActionHookResult = SafeResult<any>;
  * Legacy returns like `true` or `{ error: string }` are not allowed.
  */
 export type ActionHookHandler = (
-  context: Context,
+  context: NileContext,
   action: Action,
   payload: unknown
 ) => ActionHookResult | Promise<ActionHookResult>;

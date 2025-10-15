@@ -1,7 +1,7 @@
+export type { NileContext } from '../core/context';
 export type {
   ActionHookHandler,
   ActionHookResult,
-  Context,
 } from './action-hook';
 export * as ActionHookTypes from './action-hook';
 export type { ActionHandler, PublicAction } from './actions';

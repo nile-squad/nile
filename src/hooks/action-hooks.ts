@@ -1,8 +1,8 @@
+import type { NileContext } from '../core/context.js';
 import { createLogger } from '../logging/index.js';
 import type {
   ActionHookHandler,
   ActionHookResult,
-  Context,
 } from '../types/action-hook.js';
 import { formatInvalidHookResultError } from '../types/action-hook.js';
 import type { Action } from '../types/actions.js';
@@ -12,7 +12,7 @@ const logger = createLogger('action-hooks');
 
 export async function executeActionHook(
   handler: ActionHookHandler | undefined,
-  context: Context,
+  context: NileContext,
   action: Action,
   payload: unknown
 ): Promise<ActionHookResult> {

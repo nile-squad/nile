@@ -1,4 +1,4 @@
-import type { Context } from 'hono';
+import type { NileContext } from '../core/context';
 import type { SafeResult } from '../utils/safe-try';
 import type { Validation } from '../utils/validation-utils';
 
@@ -96,5 +96,5 @@ export type SubServices = SubService[];
 
 export type ActionHandler = (
   data: Record<string, any> | any,
-  context?: Context
+  context?: NileContext
 ) => Promise<SafeResult<any>>;
