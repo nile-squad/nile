@@ -260,6 +260,14 @@ export async function executeUnified(
       actionResult
     );
 
+    // remove isOk and isError from actionResult if present
+    if ('isOk' in actionResult) {
+      (actionResult as any).isOk = undefined;
+    }
+    if ('isError' in actionResult) {
+      (actionResult as any).isError = undefined;
+    }
+
     return actionResult;
   } catch (error) {
     return safeError(

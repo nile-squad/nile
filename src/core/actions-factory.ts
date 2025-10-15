@@ -62,10 +62,6 @@ export const newServiceActionsFactory = (
     table,
     model,
   });
-  console.log(
-    '[FACTORY DEBUG] Generated deleteAll action:',
-    newDeleteAllAction.name
-  );
 
   actions.push(newCreateAction);
   actions.push(newGetAllAction);
@@ -80,13 +76,6 @@ export const newServiceActionsFactory = (
 
   return returnValue;
 };
-
-const itemsKeysToPatchOut = [
-  'user_id',
-  'organization_id',
-  'userId',
-  'organizationId',
-];
 
 const generateCreateAction = (
   sub: SubService,
@@ -109,11 +98,6 @@ const generateCreateAction = (
             },
           } as ModelOptions['validation'],
         };
-
-    // patch out auto injected data items
-    for (const item of itemsKeysToPatchOut) {
-      delete data[item];
-    }
 
     const { data: result, errors } = await model.createItem(data, _options);
     if (errors.length) {
@@ -307,11 +291,6 @@ const generateUpdateAction = (
         appName: 'main',
       });
       return safeError(`Missing ${sub.idName} in payload!`, error_id);
-    }
-
-    // patch out auto injected data items
-    for (const item of itemsKeysToPatchOut) {
-      delete data[item];
     }
 
     const { data: result, errors } = await model.updateItem({
