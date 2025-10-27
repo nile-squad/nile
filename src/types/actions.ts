@@ -69,7 +69,9 @@ export type PublicAction =
   | 'create'
   | 'update'
   | 'delete'
+  | 'deleteById'
   | 'deleteAll'
+  | 'deleteMany'
   | 'getOne'
   | 'getAll'
   | 'getEvery'
@@ -77,7 +79,18 @@ export type PublicAction =
   | 'getOneWithStrictly'
   | 'getOneWith'
   | 'getOneWithRelations'
-  | 'getManyWith';
+  | 'getManyWith'
+  | 'findById'
+  | 'findByIds'
+  | 'findFirst'
+  | 'findMany'
+  | 'findWithRelations'
+  | 'createMany'
+  | 'updateMany'
+  | 'count'
+  | 'exists'
+  | 'increment'
+  | 'decrement';
 
 export type SubService = {
   name: string;

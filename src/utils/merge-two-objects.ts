@@ -1,8 +1,9 @@
 /**
- * Deeply merges properties from `source` into `target`.
- * - For each key in `source`, it will overwrite the value in `target`.
- * - If both values are plain objects, they are merged recursively.
- * - Arrays and primitive values are replaced directly.
+ * Deeply merges properties from `source` into `target` without shallow copying.
+ * - Creates a completely new object with all fields from target preserved
+ * - For each key in `source`, it will overwrite or merge the value in `target`
+ * - If both values are plain objects, they are merged recursively
+ * - Arrays and primitive values are replaced directly
  *
  * @template T - The type of the original object.
  * @template U - The type of the object to merge from.
@@ -16,16 +17,31 @@
  * const result = mergeTwoObjects(original, updates);
  * // result: { a: 1, b: { x: 2, y: 10 } }
  */
-export const mergeTwoObjects = <T extends object, U extends object>(
+// Inline implementation to avoid module issues
+function deepMerge<T extends object, U extends object>(
   target: T,
   source: U
-): T & U => {
-  const result = { ...target } as any;
+): T & U {
+  const result: any = {};
 
+  // First, deep copy all fields from target (preserving nested objects)
+  for (const key in target) {
+    const value = (target as any)[key];
+    if (Array.isArray(value)) {
+      result[key] = [...value];
+    } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+      result[key] = deepMerge(value, {} as any);
+    } else {
+      result[key] = value;
+    }
+  }
+
+  // Then merge/overwrite with source values
   for (const key in source) {
-    const sourceValue = source[key];
-    const targetValue = target[key as unknown as keyof T];
+    const sourceValue = (source as any)[key];
+    const targetValue = result[key];
 
+    // If both are objects, deep merge
     if (
       sourceValue &&
       typeof sourceValue === 'object' &&
@@ -34,11 +50,15 @@ export const mergeTwoObjects = <T extends object, U extends object>(
       typeof targetValue === 'object' &&
       !Array.isArray(targetValue)
     ) {
-      result[key] = mergeTwoObjects(targetValue, sourceValue);
+      // Deep merge nested objects - recursively merge
+      result[key] = deepMerge(targetValue, sourceValue);
     } else {
+      // Replace primitive, array, or new fields
       result[key] = sourceValue;
     }
   }
 
-  return result;
-};
+  return result as T & U;
+}
+
+export const mergeTwoObjects = deepMerge;

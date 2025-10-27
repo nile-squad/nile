@@ -26,12 +26,15 @@ export const getValidationSchema = (
 
   // Step 1: Create base schema
   if (validation.inferTable) {
-    schema =
-      operation === 'create'
-        ? createInsertSchema(validation.inferTable)
-        : createSelectSchema(validation.inferTable);
+    if (operation === 'create') {
+      // Use createInsertSchema - drizzle-zod automatically handles optional fields
+      // Fields not marked as notNull in the DB schema will be optional
+      schema = createInsertSchema(validation.inferTable);
+    } else {
+      schema = createSelectSchema(validation.inferTable);
+    }
 
-    // Apply omit fields if specified
+    // Apply additional omit fields if specified
     if (validation.omitFields && validation.omitFields.length > 0) {
       const omitObj: Record<string, true> = {};
       validation.omitFields.forEach((field) => {

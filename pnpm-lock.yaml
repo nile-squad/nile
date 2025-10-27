@@ -29,9 +29,6 @@ importers:
       '@z-fetch/fetch':
         specifier: ^0.0.10
         version: 0.0.10
-      better-sqlite3:
-        specifier: ^9.6.0
-        version: 9.6.0
       croner:
         specifier: ^9.1.0
         version: 9.1.0
@@ -47,12 +44,9 @@ importers:
       dotenv:
         specifier: ^16.6.1
         version: 16.6.1
-      drizzle-orm:
-        specifier: ^0.44.3
-        version: 0.44.3(@types/better-sqlite3@7.6.13)(better-sqlite3@9.6.0)
       drizzle-zod:
         specifier: ^0.8.2
-        version: 0.8.2(drizzle-orm@0.44.3(@types/better-sqlite3@7.6.13)(better-sqlite3@9.6.0))(zod@4.0.8)
+        version: 0.8.2(drizzle-orm@0.44.3(@electric-sql/pglite@0.3.11)(@types/better-sqlite3@7.6.13)(better-sqlite3@9.6.0))(zod@4.0.8)
       hono:
         specifier: ^4.8.5
         version: 4.8.5
@@ -62,9 +56,6 @@ importers:
       jsonwebtoken:
         specifier: ^9.0.2
         version: 9.0.2
-      just-diff:
-        specifier: ^6.0.2
-        version: 6.0.2
       nanoid:
         specifier: ^5.1.5
         version: 5.1.5
@@ -99,6 +90,9 @@ importers:
       '@changesets/cli':
         specifier: ^2.29.5
         version: 2.29.5
+      '@electric-sql/pglite':
+        specifier: ^0.3.11
+        version: 0.3.11
       '@size-limit/preset-small-lib':
         specifier: ^11.2.0
         version: 11.2.0(size-limit@11.2.0)
@@ -111,9 +105,15 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^1.6.1
         version: 1.6.1(vitest@3.2.4(@types/node@24.0.15)(jiti@2.4.2)(tsx@4.20.3))
+      better-sqlite3:
+        specifier: ^9.6.0
+        version: 9.6.0
       drizzle-kit:
         specifier: ^0.31.4
         version: 0.31.4
+      drizzle-orm:
+        specifier: ^0.44.3
+        version: 0.44.3(@electric-sql/pglite@0.3.11)(@types/better-sqlite3@7.6.13)(better-sqlite3@9.6.0)
       fast-glob:
         specifier: ^3.3.3
         version: 3.3.3
@@ -135,6 +135,9 @@ importers:
       ultracite:
         specifier: 5.0.36
         version: 5.0.36(@types/node@24.0.15)(jiti@2.4.2)(tsx@4.20.3)
+      vite-tsconfig-paths:
+        specifier: ^5.1.4
+        version: 5.1.4(typescript@5.8.3)(vite@7.0.5(@types/node@24.0.15)(jiti@2.4.2)(tsx@4.20.3))
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/node@24.0.15)(jiti@2.4.2)(tsx@4.20.3)
@@ -351,6 +354,9 @@ packages:
 
   '@drizzle-team/brocli@0.10.2':
     resolution: {integrity: sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w==}
+
+  '@electric-sql/pglite@0.3.11':
+    resolution: {integrity: sha512-FJtjnEyez8XgmgyE5Ewmx89TGVN+75ZjykFoExApRIbJBMT4dsbsuZkF/YWLuymGDfGFHDACjvENPMEqg4FoWg==}
 
   '@esbuild-kit/core-utils@3.3.2':
     resolution: {integrity: sha512-sPRAnw9CdSsRmEtnsl2WXWdyquogVpB3yZ3dgwJfe8zrOzTsV7cJvmwrKVa+0ma5BoiGJ+BoqkMvawbayKUsqQ==}
@@ -1619,6 +1625,9 @@ packages:
     resolution: {integrity: sha512-jhIXaOzy1sb8IyocaruWSn1TjmnBVs8Ayhcy83rmxNJ8q2uWKCAj3CnJY+KpGSXCueAPc0i05kVvVKtP1t9S3g==}
     engines: {node: '>=10'}
 
+  globrex@0.1.2:
+    resolution: {integrity: sha512-uHJgbwAMwNFf5mLst7IWLNg14x1CkeqglJb/K3doi4dw6q2IvAAmM/Y81kevy83wP+Sst+nutFTYOGg3d1lsxg==}
+
   google-auth-library@9.15.1:
     resolution: {integrity: sha512-Jb6Z0+nvECVz+2lzSMt9u98UsoakXxA2HGHMCxh+so3n90XgYWkq5dur19JAJV7ONiJY22yBTyJB1TSkvPq9Ng==}
     engines: {node: '>=14'}
@@ -1818,9 +1827,6 @@ packages:
   jsonwebtoken@9.0.2:
     resolution: {integrity: sha512-PRp66vJ865SSqOlgqS8hujT5U4AOgMfhrwYIuIhfKaoSCZcirrmASQr8CX7cUg+RMih+hgznrjp99o+W4pJLHQ==}
     engines: {node: '>=12', npm: '>=6'}
-
-  just-diff@6.0.2:
-    resolution: {integrity: sha512-S59eriX5u3/QhMNq3v/gm8Kd0w8OS6Tz2FS1NG4blv+z0MuQcBRJyFWjdovM0Rad4/P4aUPFtnkNjMjyMlMSYA==}
 
   jwa@1.4.2:
     resolution: {integrity: sha512-eeH5JO+21J78qMvTIDdBXidBd6nG2kZjg5Ohz/1fpa28Z4CcsWUzJ1ZZyFq/3z3N17aZy+ZuBoHljASbL1WfOw==}
@@ -2516,6 +2522,16 @@ packages:
   ts-interface-checker@0.1.13:
     resolution: {integrity: sha512-Y/arvbn+rrz3JCKl9C4kVNfTfSm2/mEp5FSz5EsZSANGPSlQrpRI5M4PKF+mJnE52jOO90PnPSc3Ur3bTQw0gA==}
 
+  tsconfck@3.1.6:
+    resolution: {integrity: sha512-ks6Vjr/jEw0P1gmOVwutM3B7fWxoWBL2KRDb1JfqGVawBmO5UsvmWOQFGHBPl5yxYz4eERr19E6L7NMv+Fej4w==}
+    engines: {node: ^18 || >=20}
+    hasBin: true
+    peerDependencies:
+      typescript: ^5.0.0
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   tsup@8.5.0:
     resolution: {integrity: sha512-VmBp77lWNQq6PfuMqCHD3xWl22vEoWsKajkF8t+yMBawlUS8JzEI+vOVMeuNZIuMML8qXRizFKi9oD5glKQVcQ==}
     engines: {node: '>=18'}
@@ -2600,6 +2616,14 @@ packages:
     resolution: {integrity: sha512-EbKSKh+bh1E1IFxeO0pg1n4dvoOTt0UDiXMd/qn++r98+jPO1xtJilvXldeuQ8giIB5IkpjCgMleHMNEsGH6pg==}
     engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
     hasBin: true
+
+  vite-tsconfig-paths@5.1.4:
+    resolution: {integrity: sha512-cYj0LRuLV2c2sMqhqhGpaO3LretdtMn/BVX4cPLanIZuwwrkVl+lK84E/miEXkCHWXuq65rhNN4rXsBcOB3S4w==}
+    peerDependencies:
+      vite: '*'
+    peerDependenciesMeta:
+      vite:
+        optional: true
 
   vite@7.0.5:
     resolution: {integrity: sha512-1mncVwJxy2C9ThLwz0+2GKZyEXuC3MyWtAAlNftlZZXZDP3AJt5FmwcMit/IGGaNZ8ZOB2BNO/HFUB+CpN0NQw==}
@@ -3071,6 +3095,8 @@ snapshots:
     optional: true
 
   '@drizzle-team/brocli@0.10.2': {}
+
+  '@electric-sql/pglite@0.3.11': {}
 
   '@esbuild-kit/core-utils@3.3.2':
     dependencies:
@@ -3825,14 +3851,15 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  drizzle-orm@0.44.3(@types/better-sqlite3@7.6.13)(better-sqlite3@9.6.0):
+  drizzle-orm@0.44.3(@electric-sql/pglite@0.3.11)(@types/better-sqlite3@7.6.13)(better-sqlite3@9.6.0):
     optionalDependencies:
+      '@electric-sql/pglite': 0.3.11
       '@types/better-sqlite3': 7.6.13
       better-sqlite3: 9.6.0
 
-  drizzle-zod@0.8.2(drizzle-orm@0.44.3(@types/better-sqlite3@7.6.13)(better-sqlite3@9.6.0))(zod@4.0.8):
+  drizzle-zod@0.8.2(drizzle-orm@0.44.3(@electric-sql/pglite@0.3.11)(@types/better-sqlite3@7.6.13)(better-sqlite3@9.6.0))(zod@4.0.8):
     dependencies:
-      drizzle-orm: 0.44.3(@types/better-sqlite3@7.6.13)(better-sqlite3@9.6.0)
+      drizzle-orm: 0.44.3(@electric-sql/pglite@0.3.11)(@types/better-sqlite3@7.6.13)(better-sqlite3@9.6.0)
       zod: 4.0.8
 
   dunder-proto@1.0.1:
@@ -4168,6 +4195,8 @@ snapshots:
       merge2: 1.4.1
       slash: 3.0.0
 
+  globrex@0.1.2: {}
+
   google-auth-library@9.15.1:
     dependencies:
       base64-js: 1.5.1
@@ -4374,8 +4403,6 @@ snapshots:
       lodash.once: 4.1.1
       ms: 2.1.3
       semver: 7.7.2
-
-  just-diff@6.0.2: {}
 
   jwa@1.4.2:
     dependencies:
@@ -5089,6 +5116,10 @@ snapshots:
 
   ts-interface-checker@0.1.13: {}
 
+  tsconfck@3.1.6(typescript@5.8.3):
+    optionalDependencies:
+      typescript: 5.8.3
+
   tsup@8.5.0(jiti@2.4.2)(postcss@8.5.6)(tsx@4.20.3)(typescript@5.8.3):
     dependencies:
       bundle-require: 5.1.0(esbuild@0.25.7)
@@ -5204,6 +5235,17 @@ snapshots:
       - terser
       - tsx
       - yaml
+
+  vite-tsconfig-paths@5.1.4(typescript@5.8.3)(vite@7.0.5(@types/node@24.0.15)(jiti@2.4.2)(tsx@4.20.3)):
+    dependencies:
+      debug: 4.4.1
+      globrex: 0.1.2
+      tsconfck: 3.1.6(typescript@5.8.3)
+    optionalDependencies:
+      vite: 7.0.5(@types/node@24.0.15)(jiti@2.4.2)(tsx@4.20.3)
+    transitivePeerDependencies:
+      - supports-color
+      - typescript
 
   vite@7.0.5(@types/node@24.0.15)(jiti@2.4.2)(tsx@4.20.3):
     dependencies:

@@ -13,8 +13,9 @@ export {
   type RPCContext,
   type WebSocketContext,
 } from './context';
-export { createModel, type Model, type ModelOptions } from './create-models';
 export { createHookExecutor } from './hooks';
+export type { Model, ModelError, ModelOptions, ModelResult } from './orm';
+export { createModel, withTransaction } from './orm';
 export {
   executeUnified,
   type UnifiedExecutionParams,
