@@ -1,6 +1,6 @@
 {
   "name": "@nile-squad/nile",
-  "version": "1.3.6",
+  "version": "1.3.7",
   "author": "Hussein Kizz",
   "type": "module",
   "sideEffects": false,
@@ -66,10 +66,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nilesquad/nile.git"
+    "url": "git+https://github.com/nile-squad/nile.git"
   },
   "bugs": {
-    "url": "https://github.com/nilesquad/nile/issues"
+    "url": "https://github.com/nile-squad/nile/issues"
   },
   "homepage": "https://nilesquad.github.io/nile",
   "description": "TypeScript first, service-oriented backend framework.",

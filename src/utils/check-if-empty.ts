@@ -1,4 +1,4 @@
-import { createLogger } from '../logging';
+import { log } from '../internal.config.js';
 import { isError, type SafeResult, safeError } from './safe-try';
 
 type checkOptions = {
@@ -6,8 +6,6 @@ type checkOptions = {
   message: string;
   atFunction: string;
 };
-
-const logger = createLogger('nile-utils');
 
 export const checkIfEmptyOrErrors = (
   result: SafeResult<any>,
@@ -19,7 +17,8 @@ export const checkIfEmptyOrErrors = (
   const notFoundMessage = `${target} not found!`;
 
   if (isError(result)) {
-    const error_id = logger.error({
+    const error_id = log({
+      type: 'error',
       message,
       data: result,
       atFunction,
@@ -28,7 +27,8 @@ export const checkIfEmptyOrErrors = (
   }
 
   if (!result.data) {
-    const error_id = logger.error({
+    const error_id = log({
+      type: 'error',
       message: notFoundMessage,
       data: result,
       atFunction,

@@ -13,6 +13,11 @@ export {
   type RPCContext,
   type WebSocketContext,
 } from './context';
+export {
+  isSafeResult,
+  validateHandlerSignature,
+} from './engine/handler-validation';
+export { cleanResponse } from './engine/response-cleaner';
 export { createHookExecutor } from './hooks';
 export type { Model, ModelError, ModelOptions, ModelResult } from './orm';
 export { createModel, withTransaction } from './orm';

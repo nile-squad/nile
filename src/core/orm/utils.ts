@@ -182,7 +182,19 @@ export function createUtilityOperations<TTable extends Table>(
     }
   };
 
-  const raw = async (sqlQuery: SQL): Promise<ModelResult<any>> => {
+  /**
+   * INTERNAL USE ONLY - NOT EXPORTED
+   *
+   * Executes raw SQL queries. This method is kept internal to the ORM layer
+   * and is NOT exposed through the public Model interface for security reasons.
+   *
+   * Raw SQL execution bypasses all validation, authorization, and security checks,
+   * making it dangerous if exposed to external interfaces (REST/WebSocket/RPC).
+   *
+   * See: /docs/security.md
+   * @internal
+   */
+  const _raw = async (sqlQuery: SQL): Promise<ModelResult<any>> => {
     const _db = db;
 
     try {
@@ -226,11 +238,12 @@ export function createUtilityOperations<TTable extends Table>(
 
   const count = countRecords; // Alias for shorter naming
 
+  // NOTE: raw() method is intentionally NOT exported for security reasons
+  // See: /docs/security.md
   return {
     count,
     countRecords,
     exists,
     distinct,
-    raw,
   };
 }

@@ -211,18 +211,33 @@ describe("Enhanced Filter System", () => {
 			expect(users).toHaveLength(5);
 		});
 
-		// Note: "contains", "startsWith", "endsWith" are not in the current filter implementation
-		// Using like/ilike as workaround
-		it.skip("should filter with contains operator", async () => {
-			// Test uses unsupported operator
+		it("should filter with contains operator (case insensitive)", async () => {
+			const { data: users } = await userModel.findMany({
+				filters: [{ where: "username", contains: "admin" }],
+			});
+
+			expect(users).toHaveLength(2);
+			expect(users?.every((u: any) => u.username.includes("admin"))).toBe(true);
 		});
 
-		it.skip("should filter with startsWith operator", async () => {
-			// Test uses unsupported operator
+		it("should filter with contains operator for partial email match", async () => {
+			const { data: users } = await userModel.findMany({
+				filters: [{ where: "email", contains: "moderator" }],
+			});
+
+			expect(users).toHaveLength(1);
+			expect(users![0].email).toBe("moderator1@example.com");
 		});
 
-		it.skip("should filter with endsWith operator", async () => {
-			// Test uses unsupported operator
+		it("should filter with contains operator - case insensitive", async () => {
+			const { data: users } = await userModel.findMany({
+				filters: [{ where: "username", contains: "ADMIN" }],
+			});
+
+			expect(users).toHaveLength(2);
+			expect(
+				users?.every((u: any) => u.username.toLowerCase().includes("admin")),
+			).toBe(true);
 		});
 	});
 

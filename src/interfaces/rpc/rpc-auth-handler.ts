@@ -1,5 +1,5 @@
 import { verify } from 'hono/jwt';
-import { createLogger } from '../../logging/create-log';
+import { log } from '../../internal.config.js';
 import type {
   AuthContext,
   AuthHandler,
@@ -7,8 +7,6 @@ import type {
 } from '../../types/auth-handler';
 import { Ok, safeError, safeTry } from '../../utils';
 import type { ServerConfig } from '../rest/rest-server';
-
-const logger = createLogger('nile-rpc-auth');
 
 export type RPCAuthContext = {
   request: any;
@@ -96,7 +94,8 @@ export function createRPCAuthHandler(config: ServerConfig): AuthHandler {
         authClaims?.organization_id;
 
       if (!orgId) {
-        const error_id = logger.error({
+        const error_id = log({
+          type: 'error',
           message:
             'No organization context available for agent - provide organizationId or ensure auth token contains org claims',
           data: { authClaims, agentMode, explicitOrgId },
@@ -139,7 +138,8 @@ export function createRPCAuthHandler(config: ServerConfig): AuthHandler {
         authClaims?.organization_id;
 
       if (!orgId) {
-        const error_id = logger.error({
+        const error_id = log({
+          type: 'error',
           message:
             'No organization context - specify organizationId or ensure auth token contains org claims',
           data: { explicitOrgId, authClaims },
@@ -171,7 +171,8 @@ export function createRPCAuthHandler(config: ServerConfig): AuthHandler {
     }
 
     if (!token) {
-      const error_id = logger.error({
+      const error_id = log({
+        type: 'error',
         message: 'Unauthorized - no authentication token found',
         data: { authContext },
         atFunction: 'createRPCAuthHandler',
@@ -184,7 +185,8 @@ export function createRPCAuthHandler(config: ServerConfig): AuthHandler {
 
     const authSecret = config.auth?.secret || config.authSecret;
     if (!authSecret) {
-      const error_id = logger.error({
+      const error_id = log({
+        type: 'error',
         message: 'Server configuration error - auth secret not configured',
         atFunction: 'createRPCAuthHandler',
       });
@@ -196,7 +198,8 @@ export function createRPCAuthHandler(config: ServerConfig): AuthHandler {
 
     const { error } = await safeTry(() => verify(token, authSecret));
     if (error) {
-      const error_id = logger.error({
+      const error_id = log({
+        type: 'error',
         message: 'Unauthorized - token verification failed',
         data: { error: error.message },
         atFunction: 'createRPCAuthHandler',
@@ -205,7 +208,8 @@ export function createRPCAuthHandler(config: ServerConfig): AuthHandler {
     }
 
     if (!authClaims) {
-      const error_id = logger.error({
+      const error_id = log({
+        type: 'error',
         message: 'Invalid token claims',
         atFunction: 'createRPCAuthHandler',
       });

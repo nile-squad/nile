@@ -46,6 +46,7 @@ export interface PropertyFilter<TSelect> {
   lessThanOrEqual?: unknown;
   like?: string;
   ilike?: string;
+  contains?: string;
   in?: unknown[];
   notIn?: unknown[];
   isNull?: boolean;
@@ -433,13 +434,17 @@ export type BaseModel<TSelect, TInsert> = {
   ) => Promise<ModelResult<any[]>>;
 
   /**
-   * Executes raw SQL query.
-   * @param sqlQuery - Raw SQL query from drizzle-orm sql template literal
-   * @returns ModelResult with query results
-   * @example
-   * const { data, error } = await userModel.raw(sql`SELECT * FROM users WHERE age > 18`);
+   * REMOVED FOR SECURITY: raw() method is no longer exposed.
+   *
+   * Raw SQL execution bypasses validation, authorization, and security checks.
+   * This method is kept internal to the ORM layer only.
+   *
+   * See: /docs/ORM-SECURITY-BOUNDARIES.md for details.
+   *
+   * @deprecated - Removed from public Model interface for security reasons
+   * @internal
    */
-  raw: (sqlQuery: SQL) => Promise<ModelResult<any>>;
+  // raw: (sqlQuery: SQL) => Promise<ModelResult<any>>;
 
   /**
    * Creates multiple records in a single operation.

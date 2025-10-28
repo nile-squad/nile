@@ -293,6 +293,31 @@ export const signupHandler: ActionHandler = async (payload) => {
   ```
 This architecture ensures a clean, decoupled, and highly scalable system.
 
+## 4. Documentation Structure
+
+The Nile framework documentation is organized into focused documents for specific topics:
+
+### Core Protocol
+- **[REST-RPC Specification](./rest-rpc.spec.md)** - Protocol-level specification for service-oriented architecture
+- **[REST-RPC FAQ](./rest-rpc.spec.faq.md)** - Frequently asked questions about the REST-RPC protocol
+
+### Hook Systems
+- **[Action Hook System](./action-hooks.md)** - Global action hooks for cross-cutting concerns (authorization, auditing, rate limiting)
+- **[Action-Level Hooks](./action-level-hooks.md)** - Per-action data pipeline transformations (before/after hooks)
+
+### Feature Documentation
+- **[Authentication & Authorization](./auth.md)** - Multi-mode authentication, context injection, permission strategies
+- **[Database Models](./create-models.md)** - Auto-generated CRUD services, validation strategies, database schemas
+- **[Agentic System](./agentic.spec.md)** - Natural language interface, agent authentication, AI integration patterns
+
+### Implementation Guides
+- **[Service Creation](./create-service.md)** - Creating custom services and actions
+- **[Testing Guide](./testing.md)** - Testing strategies for services and hooks
+- **[Deployment](./deployment.md)** - Production deployment patterns and best practices
+
+**Navigation Tip:** Each document includes cross-references to related topics. Start with [REST-RPC Specification](./rest-rpc.spec.md) for protocol overview, then dive into specific topics as needed.
+
 **Author:** [Hussein Kizz](https://github.com/Hussseinkizz) at Nile Squad Labz
 
 *This specification reflects the current implementation and is subject to evolution. Contributions and feedback are welcome.*
+

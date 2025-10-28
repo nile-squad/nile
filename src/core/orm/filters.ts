@@ -72,6 +72,7 @@ export function buildFilterCondition<TTable extends Table>(
     lessThanOrEqual,
     like: likeValue,
     ilike: ilikeValue,
+    contains: containsValue,
     in: inValues,
     notIn,
     isNull: isNullValue,
@@ -106,6 +107,18 @@ export function buildFilterCondition<TTable extends Table>(
         return sql`lower(${column}) LIKE lower(${ilikeValue})`;
       }
       return ilikeValue !== undefined ? ilike(column, ilikeValue) : null;
+    },
+    contains: () => {
+      if (containsValue === undefined) {
+        return null;
+      }
+      const pattern = `%${containsValue}%`;
+      // SQLite doesn't support ilike, use lower() for case-insensitive matching
+      if (dialect === 'sqlite') {
+        return sql`lower(${column}) LIKE lower(${pattern})`;
+      }
+      // PostgreSQL supports ilike for case-insensitive matching
+      return ilike(column, pattern);
     },
     in: () => (inValues !== undefined ? inArray(column, inValues) : null),
     notIn: () => (notIn !== undefined ? notInArray(column, notIn) : null),

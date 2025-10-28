@@ -6,6 +6,7 @@ import { cors } from 'hono/cors';
 import { createMiddleware } from 'hono/factory';
 import { rateLimiter } from 'hono-rate-limiter';
 import { z } from 'zod';
+import { cleanResponse } from '../../core/engine/response-cleaner';
 import { executeUnified } from '../../core/unified-executor';
 import type { Services } from '../../types/actions';
 import { formatError } from '../../utils/erorr-formatter';
@@ -83,7 +84,8 @@ export type ServerConfig = {
       | 'jwt';
   };
   websocket?: WSConfig;
-  onActionHandler?: import('../../types/action-hook.js').ActionHookHandler;
+  onBeforeActionHandler?: import('../../types/action-hook.js').OnBeforeActionHandler;
+  onAfterActionHandler?: import('../../types/action-hook.js').OnAfterActionHandler;
 };
 
 const postRequestSchema = z.object({
@@ -363,18 +365,21 @@ export const createRestRPC = (config: ServerConfig) => {
         interfaceContext: { hono: c },
       });
 
+      // Clean response - only send status, message, data
+      const cleanResult = cleanResponse(result);
+
+      // Determine appropriate HTTP status code based on error category
       let statusCode: 200 | 400 | 401 = 200;
-      if (!result.status) {
-        if (
-          result.data?.error_id === 'auth-failed' ||
-          result.data?.error_id === 'no-auth-handler'
-        ) {
+      if (!cleanResult.status) {
+        const errorCategory = cleanResult.data?.error_category;
+        if (errorCategory === 'auth' || errorCategory === 'authorization') {
           statusCode = 401;
         } else {
           statusCode = 400;
         }
       }
-      return c.json(result, statusCode);
+
+      return c.json(cleanResult, statusCode);
     });
     createdRoutes.push(s);
   });

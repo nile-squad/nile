@@ -4,14 +4,26 @@ import type { Action } from './actions';
 export type ActionHookResult = SafeResult<any>;
 
 /**
- * ActionHookHandler must return a SafeResult (Ok or safeError).
- * Legacy returns like `true` or `{ error: string }` are not allowed.
+ * OnBeforeActionHandler is called before action execution for authorization.
+ * Must return a SafeResult (Ok or safeError).
  */
-export type ActionHookHandler = (
-  context: NileContext,
-  action: Action,
-  payload: unknown
-) => ActionHookResult | Promise<ActionHookResult>;
+export type OnBeforeActionHandler = (params: {
+  nileContext: NileContext;
+  action: Action;
+  payload: unknown;
+}) => ActionHookResult | Promise<ActionHookResult>;
+
+/**
+ * OnAfterActionHandler is called after action execution as an exit gate.
+ * Can be used for final cleanup, logging, or transforming the result.
+ * Must return a SafeResult (Ok or safeError).
+ */
+export type OnAfterActionHandler = (params: {
+  nileContext: NileContext;
+  action: Action;
+  payload: unknown;
+  result: SafeResult<any>;
+}) => ActionHookResult | Promise<ActionHookResult>;
 
 export function validateActionHookResult(
   result: unknown

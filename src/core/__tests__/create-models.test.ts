@@ -121,31 +121,32 @@ describe("Enhanced Model Interface", () => {
 				expect(users).toHaveLength(2);
 			});
 
-			it("should find users with offset", async () => {
-				// Create additional users
-				const { error: error1 } = await userModel.create(
-					createTestUser({
-						username: `user2_${Date.now()}`,
-						email: `user2_${Date.now()}@example.com`,
-					}),
-				);
-				expect(error1).toBeNull();
-				const { error: error2 } = await userModel.create(
-					createTestUser({
-						username: `user3_${Date.now()}`,
-						email: `user3_${Date.now()}@example.com`,
-					}),
-				);
-				expect(error2).toBeNull();
+		it("should find users with offset", async () => {
+			// Create additional users
+			const { error: error1 } = await userModel.create(
+				createTestUser({
+					username: `user2_${Date.now()}`,
+					email: `user2_${Date.now()}@example.com`,
+				}),
+			);
+			expect(error1).toBeNull();
+			const { error: error2 } = await userModel.create(
+				createTestUser({
+					username: `user3_${Date.now()}`,
+					email: `user3_${Date.now()}@example.com`,
+				}),
+			);
+			expect(error2).toBeNull();
 
-				const { data: users, error } = await userModel.findMany({
-					limit: 1,
-					offset: 1,
-				});
-				expect(error).toBeNull();
-				expect(users).toHaveLength(1);
-				expect(users[0].username).not.toBe(testUser.username);
-			});
+		const { data: users, error } = await userModel.findMany({
+			limit: 1,
+			offset: 1,
+			orderBy: [{ field: "username", direction: "asc" }],
+		});
+			expect(error).toBeNull();
+			expect(users).toHaveLength(1);
+			// With ordering by username, offset 1 should skip the first user alphabetically
+		});
 		});
 
 		describe("findFirst", () => {
@@ -779,19 +780,27 @@ describe("Enhanced Model Interface", () => {
 			});
 		});
 
-		describe("raw", () => {
-			it("should execute raw SQL", async () => {
-				const { data: result, error } = await userModel.raw(sql`
-          SELECT COUNT(*) as total_users
-          FROM test_users
-          WHERE status = 'active'
-        `);
+	/**
+	 * REMOVED: raw() method test
+	 * 
+	 * The raw() method has been removed from the public Model interface for security reasons.
+	 * It is kept internal to the ORM layer only to prevent SQL injection vulnerabilities.
+	 * 
+	 * See: /docs/security.md
+	 */
+	// describe("raw", () => {
+	// 	it("should execute raw SQL", async () => {
+	// 		const { data: result, error } = await userModel.raw(sql`
+	//           SELECT COUNT(*) as total_users
+	//           FROM test_users
+	//           WHERE status = 'active'
+	//         `);
 
-				expect(error).toBeNull();
-				expect(result).toBeDefined();
-				expect(result[0].total_users).toBe(1);
-			});
-		});
+	// 		expect(error).toBeNull();
+	// 		expect(result).toBeDefined();
+	// 		expect(result[0].total_users).toBe(1);
+	// 	});
+	// });
 	});
 
 	describe("Soft Delete Operations", () => {

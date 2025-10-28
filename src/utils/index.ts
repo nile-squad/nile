@@ -6,6 +6,12 @@ export { generateSimilarHandles } from './handle-generator';
 export { hasExpired } from './has-expired';
 export { mergeTwoObjects } from './merge-two-objects';
 export {
+  createPerformanceTracker,
+  measurePerformance,
+  type PerformanceMetrics,
+  type PerformanceReport,
+} from './performance';
+export {
   isError,
   isOk,
   Ok,

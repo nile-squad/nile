@@ -512,22 +512,23 @@ const agenticHandler = async (payload: { input: string; user_id: string; organiz
 Action hooks execute with precise timing in the authentication pipeline:
 
 ```
-[Request] → [Auth Validation] → [Action Hook] → [Payload Validation] → [Action Handler]
+[Request] → [Auth Validation] → [onBeforeActionHandler] → [Payload Validation] → [Action Handler] → [onAfterActionHandler]
 ```
 
 #### Configuring Action Hooks
 
 ```typescript
 // backend/server.config.ts
-import type { ActionHookHandler } from '@nile-squad/nile';
+import type { OnBeforeActionHandler } from '@nile-squad/nile/types';
+import { Ok, safeError } from '@nile-squad/nile/utils/safe-try';
 
-const roleBasedAccessControl: ActionHookHandler = (context, action, payload) => {
-  const { user, session } = context;
+const roleBasedAccessControl: OnBeforeActionHandler = ({ nileContext, action, payload }) => {
+  const { user, session } = nileContext;
   
   // Multi-role access control example
   const userRole = user?.role;
   const userOrgId = user?.organization_id;
-  const payloadOrgId = payload.organization_id;
+  const payloadOrgId = (payload as any)?.organization_id;
   
   // 1. Organization-level data isolation
   if (payloadOrgId && payloadOrgId !== userOrgId) {
@@ -557,18 +558,21 @@ const roleBasedAccessControl: ActionHookHandler = (context, action, payload) => 
   };
   
   const allowedActions = rolePermissions[userRole] || [];
+  const actionName = `${action.serviceName}.${action.name}`;
+  
   const hasPermission = allowedActions.includes('*') || 
-                       allowedActions.includes(action) ||
-                       allowedActions.some(pattern => action.startsWith(pattern.replace('*', '')));
+                       allowedActions.includes(actionName) ||
+                       allowedActions.some(pattern => actionName.startsWith(pattern.replace('*', '')));
   
   if (!hasPermission) {
-    return safeError(`Access denied: ${userRole} role cannot perform ${action}`, 'access-denied-role');
+    return safeError(`Access denied: ${userRole} role cannot perform ${actionName}`, 'access-denied-role');
   }
   
   // 3. Data-level restrictions
-  if (action.includes('tickets') && userRole === 'manager') {
+  if (action.serviceName === 'tickets' && userRole === 'manager') {
     // Agents can only access their assigned complaints
-    if (payload.assignedToAgentId && payload.assignedToAgentId !== user.id) {
+    const payloadData = payload as any;
+    if (payloadData.assignedToAgentId && payloadData.assignedToAgentId !== user.id) {
       return safeError('Access denied: You can only access assigned complaints', 'access-denied-assigned-complaints');
     }
   }
@@ -578,7 +582,7 @@ const roleBasedAccessControl: ActionHookHandler = (context, action, payload) => 
 
 export const serverConfig: ServerConfig = {
   // ... other config
-  onActionHandler: roleBasedAccessControl,
+  onBeforeActionHandler: roleBasedAccessControl,
 };
 ```
 
@@ -587,42 +591,49 @@ export const serverConfig: ServerConfig = {
 **1. Dynamic Permission Loading:**
 
 ```typescript
-const dynamicPermissions: ActionHookHandler = async (context, action, payload) => {
-  const { user } = context;
+import type { OnBeforeActionHandler } from '@nile-squad/nile/types';
+import { Ok, safeError } from '@nile-squad/nile/utils/safe-try';
+
+const dynamicPermissions: OnBeforeActionHandler = async ({ nileContext, action, payload }) => {
+  const { user } = nileContext;
   
   // Load user permissions from database
   const permissions = await loadUserPermissions(user.id, user.organization_id);
+  const actionName = `${action.serviceName}.${action.name}`;
   
-  if (!permissions.includes(action)) {
+  if (!permissions.includes(actionName)) {
     return safeError('Insufficient permissions for this action', 'insufficient-permissions');
   }
   
-  return Ok();
+  return Ok(true);
 };
 ```
 
 **2. Resource-Level Access Control:**
 
 ```typescript
-const resourceLevelAccess: ActionHookHandler = async (context, action, payload) => {
-  if (action === 'complaints.update') {
+const resourceLevelAccess: OnBeforeActionHandler = async ({ nileContext, action, payload }) => {
+  const actionName = `${action.serviceName}.${action.name}`;
+  
+  if (actionName === 'complaints.update') {
     // Check if user can modify this specific complaint
-    const complaint = await getComplaintById(payload.id);
+    const payloadData = payload as any;
+    const complaint = await getComplaintById(payloadData.id);
     
-    if (complaint.assignedToAgentId !== context.user.id && 
-        context.user.role !== 'admin') {
+    if (complaint.assignedToAgentId !== nileContext.user.id && 
+        nileContext.user.role !== 'admin') {
       return safeError('You can only modify complaints assigned to you', 'access-denied-modify-assigned');
     }
   }
   
-  return Ok();
+  return Ok(true);
 };
 ```
 
 **3. Rate Limiting by Role:**
 
 ```typescript
-const rateLimitingHook: ActionHookHandler = async (context, action, payload) => {
+const rateLimitingHook: OnBeforeActionHandler = async ({ nileContext, action, payload }) => {
   const rateLimits = {
     'user': { requests: 100, window: 3600 },      // 100/hour
     'manager': { requests: 500, window: 3600 },     // 500/hour  
@@ -630,25 +641,51 @@ const rateLimitingHook: ActionHookHandler = async (context, action, payload) => 
     'supa_admin': null // No limits
   };
   
-  const limit = rateLimits[context.user?.role];
-  if (limit && await isRateLimited(context.user.id, limit)) {
+  const limit = rateLimits[nileContext.user?.role];
+  if (limit && await isRateLimited(nileContext.user.id, limit)) {
     return safeError('Rate limit exceeded. Please try again later.', 'rate-limit-exceeded');
   }
   
-  return Ok();
+  return Ok(true);
+};
+```
+
+**4. Audit Logging (After Hook):**
+
+```typescript
+import type { OnAfterActionHandler } from '@nile-squad/nile/types';
+
+const auditLogging: OnAfterActionHandler = async ({ nileContext, action, payload, result }) => {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    userId: nileContext.user?.id || 'anonymous',
+    action: `${action.serviceName}.${action.name}`,
+    success: result.status,
+    payload: JSON.stringify(payload),
+  };
+  
+  await saveAuditLog(logEntry);
+  
+  return Ok(result); // Return result unchanged
 };
 ```
 
 #### Hook Contract
 
-**Input Parameters:**
-- `context`: { user, session, request }
-- `action`: Action name (e.g., "tickets.assign")  
+**OnBeforeActionHandler Input Parameters (single object):**
+- `nileContext`: { user, session, request }
+- `action`: Full Action object (e.g., `{ serviceName: 'tickets', name: 'assign', ... }`)
 - `payload`: Request payload with auto-injected user context
+
+**OnAfterActionHandler Input Parameters (single object):**
+- `nileContext`: { user, session, request }
+- `action`: Full Action object
+- `payload`: Request payload
+- `result`: SafeResult from action execution
 
 **Return Values:**
 - `Ok(data, message?)`: Allow action to proceed (data can be any value, message is optional)
-- `safeError(message, error_id)`: Deny with custom error message and error id
+- `safeError(message, error_id, extra?)`: Deny with custom error message and error id
 
 **Error Handling:**
 - Framework validates return values at runtime
@@ -667,9 +704,10 @@ Action hooks complement the existing authentication system:
 ```typescript
 // Combined auth flow
 const fullAuthFlow = {
-  authentication: betterAuth,     // Who is the user?
-  authorization: actionHook,      // What can they do?
-  business: serviceHandler        // How do we do it?
+  authentication: betterAuth,              // Who is the user?
+  authorization: onBeforeActionHandler,    // What can they do?
+  business: serviceHandler,                // How do we do it?
+  auditing: onAfterActionHandler          // What happened?
 };
 ```
 

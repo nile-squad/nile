@@ -1,12 +1,11 @@
+import { cleanResponse } from '../../core/engine/response-cleaner';
 import { executeUnified } from '../../core/unified-executor';
-import { createLogger } from '../../logging/create-log';
+import { log } from '../../internal.config.js';
 import { sanitizeForUrlSafety } from '../../utils';
 import type { ServerConfig } from '../rest/rest-server';
 import { attachAgentAuth } from './agent-auth';
 import { processServices } from './service-utils';
 import type { ActionPayload, ResultsMode, RPCResult } from './types';
-
-const logger = createLogger('nile-rpc-utils');
 
 const formatResult = <T, TMode extends ResultsMode>(
   data: T,
@@ -66,7 +65,8 @@ export const executeServiceAction = async <
   } = params;
 
   if (!serverConfig) {
-    const error_id = logger.error({
+    const error_id = log({
+      type: 'error',
       message: 'Server configuration not provided',
       atFunction: 'executeServiceAction',
     });
@@ -83,7 +83,8 @@ export const executeServiceAction = async <
   );
 
   if (!service) {
-    const error_id = logger.error({
+    const error_id = log({
+      type: 'error',
       message: `Service '${serviceName}' not found`,
       data: {
         serviceName,
@@ -116,17 +117,16 @@ export const executeServiceAction = async <
     interfaceContext: context,
   });
 
-  if (!executionResult.status) {
+  // Clean response to remove internal fields
+  const cleanResult = cleanResponse(executionResult);
+
+  if (!cleanResult.status) {
     return formatActionError(
-      executionResult.data,
-      executionResult.message,
+      cleanResult.data,
+      cleanResult.message,
       resultsMode
     );
   }
 
-  return formatResult(
-    executionResult.data,
-    executionResult.message,
-    resultsMode
-  );
+  return formatResult(cleanResult.data, cleanResult.message, resultsMode);
 };

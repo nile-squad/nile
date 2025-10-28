@@ -117,15 +117,7 @@ export const generateFindFirstAction = (
   const findFirstActionHandler: ActionHandler = async (data) => {
     const { filters } = data;
 
-    // Convert filters object to Filter array
-    const filterArray = filters
-      ? Object.entries(filters).map(([key, value]) => ({
-          where: key as any,
-          equals: value,
-        }))
-      : [];
-
-    const { data: result, error } = await model.findFirst(filterArray);
+    const { data: result, error } = await model.findFirst(filters || []);
 
     if (error) {
       const error_id = log({
@@ -147,7 +139,7 @@ export const generateFindFirstAction = (
     handler: findFirstActionHandler,
     validation: {
       zodSchema: z.object({
-        filters: z.record(z.string(), z.any()).optional(),
+        filters: z.array(z.any()).optional(),
       }),
     },
   };
@@ -164,14 +156,6 @@ export const generateFindManyAction = (
   const findManyActionHandler: ActionHandler = async (data) => {
     const { page, perPage, sort, filters } = data;
 
-    // Convert filters object to Filter array
-    const filterArray = filters
-      ? Object.entries(filters).map(([key, value]) => ({
-          where: key as any,
-          equals: value,
-        }))
-      : undefined;
-
     const { data: result, error } = await model.findMany({
       page,
       perPage,
@@ -179,7 +163,7 @@ export const generateFindManyAction = (
         field: s.field as any,
         direction: s.direction as 'asc' | 'desc',
       })),
-      filters: filterArray,
+      filters,
     });
 
     if (error) {
@@ -205,7 +189,7 @@ export const generateFindManyAction = (
         page: z.number().optional(),
         perPage: z.number().optional(),
         sort: z.array(z.any()).optional(),
-        filters: z.record(z.string(), z.any()).optional(),
+        filters: z.array(z.any()).optional(),
       }),
     },
   };

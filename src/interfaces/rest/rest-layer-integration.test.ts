@@ -211,7 +211,7 @@ describe("REST Layer Integration Tests - Unified Execution", () => {
 				body: JSON.stringify({
 					action: "findMany",
 					payload: {
-						filters: { organization_id: "org-1" },
+						filters: [{ where: "organization_id", equals: "org-1" }],
 					},
 				}),
 			});
@@ -485,7 +485,7 @@ describe("REST Layer Integration Tests - Unified Execution", () => {
 						page: 1,
 						perPage: 2,
 						sort: [{ field: "name", direction: "asc" }],
-						filters: { organization_id: "org-1" },
+						filters: [{ where: "organization_id", equals: "org-1" }],
 					},
 				}),
 			});
@@ -512,7 +512,7 @@ describe("REST Layer Integration Tests - Unified Execution", () => {
 				body: JSON.stringify({
 					action: "findFirst",
 					payload: {
-						filters: { email: "jane@example.com" },
+						filters: [{ where: "email", equals: "jane@example.com" }],
 					},
 				}),
 			});

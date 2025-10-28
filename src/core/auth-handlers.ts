@@ -1,4 +1,5 @@
 import { verify } from 'hono/jwt';
+import { log } from '../internal.config';
 import type {
   AuthContext,
   AuthHandler,
@@ -36,28 +37,52 @@ export function createBetterAuthHandler(
     try {
       const headers = context.headers || context.request?.headers;
       if (!headers) {
+        const error_id = log({
+          atFunction: 'createBetterAuthHandler',
+          message: 'No headers provided for betterauth authentication',
+          data: { context },
+          type: 'error',
+        });
         return safeError(
           'No headers provided for betterauth authentication',
-          'betterauth-no-headers'
+          error_id,
+          { error_category: 'auth' }
         );
       }
 
       const result = await betterAuthInstance.api.getSession({ headers });
 
       if (!(result?.user && result?.session)) {
-        return safeError(
-          'No valid betterauth session found',
-          'betterauth-no-session'
-        );
+        const error_id = log({
+          atFunction: 'createBetterAuthHandler',
+          message: 'No valid betterauth session found',
+          data: { result },
+          type: 'error',
+        });
+        return safeError('No valid betterauth session found', error_id, {
+          error_category: 'auth',
+        });
       }
 
       const userId = extractUserId(result.user);
       const organizationId = extractOrganizationId(result.user, result.session);
 
       if (!(userId && organizationId)) {
+        const error_id = log({
+          atFunction: 'createBetterAuthHandler',
+          message: 'Missing userId or organizationId in betterauth session',
+          data: {
+            userId,
+            organizationId,
+            user: result.user,
+            session: result.session,
+          },
+          type: 'error',
+        });
         return safeError(
           'Missing userId or organizationId in betterauth session',
-          'betterauth-missing-fields'
+          error_id,
+          { error_category: 'auth' }
         );
       }
 
@@ -69,9 +94,16 @@ export function createBetterAuthHandler(
         method: 'betterauth',
       });
     } catch (error) {
+      const error_id = log({
+        atFunction: 'createBetterAuthHandler',
+        message: `BetterAuth authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        data: { error },
+        type: 'error',
+      });
       return safeError(
         `BetterAuth authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'betterauth-error'
+        error_id,
+        { error_category: 'auth' }
       );
     }
   };
@@ -94,10 +126,15 @@ function extractTokenFromHeader(
   }
 
   if (!authHeader.startsWith('Bearer ')) {
-    return safeError(
-      'Authorization header must use Bearer scheme',
-      'jwt-invalid-header-format'
-    );
+    const error_id = log({
+      atFunction: 'extractTokenFromHeader',
+      message: 'Authorization header must use Bearer scheme',
+      data: { authHeader },
+      type: 'error',
+    });
+    return safeError('Authorization header must use Bearer scheme', error_id, {
+      error_category: 'auth',
+    });
   }
 
   return authHeader.substring(7);
@@ -116,55 +153,111 @@ function extractOrgIdFromPayload(payload: any): string | null {
   );
 }
 
+function extractToken(
+  context: AuthContext,
+  method: 'cookie' | 'header' | 'payload'
+): string | null | AuthHandlerResult {
+  if (method === 'cookie') {
+    return extractTokenFromCookie(context);
+  }
+  if (method === 'header') {
+    const token = extractTokenFromHeader(context);
+    if (token && typeof token !== 'string') {
+      return token;
+    }
+    return token;
+  }
+  return extractTokenFromPayload(context);
+}
+
+function validateJWTPayload(
+  payload: any,
+  userId: string | null,
+  organizationId: string | null
+): AuthHandlerResult | null {
+  if (!(userId && organizationId)) {
+    const error_id = log({
+      atFunction: 'createJWTHandler',
+      message: 'Missing userId or organizationId in JWT token',
+      data: { userId, organizationId, payload },
+      type: 'error',
+    });
+    return safeError(
+      'Missing userId or organizationId in JWT token',
+      error_id,
+      { error_category: 'auth' }
+    );
+  }
+  return null;
+}
+
 export function createJWTHandler(
   secret: string,
   method: 'cookie' | 'header' | 'payload'
 ): AuthHandler {
   return async (context: AuthContext): Promise<AuthHandlerResult> => {
     try {
-      let token: string | null | AuthHandlerResult = null;
+      const token = extractToken(context, method);
 
-      if (method === 'cookie') {
-        token = extractTokenFromCookie(context);
-      } else if (method === 'header') {
-        token = extractTokenFromHeader(context);
-        if (token && typeof token !== 'string') {
-          return token;
-        }
-      } else if (method === 'payload') {
-        token = extractTokenFromPayload(context);
+      if (token && typeof token !== 'string') {
+        return token;
       }
 
       if (!token) {
-        return safeError(`No JWT token found in ${method}`, 'jwt-no-token');
+        const error_id = log({
+          atFunction: 'createJWTHandler',
+          message: `No JWT token found in ${method}`,
+          data: { method, context },
+          type: 'error',
+        });
+        return safeError(`No JWT token found in ${method}`, error_id, {
+          error_category: 'auth',
+        });
       }
 
-      const payload = await verify(token as string, secret);
+      const payload = await verify(token, secret);
 
       if (!payload) {
-        return safeError('Invalid JWT token', 'jwt-invalid-token');
+        const error_id = log({
+          atFunction: 'createJWTHandler',
+          message: 'Invalid JWT token',
+          data: { method },
+          type: 'error',
+        });
+        return safeError('Invalid JWT token', error_id, {
+          error_category: 'auth',
+        });
       }
 
       const userId = extractUserId(payload);
       const organizationId = extractOrgIdFromPayload(payload);
 
-      if (!(userId && organizationId)) {
-        return safeError(
-          'Missing userId or organizationId in JWT token',
-          'jwt-missing-fields'
-        );
+      const validationError = validateJWTPayload(
+        payload,
+        userId,
+        organizationId
+      );
+      if (validationError) {
+        return validationError;
       }
 
       return Ok({
-        userId,
-        organizationId,
+        userId: userId as string,
+        organizationId: organizationId as string,
         user: payload,
         method: payload.type === 'agent' ? 'agent' : 'jwt',
       });
     } catch (error) {
+      const error_id = log({
+        atFunction: 'createJWTHandler',
+        message: `JWT authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        data: { error, method },
+        type: 'error',
+      });
       return safeError(
         `JWT authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'jwt-error'
+        error_id,
+        { error_category: 'auth' }
       );
     }
   };

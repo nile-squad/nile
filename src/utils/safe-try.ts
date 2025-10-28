@@ -55,6 +55,15 @@ export type _Error = {
 
 export type SafeResult<T> = _Ok<T> | _Error;
 
+export type ErrorCategory =
+  | 'validation'
+  | 'auth'
+  | 'authorization'
+  | 'execution'
+  | 'not-found'
+  | 'database'
+  | 'business';
+
 /**
  * Type guard to check if the result is an _Ok type.
  * @param obj - The result object to check.
@@ -95,13 +104,18 @@ export const Ok = <T>(data: T, message = 'Success'): _Ok<T> => ({
 export const safeError = (
   message: string,
   error_id: string,
-  other?: Record<string, any>
+  metadata?: { error_category?: ErrorCategory; [key: string]: any }
 ): _Error => ({
   status: false,
   message,
   data: {
     error_id,
-    ...other,
+    error_category: metadata?.error_category || 'execution',
+    ...(metadata
+      ? Object.fromEntries(
+          Object.entries(metadata).filter(([key]) => key !== 'error_category')
+        )
+      : {}),
   },
   isOk: false,
   isError: true,

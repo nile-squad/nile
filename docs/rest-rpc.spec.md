@@ -19,6 +19,15 @@ A service-oriented architecture that bridges REST discovery with RPC execution, 
 
 This specification can be implemented in any programming language or framework.
 
+**Documentation Navigation:**  
+This document provides a protocol-level specification. For implementation details on specific features, refer to:
+- [Action Hooks](./action-hooks.md) - Global hooks for authorization and auditing
+- [Action-Level Hooks](./action-level-hooks.md) - Per-action data transformations
+- [Authentication](./auth.md) - Multi-mode auth and context injection
+- [Database Models](./create-models.md) - Auto-generated CRUD services
+- [Agentic System](./agentic.spec.md) - AI integration patterns
+- See [Section 20](#20-related-documentation) for complete documentation index
+
 ## 2. Core Philosophy
 
 ### 2.1 Design Principles
@@ -110,179 +119,31 @@ Standard response format across all operations:
 **RPC Mode** - Direct programmatic service calls
 **Agent Mode** - AI-driven natural language execution
 
+**See Also:** For information on how hooks can transform action execution, see [Action Hook System](./action-hooks.md) and [Action-Level Hooks](./action-level-hooks.md).
+
 ## 5. Hook System Architecture
 
-### Workflow Composition
+The hook system architecture (workflow composition, data flow strategy, error handling philosophy, and pipeline visibility) is documented in detail in the [Action Hook System Documentation](./action-hooks.md#3-hook-system-architecture).
 
-Hooks enable complex business logic through action composition:
-
-**Before Hooks** - Data preparation, validation, enrichment
-**After Hooks** - Logging, notifications, cleanup, side effects
-
-### Data Flow Strategy
-
-```
-Input → Before Hook 1 → Before Hook 2 → Main Action → After Hook 1 → After Hook 2 → Output
-```
-
-**Chain Behavior:**
-
-- Each successful hook passes output to next hook
-- Failed hooks with `canFail: true` are skipped
-- Failed hooks with `canFail: false` stop execution
-- Main action receives final successful before hook output
-
-### Error Handling Philosophy
-
-**Critical Hooks** (`canFail: false`)
-
-- Must succeed for workflow to continue
-- Used for validation, security, essential setup
-- Failure terminates entire action
-
-**Optional Hooks** (`canFail: true`)  
-
-- Failures are logged but don't stop workflow
-- Next hook receives last successful output
-- Used for notifications, analytics, non-essential operations
-
-### Pipeline Visibility
-
-**Standard Mode** (`pipeline: false`)
-
-- Returns only final result
-- Hides hook execution details
-- Optimized for production performance
-
-**Debug Mode** (`pipeline: true`)
-
-- Returns result plus execution logs
-- Shows hook success/failure details
-- Useful for debugging and auditing
-
-**Example Hook Configuration:**
-
-```json
-{
-  "hooks": {
-    "before": [
-      { "name": "validateInput", "canFail": false },
-      { "name": "enrichData", "canFail": true }
-    ],
-    "after": [
-      { "name": "auditLog", "canFail": true },
-      { "name": "sendNotification", "canFail": true }
-    ]
-  },
-  "result": { "pipeline": true }
-}
-```
+For action-level hooks (per-action data pipeline transformations), see [Action-Level Hooks Documentation](./action-level-hooks.md).
 
 ## 6. Agent Integration
 
-### Natural Language Interface
+The agentic system provides conversational access to backend services with natural language interfaces and automated authentication. For complete details on agent integration patterns, authentication strategies, and use cases, see [Agentic System Specification](./agentic.spec.md).
 
-The agentic system provides conversational access to backend services:
-
-**Endpoint:** `POST /services/agentic`
-
-**Request Pattern:**
-
-```json
-{
-  "action": "agent",
-  "payload": {
-    "input": "Create a user account for john@example.com"
-  }
-}
-```
-
-### Agent Authentication Strategy
-
-**Agent Mode Execution:**
-
-- Automatic authentication token attachment
-- Bypasses user-level permission checks
-- System-level service access
-- Audit trail with agent context
-
-**Action-Level Control:**
-
-```typescript
-{
-  name: "deleteAll",
-  agentic: false,  // Explicitly prevent agent execution
-  handler: destructiveOperation
-}
-```
-
-### Use Cases
-
-**Service Discovery:** "What services are available?"
-**Data Operations:** "Get all users created this month"  
-**Complex Workflows:** "Create account and send welcome email"
-**Analysis:** "Generate user engagement report"
+**Quick Reference:**
+- **Endpoint:** `POST /services/agentic`
+- **Agent Mode:** Automatic authentication token attachment with audit trail
+- **Action Control:** Use `agentic: false` to prevent agent execution for specific actions
 
 ## 7. Database Model System
 
-### Auto-Generated Services
+The framework automatically generates CRUD services from database schemas with built-in validation and error handling. For complete details on database models, auto-generated operations, and validation strategies, see [Database Models Documentation](./create-models.md).
 
-The framework can automatically generate CRUD services from database schemas:
-
-**Configuration Pattern:**
-
-```typescript
-{
-  autoService: true,
-  subs: [
-    {
-      name: "users",
-      table: usersTable,
-      actions: [...customActions]
-    }
-  ]
-}
-```
-
-### Generated Operations
-
-**Standard CRUD:**
-
-- `create` - Insert new records with validation
-- `getAll` - Retrieve records filtered by any property/value pair
-- `getOne` - Find single record by field value
-- `update` - Update existing records with merge logic
-- `delete` - Remove single record
-- `getMany` - Retrieve multiple records with filtering
-
-**Advanced Queries:**
-
-- `getEvery` - Retrieve all records without filtering
-- `getManyWith` - Complex filtering, sorting, pagination
-- `getOneWith` - Multi-field filtering
-- `getOneWithRelations` - Join queries with related data
-- `deleteAll` - Remove all records from table
-
-### Validation Strategy
-
-**Auto-Inference:** Database schema automatically drives validation rules
-**Custom Validation:** Override with validation schemas for complex requirements  
-**Context-Aware:** Different validation for create vs update operations
-**Consistent Processing:** All validation handled uniformly across operations
-
-### Benefits
-
-**Rapid Development:**
-
-- Instant CRUD APIs from database schemas
-- Consistent operation patterns across entities
-- Built-in validation and error handling
-
-**Maintenance Reduction:**
-
-- Schema changes automatically reflected in API
-- No boilerplate CRUD code to maintain
-- Standardized error handling and logging
+**Quick Reference:**
+- **Auto-Generated CRUD:** create, getAll, getOne, update, delete, getMany, getEvery, getManyWith, getOneWith, getOneWithRelations, deleteAll
+- **Configuration:** Set `autoService: true` in service definition
+- **Validation:** Auto-inferred from database schema or custom validation schemas
 
 ## 8. RPC Utilities
 
@@ -363,289 +224,25 @@ const result = await rpc.executeServiceAction('users', {
 
 ## 9. Authentication & Authorization
 
-### Security-by-Default Architecture
+The framework implements a security-by-default architecture where all actions are protected by default unless explicitly marked as public. For complete details on authentication modes, context injection, and permission strategies, see [Authentication Documentation](./auth.md).
 
-**All actions are protected by default** unless explicitly marked as public:
+**Quick Reference:**
+- **Security-by-Default:** All actions require authentication unless `isProtected: false` or listed in `publicActions`
+- **Multi-Mode Auth:** Better Auth Session (cookies), JWT Bearer tokens, Agent authentication
+- **Context Injection:** Automatic `user_id` and `organization_id` injection from authenticated user
+- **Organization Isolation:** All data automatically scoped to user's organization
 
-```typescript
-// Auto-generated CRUD actions require authentication
-{
-  name: 'users',
-  // All CRUD actions (create, getAll, etc.) are protected by default
-}
+## 10. Action Hook System (Global Action Hooks)
 
-// Manual actions with explicit public access
-{
-  name: 'createWaitlistEntry',
-  isProtected: false,  // Explicitly allow public access
-  handler: publicHandler
-}
+Global action hooks provide cross-cutting concerns like authorization, rate limiting, and audit logging that run before and/or after every action across all services. For complete details on hook types, execution flow, and implementation patterns, see [Action Hook System Documentation](./action-hooks.md).
 
-// Service-level public actions  
-{
-  name: 'products',
-  publicActions: ['getAll', 'getOne'],  // Public browsing (no authentication required)
-  // create, update, delete remain protected by default
-}
-```
+**Quick Reference:**
+- **Hook Types:** `onBeforeActionHandler` (authorization) and `onAfterActionHandler` (auditing)
+- **Execution Flow:** [Request] → [Authentication] → [onBeforeActionHandler] → [Payload Validation] → [Action Handler] → [onAfterActionHandler] → [Response]
+- **Return Type:** Must return `Ok(data, message?)` or `safeError(message, error_id, extra?)`
+- **Configuration:** Set in server config (`onBeforeActionHandler`, `onAfterActionHandler`)
 
-### Multi-Mode Authentication Strategy
-
-The system supports three authentication modes with automatic fallback:
-
-**1. Better Auth Session (Primary)**
-
-- HTTP-only secure cookies
-- Organization context included
-- Preferred for web applications
-
-**2. JWT Bearer Tokens (API Access)**  
-
-- Standard `Authorization: Bearer <token>` header
-- Validated against configured secret
-- Used for programmatic access
-
-**3. Agent Authentication (Internal Operations)**
-
-- System-level access for AI agents
-- Automatic context injection
-- Audit trail with triggering user
-
-### Context Injection Architecture
-
-**Design Principle: Secure Context Enrichment**
-
-User context (`user_id`, `organization_id`) is automatically injected by the authentication layer, preventing client-side tampering:
-
-```typescript
-// Client sends minimal payload
-{
-  "action": "createCustomer",
-  "payload": {
-    "name": "John Doe",
-    "email": "john@example.com"
-  }
-}
-
-// System automatically enriches with authenticated context
-{
-  "action": "createCustomer", 
-  "payload": {
-    "name": "John Doe",
-    "email": "john@example.com",
-    "user_id": "550e8400-e29b-41d4-a716-446655440001",     // Auto-injected
-    "organization_id": "550e8400-e29b-41d4-a716-446655440000"  // Auto-injected
-  }
-}
-```
-
-**Why Context Injection?**
-
-- **Security**: Prevents client-side spoofing of user/organization context
-- **Consistency**: Identical behavior across HTTP REST and RPC modes  
-- **Simplicity**: Cleaner client code without manual context management
-- **Audit**: Reliable tracking of who performed what actions
-
-### Authentication Flow Architecture
-
-**HTTP REST Mode:**
-
-```
-1. Client → Authentication validation (Better Auth/JWT)
-2. Extract user context from auth claims  
-3. Enrich payload with user_id/organization_id
-4. Execute action with enriched context
-```
-
-**RPC Mode:**
-
-```
-1. RPC client → Agent mode or explicit organization context
-2. Validate agent authentication if agent mode enabled
-3. Enrich payload with provided/agent context
-4. Execute action with enriched context
-```
-
-**Agent Mode (AI Operations):**
-
-```
-1. Agent → Authenticated user triggers agentic endpoint
-2. User context extracted from authentication
-3. Agent RPC calls inherit user context automatically
-4. All agent operations tracked with triggering user
-```
-
-### Permission Strategy
-
-**Action-Level Control:**
-
-- Each action declares protection requirements
-- Fine-grained permission model  
-- Agent execution control per action
-
-**Organization-Level Isolation:**
-
-- All data scoped to authenticated user's organization
-- Automatic multi-tenant data separation
-- No cross-organization data access
-
-**Agent Restrictions:**
-
-```typescript
-{
-  name: "deleteAllData",
-  agentic: false,  // Explicitly prevent agent execution
-  handler: destructiveOperation
-}
-```
-
-## 10. Action Hook System (Global Pre-Action Hooks)
-
-**Action Hooks** provide global pre-action execution logic for cross-cutting concerns like authorization, rate limiting, and audit logging. Unlike action-level hooks which run within a specific action's workflow, Action Hooks run before **every** action across **all** services.
-
-### Hook Execution Pipeline
-
-```
-[Request] → [Authentication] → [Action Hook] → [Payload Validation] → [Action Handler]
-```
-
-Action Hooks execute after authentication but before payload validation, ensuring they have access to authenticated user context while being able to deny actions before expensive validation occurs.
-
-### Configuration
-
-Action Hooks are configured globally in the server configuration:
-
-```typescript
-// backend/server.config.ts
-import type { ActionHookHandler } from '@nile-squad/nile';
-
-const globalAccessControl: ActionHookHandler = (context, action, payload) => {
-  const { user, session, request } = context;
-  
-  // Role-based access control
-  const userRole = user?.role;
-  const rolePermissions = {
-    'admin': ['*'],
-    'user': ['profile.update', 'tickets.create'],
-    'manager': ['tickets.update', 'system.troubleshoot']
-  };
-  
-  const allowedActions = rolePermissions[userRole] || [];
-  if (!allowedActions.includes('*') && !allowedActions.includes(action)) {
-    return safeError(`Access denied: ${userRole} cannot perform ${action}`, 'access-denied-role');
-  }
-  
-  return Ok(); // Allow action to proceed
-};
-
-export const serverConfig: ServerConfig = {
-  // ... other config
-  onActionHandler: globalAccessControl,
-};
-```
-
-### Hook Handler Contract
-
-**Input Parameters:**
-- `context`: Hook execution context
-  - `user`: Authenticated user object (null if not authenticated)
-  - `session`: Session data (null if no session)  
-  - `request`: HTTP request object
-- `action`: Action name being executed (e.g., "tickets.assign")
-- `payload`: Request payload with auto-injected user context
-
-**Return Values:**
-- `Ok(data, message?)`: Allow action to proceed (data can be any value, message is optional)
-- `safeError(message, error_id)`: Deny action with custom error message and error id
-
-**Runtime Validation:**
-The framework strictly validates hook return values and throws immediately for invalid returns.
-
-### Use Cases
-
-**1. Role-Based Access Control:**
-
-```typescript
-const roleBasedAccess: ActionHookHandler = (context, action, payload) => {
-  const userRole = context.user?.role;
-  
-  // Define hierarchical permissions
-  if (action.startsWith('admin.') && userRole !== 'admin') {
-    return safeError('Administrative privileges required', 'admin-required');
-  }
-  
-  if (action.includes('delete') && !['admin', 'moderator'].includes(userRole)) {
-    return safeError('Deletion requires elevated privileges', 'deletion-elevated-privileges');
-  }
-  
-  return Ok();
-};
-```
-
-**2. Organization Data Isolation:**
-
-```typescript
-const organizationIsolation: ActionHookHandler = (context, action, payload) => {
-  const userOrgId = context.user?.organization_id;
-  const payloadOrgId = payload.organization_id;
-  
-  // Ensure users only access their organization's data
-  if (payloadOrgId && payloadOrgId !== userOrgId) {
-    return safeError('Cross-organization access denied', 'cross-org-denied');
-  }
-  
-  return Ok();
-};
-```
-
-**3. Rate Limiting:**
-
-```typescript
-const rateLimiting: ActionHookHandler = async (context, action, payload) => {
-  const userId = context.user?.id;
-  const limits = { user: 100, admin: 1000 }; // requests per hour
-  
-  if (await isRateLimited(userId, limits[context.user?.role])) {
-    return safeError('Rate limit exceeded. Please try again later.', 'rate-limit-exceeded');
-  }
-  
-  return Ok();
-};
-```
-
-### Action Hooks vs Action-Level Hooks
-
-| Feature | Action Hooks (Global) | Action-Level Hooks |
-|---------|----------------------|-------------------|
-| **Scope** | All actions across all services | Specific action only |
-| **Purpose** | Cross-cutting concerns (auth, rate limiting) | Business workflow logic |
-| **Execution** | Before every action | Within action workflow |
-| **Return Type** | `Ok(data, message?) \| safeError(message, error_id)` | `SafeResult<T>` |
-| **Configuration** | Server config (`onActionHandler`) | Individual action (`hooks` property) |
-| **Data Flow** | Denies or allows action execution | Transforms action data |
-
-### Error Handling
-
-Action Hook errors are automatically handled by the framework:
-
-```json
-// Hook denial response
-{
-  "status": false,
-  "message": "Access denied: user cannot perform tickets.delete",
-  "data": {
-    "error_id": "hook_denial_12345"
-  }
-}
-```
-
-### Best Practices
-
-1. **Keep Lightweight**: Hooks run on every request, optimize for speed
-2. **Fail Secure**: Deny access when in doubt
-3. **Clear Error Messages**: Provide actionable feedback to users
-4. **Async Support**: Use async/await for database lookups
-5. **Single Responsibility**: One hook function per concern (auth, rate limiting, etc.)
+**Note:** For action-level hooks (data pipeline transformations within specific actions), see [Action-Level Hooks Documentation](./action-level-hooks.md).
 
 ## 11. Data Handling Patterns
 
@@ -720,6 +317,8 @@ For pagination and complex filtering, use `getManyWith`:
 - JSON storage for flexible schema extension
 - Automatic parsing/stringification
 - Merge logic for updates
+
+**See Also:** For complete details on auto-generated CRUD actions, database schemas, and validation strategies, see [Database Models Documentation](./create-models.md).
 
 ## 12. Error Handling Strategy
 
@@ -1782,11 +1381,33 @@ if (users.success) {
 
 This example demonstrates how the three interaction methods (traditional REST-RPC, agentic endpoint, and RPC utilities) can work together to provide a flexible and powerful API architecture.
 
-## 20. Frequently Asked Questions
+## 20. Related Documentation
+
+This REST-RPC specification is part of a comprehensive documentation suite. For specific topics covered briefly in this document, see the following detailed guides:
+
+### Hook Systems
+- **[Action Hook System](./action-hooks.md)** - Global action hooks for cross-cutting concerns (authorization, auditing, rate limiting)
+- **[Action-Level Hooks](./action-level-hooks.md)** - Per-action data pipeline transformations (before/after hooks)
+
+### Core Features
+- **[Authentication & Authorization](./auth.md)** - Multi-mode authentication, context injection, permission strategies
+- **[Database Models](./create-models.md)** - Auto-generated CRUD services, validation strategies, database schemas
+- **[Agentic System](./agentic.spec.md)** - Natural language interface, agent authentication, AI integration patterns
+
+### Architecture & Design
+- **[Architecture Overview](./architecture.md)** - System architecture, component relationships, design decisions
+- **[REST-RPC FAQ](./rest-rpc.spec.faq.md)** - Frequently asked questions about the REST-RPC protocol
+
+### Implementation Guides
+- **[Service Creation](./create-service.md)** - Creating custom services and actions
+- **[Testing Guide](./testing.md)** - Testing strategies for services and hooks
+- **[Deployment](./deployment.md)** - Production deployment patterns and best practices
+
+## 21. Frequently Asked Questions
 
 If you still have questions or need more explanations, you can check out some I have answered already, see [commonly asked questions](./rest-rpc.spec.faq.md)
 
-## 21. Implementation Notes
+## 22. Implementation Notes
 
 ### Language Agnostic Design
 

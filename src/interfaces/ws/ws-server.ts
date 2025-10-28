@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { newServiceActionsFactory } from '../../core/actions-factory';
+import { cleanResponse } from '../../core/engine/response-cleaner';
 import { executeUnified } from '../../core/unified-executor';
 import type { Services } from '../../types/actions';
 import { sanitizeForUrlSafety } from '../../utils';
@@ -264,7 +265,8 @@ export function createWSRPCServer(options: WSServerOptions): void {
             },
           });
 
-          ack(result);
+          const cleanResult = cleanResponse(result);
+          ack(cleanResult);
         } catch (error) {
           ack(handleWSError(error));
         }

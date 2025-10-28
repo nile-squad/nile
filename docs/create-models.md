@@ -385,12 +385,27 @@ console.log(`Found ${recentPosts?.length} recent posts`);
 
 **String operations:**
 
-Search for records using pattern matching with `like` (case-sensitive) or `ilike` (case-insensitive). Supports SQL wildcard patterns.
+Search for records using pattern matching with `like` (case-sensitive), `ilike` (case-insensitive), or `contains` (case-insensitive substring search). The `contains` operator is a convenience wrapper that automatically adds wildcards for substring matching.
 
 ```typescript
+// Using like with explicit wildcards (case-sensitive)
 const { data: searchResults, error } = await postModel.findMany({
   filters: [
     { where: 'title', like: '%javascript%' }
+  ]
+});
+
+// Using ilike for case-insensitive matching
+const { data: caseInsensitive, error } = await postModel.findMany({
+  filters: [
+    { where: 'title', ilike: '%JAVASCRIPT%' }
+  ]
+});
+
+// Using contains for convenient case-insensitive substring search
+const { data: containsResults, error } = await postModel.findMany({
+  filters: [
+    { where: 'title', contains: 'javascript' } // Automatically adds % wildcards
   ]
 });
 
@@ -482,6 +497,53 @@ const customFilter = await userModel.findMany({
   ]
 });
 ```
+
+### 4.3 Using Filters with Actions
+
+When using the ORM through the actions layer (REST API, WebSocket, or RPC), filters must be passed as an array of filter objects. This format supports all filter operators including `contains`, `greaterThan`, `like`, and more.
+
+**Filter array format:**
+
+```typescript
+// Simple equality filters
+const result = await invokeAction('findMany', {
+  filters: [
+    { where: 'status', equals: 'active' },
+    { where: 'role', equals: 'user' }
+  ]
+});
+
+// Using advanced operators like contains
+const result = await invokeAction('findMany', {
+  filters: [
+    { where: 'username', contains: 'admin' },
+    { where: 'createdAt', greaterThan: new Date('2024-01-01') }
+  ]
+});
+
+// Complex nested filters with OR logic
+const result = await invokeAction('findFirst', {
+  filters: [
+    {
+      or: [
+        { where: 'email', contains: '@example.com' },
+        { where: 'status', equals: 'premium' }
+      ]
+    }
+  ]
+});
+```
+
+**Available Filter Operators:**
+
+- **Equality:** `equals`, `notEquals`
+- **Comparison:** `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`
+- **String matching:** `like`, `ilike`, `contains`
+- **Array operations:** `in`, `notIn`
+- **Null checks:** `isNull`, `isNotNull`
+- **Range:** `between`
+- **Logical:** `and`, `or`
+- **Raw SQL:** `sql`
 
 ## 5. Bulk Operations
 
