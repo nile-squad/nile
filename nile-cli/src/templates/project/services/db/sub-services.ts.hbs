@@ -1,0 +1,15 @@
+import type { ActionTypes } from '@nile-squad/nile/types';
+
+export const subServices: ActionTypes.SubServices = [
+  {
+    name: 'users',
+    description: 'Users management',
+    tableName: 'users',
+    idName: 'id',
+    actions: [],
+    validation: {
+      validationMode: 'auto',
+    },
+  },
+];
+

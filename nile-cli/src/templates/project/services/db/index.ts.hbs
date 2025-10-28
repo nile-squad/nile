@@ -1,0 +1,12 @@
+import type { ActionTypes } from '@nile-squad/nile/types';
+import { dbActions } from './actions';
+import { subServices } from './sub-services';
+
+export const dbService: ActionTypes.Service = {
+  name: 'data-service',
+  description: 'Main data service',
+  actions: dbActions,
+  autoService: true,
+  subs: subServices,
+};
+

@@ -1307,23 +1307,109 @@ export async function deleteUser(id: string) {
 
 **Transaction Pattern:**
 
+The `withTransaction` helper accepts callbacks that return either `ModelResult<T>` (from model operations) or `SafeResult<T>` (from service functions). It wraps the result in a consistent format with `{ result, error }`.
+
+**Type Signature:**
+```typescript
+withTransaction<T>(
+  dbInstance: DatabaseInstance,
+  callback: (tx: TransactionContext) => Promise<SafeResult<T> | ModelResult<T>>
+): Promise<{
+  result: SafeResult<T> | ModelResult<T> | null;
+  error: {
+    message: string;
+    type: string;
+    details: { originalError: unknown };
+  } | null;
+}>
+```
+
+**Return Types:**
+- `result`: Contains either a `SafeResult<T>` or `ModelResult<T>` from your callback, or `null` if a transaction-level error occurred
+- `error`: Contains transaction-level errors (connection issues, transaction failures), or `null` if successful
+
+**Note:** The `result` field can itself be an error result (e.g., `ModelResult` with `error` set, or `SafeResult` with `isError: true`). Always check both the transaction-level `error` AND the `result` for errors.
+
 ```typescript
 import { withTransaction, createModel } from 'nile';
+import { Ok, safeError } from '@nile-squad/nile/utils';
 import { db } from './server/db';
 
-const { data, error } = await withTransaction(db, async (tx) => {
+// Using ModelResult pattern (from models)
+const { result, error } = await withTransaction(db, async (tx) => {
   const userModel = createModel({ table: users, dbInstance: tx });
   const postModel = createModel({ table: posts, dbInstance: tx });
   
   const userResult = await userModel.create(userData);
-  if (userResult.error) return userResult;
+  if (userResult.error) return userResult; // Returns ModelResult<User>
   
   const postResult = await postModel.create({
     ...postData,
     authorId: userResult.data!.id
   });
   
-  return postResult;
+  return postResult; // Returns ModelResult<Post>
+});
+
+// Check transaction-level error first
+if (error) {
+  console.error('Transaction failed:', error.message);
+  return;
+}
+
+// Then check the ModelResult inside result
+if (result?.error) {
+  console.error('Operation failed:', result.error.message);
+  return;
+}
+
+console.log('Transaction completed:', result?.data);
+
+// Using SafeResult pattern (from service functions)
+const { result: authResult, error: authError } = await withTransaction(db, async (tx) => {
+  const userResult = await getUserByEmail(email, tx);
+  if (userResult.isError) return userResult;
+  
+  const user = userResult.data;
+  // Perform auth logic...
+  
+  return Ok({ user, token }); // Returns SafeResult<{ user, token }>
+});
+
+// Check transaction-level error first
+if (authError) {
+  console.error('Auth transaction failed:', authError.message);
+  return;
+}
+
+// Then check the SafeResult inside result
+if (authResult?.isError) {
+  console.error('Auth failed:', authResult.message);
+  return;
+}
+
+console.log('Auth successful:', authResult.data);
+```
+
+**Multiple Model Operations in Transaction:**
+
+```typescript
+const { result, error } = await withTransaction(db, async (tx) => {
+  const userModel = createModel({ table: users, dbInstance: tx });
+  const postModel = createModel({ table: posts, dbInstance: tx });
+  
+  // Create user
+  const { data: user, error: userError } = await userModel.create(userData);
+  if (userError) return { data: null, error: userError };
+  
+  // Create multiple posts
+  await postModel.create({ ...postData1, authorId: user!.id });
+  await postModel.create({ ...postData2, authorId: user!.id });
+  
+  // Update user
+  const updateResult = await userModel.update(user!.id, { lastPostCount: 2 });
+  
+  return { data: { user, posts: 2 }, error: null };
 });
 
 if (error) {
@@ -1331,67 +1417,61 @@ if (error) {
   return;
 }
 
-console.log('Transaction completed:', data);
-```
-
-**Multiple Model Operations in Transaction:**
-
-```typescript
-const { data, error } = await withTransaction(db, async (tx) => {
-  const userModel = createModel({ table: users, dbInstance: tx });
-  const postModel = createModel({ table: posts, dbInstance: tx });
-  
-  // Create user
-  const { data: user } = await userModel.create(userData);
-  
-  // Create multiple posts
-  await postModel.create({ ...postData1, authorId: user.id });
-  await postModel.create({ ...postData2, authorId: user.id });
-  
-  // Update user
-  await userModel.update(user.id, { lastPostCount: 2 });
-  
-  return { user, posts: 2 };
-});
+console.log('Transaction completed:', result?.data);
 ```
 
 **Transaction Rollback on Error:**
 
+Drizzle automatically handles rollback when an error is thrown inside the transaction. The `withTransaction` wrapper catches these errors and returns them in the error field.
+
 ```typescript
-try {
-  const { data, error } = await withTransaction(db, async (tx) => {
-    const userModel = createModel({ table: users, dbInstance: tx });
-    
-    const { data: user } = await userModel.create(userData);
-    
-    if (!user.email.includes('@')) {
-      throw new Error('Invalid email'); // This will rollback transaction
-    }
-    
-    return user;
-  });
-} catch (err) {
+const { result, error } = await withTransaction(db, async (tx) => {
+  const userModel = createModel({ table: users, dbInstance: tx });
+  
+  const { data: user, error: createError } = await userModel.create(userData);
+  if (createError) return { data: null, error: createError };
+  
+  if (!user!.email.includes('@')) {
+    // Throwing will cause Drizzle to rollback automatically
+    throw new Error('Invalid email');
+  }
+  
+  return { data: user, error: null };
+});
+
+if (error) {
   // Transaction was rolled back, user was not created
-  console.error('Transaction failed and rolled back');
+  console.error('Transaction failed and rolled back:', error.message);
+  return;
 }
+
+console.log('User created:', result?.data);
 ```
 
 **Transaction with Field Selection:**
 
 ```typescript
-const { data, error } = await withTransaction(db, async (tx) => {
+const { result, error } = await withTransaction(db, async (tx) => {
   const userModel = createModel({ table: users, dbInstance: tx });
   
   // Create user
-  const { data: user } = await userModel.create(userData);
+  const { data: user, error: createError } = await userModel.create(userData);
+  if (createError) return { data: null, error: createError };
   
   // Find with field selection within transaction
-  const { data: foundUser } = await userModel.findById(user.id, {
+  const { data: foundUser } = await userModel.findById(user!.id, {
     select: ['id', 'username', 'email']
   });
   
-  return foundUser;
+  return { data: foundUser, error: null };
 });
+
+if (error) {
+  console.error('Transaction failed:', error.message);
+  return;
+}
+
+console.log('User created and retrieved:', result?.data);
 ```
 
 **Author:** Hussein Kizz

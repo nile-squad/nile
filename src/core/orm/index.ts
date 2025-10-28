@@ -1,4 +1,5 @@
 import type { InferInsertModel, InferSelectModel, Table } from 'drizzle-orm';
+import type { SafeResult } from '../../utils/safe-try';
 import { createAggregationOperations } from './aggregation';
 import { createAtomicOperations } from './atomic';
 import { createBulkOperations } from './bulk';
@@ -116,20 +117,28 @@ export function createModel<
 
 /**
  * Executes database operations within a transaction.
- * Automatically commits on success or rolls back on error.
+ * Automatically commits on success or rolls back on error (handled by Drizzle).
  *
  * @param dbInstance - Database instance to run transaction with
- * @param callback - Function that receives transaction instance and returns result
- * @returns ModelResult with transaction result or error
+ * @param callback - Function that receives transaction instance and returns SafeResult<T> or ModelResult<T>
+ * @returns Object with result and error properties
  *
  * @example
  * ```typescript
  * import { withTransaction, createModel } from 'nile';
  * import { db } from './server/db';
  *
- * const { data, error } = await withTransaction(db, async (tx) => {
+ * // With ModelResult pattern
+ * const { result, error } = await withTransaction(db, async (tx) => {
  *   const userModel = createModel({ table: users, dbInstance: tx });
  *   return await userModel.create(userData);
+ * });
+ *
+ * // With SafeResult pattern
+ * const { result, error } = await withTransaction(db, async (tx) => {
+ *   const userResult = await getUserByEmail(email, tx);
+ *   if (userResult.isError) return userResult;
+ *   return Ok(userResult.data);
  * });
  * ```
  */
@@ -139,14 +148,21 @@ export async function withTransaction<T>(
    * Type is `any` for multi-driver support.
    */
   dbInstance: any,
-  callback: (tx: any) => Promise<ModelResult<T>>
-): Promise<ModelResult<T>> {
+  callback: (tx: any) => Promise<SafeResult<T> | ModelResult<T>>
+): Promise<{
+  result: SafeResult<T> | ModelResult<T> | null;
+  error: {
+    message: string;
+    type: string;
+    details: { originalError: unknown };
+  } | null;
+}> {
   try {
     const result = await dbInstance.transaction(callback);
-    return result;
+    return { result, error: null };
   } catch (error) {
     return {
-      data: null,
+      result: null,
       error: {
         message: error instanceof Error ? error.message : 'Transaction failed',
         type: 'database',

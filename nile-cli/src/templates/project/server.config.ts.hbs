@@ -1,0 +1,29 @@
+import type { ServerConfig } from '@nile-squad/nile/rest';
+import { ALLOWED_ORIGINS, AUTH_SECRET, PORT } from './config';
+import { db } from './db';
+import { services } from './services';
+
+if (!AUTH_SECRET) {
+  throw new Error('AUTH_SECRET is not set');
+}
+
+export const serverConfig: ServerConfig = {
+  serverName: '{{projectName}} Server',
+  port: String(PORT),
+  allowedOrigins: ALLOWED_ORIGINS,
+  services,
+  apiVersion: 'v1',
+  enableStatic: true,
+  enableStatus: true,
+  db: {
+    instance: db,
+    tables: {},
+  },
+  auth: {
+    method: 'cookie',
+    secret: AUTH_SECRET,
+    cookieName: 'auth_token',
+    authHandler: 'jwt',
+  },
+};
+

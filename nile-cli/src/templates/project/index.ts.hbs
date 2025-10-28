@@ -1,0 +1,19 @@
+import 'dotenv/config';
+import { serve } from '@hono/node-server';
+import { createRestRPC } from '@nile-squad/nile/rest';
+import { serverConfig } from './server.config';
+
+function main() {
+  const app = createRestRPC(serverConfig);
+
+  serve({
+    port: Number(serverConfig.port),
+    fetch: app.fetch,
+    hostname: '0.0.0.0',
+  });
+
+  console.log(`Server running on port ${serverConfig.port}`);
+}
+
+main();
+

@@ -1,0 +1,16 @@
+import 'dotenv/config';
+
+export const PORT = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 8000;
+export const MODE = process.env.MODE;
+export const AUTH_SECRET = process.env.AUTH_SECRET;
+export const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS?.split(',') || [];
+
+const missingVars = [
+  ['MODE', MODE],
+  ['AUTH_SECRET', AUTH_SECRET],
+].filter(([, v]) => !v).map(([name]) => name);
+
+if (missingVars.length > 0) {
+  throw new Error(`Missing environment variables: ${missingVars.join(', ')}`);
+}
+

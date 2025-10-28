@@ -1,0 +1,14 @@
+import { db } from '../client';
+import { users } from '../schemas';
+import { createModel } from '@nile-squad/nile';
+
+export const usersModel = createModel({ table: users, dbInstance: db });
+
+export const getUserByEmail = (email: string) => {
+  return usersModel.getOne({ basedOnProperty: 'email', withValue: email });
+};
+
+export const getUserById = (id: string) => {
+  return usersModel.getOne({ basedOnProperty: 'id', withValue: id });
+};
+

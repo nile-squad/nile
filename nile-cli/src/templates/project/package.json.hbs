@@ -1,0 +1,50 @@
+{
+  "name": "{{projectName}}",
+  "module": "index.ts",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "start": "pnpm tsx index.ts",
+    "build": "pnpm format",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "type-check": "tsc --noEmit",
+    "format": "pnpm ultracite format",
+    "lint": "pnpm ultracite lint",
+    "db:generate": "pnpm drizzle-kit generate",
+    "db:migrate": "pnpm drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "db:drop": "pnpm drizzle-kit drop",
+    "db:push": "pnpm drizzle-kit push",
+    "server": "pnpm install && pnpm db:push && pnpm start",
+    "dev": "pnpm tsx --watch index.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.1.1",
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.11.11",
+    "cross-env": "^10.1.0",
+    "dotenv": "^16.6.1",
+    "drizzle-kit": "^0.31.5",
+    "husky": "^9.1.7",
+    "ultracite": "5.0.36",
+    "vitest": "^3.2.4"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.17.1",
+    "@neondatabase/serverless": "^1.0.2",
+    "@nile-squad/nile": "^1.3.5",
+    "drizzle-orm": "^0.44.6",
+    "drizzle-zod": "^0.7.0",
+    "hono": "^4.9.7",
+    "pg": "^8.13.3",
+    "tsx": "^4.20.4",
+    "zod": "^4.0.10"
+  },
+  "packageManager": "pnpm@10.0.0"
+}
+
