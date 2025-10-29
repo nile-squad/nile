@@ -122,22 +122,6 @@ export const createRestRPC = (config: ServerConfig): RestRPCInstance => {
   const host = config.host || '0.0.0.0';
   const port = config.port || '8000';
 
-  // config should either have services or servicesEngine
-  if (config.services && config.servicesEngine) {
-    throw new Error('Both services and servicesEngine cannot be provided');
-  }
-  if (!(config.services || config.servicesEngine)) {
-    throw new Error('Either services or servicesEngine must be provided');
-  }
-
-  config.services = config.services
-    ? config.services
-    : config.servicesEngine?.getServices() || [];
-
-  if (!config.services) {
-    throw new Error('Either services or servicesEngine must be provided');
-  }
-
   // Build a clean origin (scheme + host [+ port]) without duplications
   const origin = (() => {
     try {
