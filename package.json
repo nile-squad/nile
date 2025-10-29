@@ -1,6 +1,6 @@
 {
   "name": "@nile-squad/nile",
-  "version": "1.3.9",
+  "version": "1.4.0",
   "author": "Hussein Kizz",
   "type": "module",
   "sideEffects": false,

@@ -804,6 +804,58 @@ describe("Enhanced Model Interface", () => {
 	});
 
 	describe("Soft Delete Operations", () => {
+		describe("soft delete filter (regression test for isNull bug)", () => {
+			it("should find active records where deletedAt IS NULL", async () => {
+				// This test verifies the fix for the bug where soft delete filter
+				// was using eq(field, null) which generates "WHERE deleted_at = NULL"
+				// instead of isNull(field) which generates "WHERE deleted_at IS NULL"
+				
+				// Create a fresh post (deletedAt should be null)
+				const { data: activePost } = await postModel.create(
+					createTestPost({
+						authorId: testUser.id,
+						title: "Active Post Test",
+					}),
+				);
+				
+				// Should find the active post with normal query (autoFilter: true)
+				const { data: foundPost, error } = await postModel.findById(
+					activePost.id,
+				);
+				expect(error).toBeNull();
+				expect(foundPost).toBeDefined();
+				expect(foundPost?.id).toBe(activePost.id);
+				expect(foundPost?.deletedAt).toBeNull();
+			});
+
+			it("should not find soft deleted records in normal queries", async () => {
+				// Create and soft delete a post
+				const { data: newPost } = await postModel.create(
+					createTestPost({
+						authorId: testUser.id,
+						title: "To Be Deleted",
+					}),
+				);
+				
+				await postModel.delete(newPost.id);
+				
+				// Should NOT find the deleted post in normal query
+				const { data: foundPost, error } = await postModel.findById(
+					newPost.id,
+				);
+				expect(error).toBeNull();
+				expect(foundPost).toBeNull();
+				
+				// Should find it when explicitly including deleted
+				const { data: deletedPost } = await postModel.findById(
+					newPost.id,
+					{ includeDeleted: true },
+				);
+				expect(deletedPost).toBeDefined();
+				expect(deletedPost?.deletedAt).not.toBeNull();
+			});
+		});
+
 		describe("soft delete", () => {
 			it("should soft delete a post", async () => {
 				const { error: deleteError } = await postModel.delete(testPost.id);

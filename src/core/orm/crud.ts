@@ -4,7 +4,7 @@ import { getChanges } from '@nile/src/utils/get-changes';
 import { mergeChanges } from '@nile/src/utils/merge-changes';
 import { getValidationSchema } from '@nile/src/utils/validation-utils';
 import type { InferInsertModel, InferSelectModel, Table } from 'drizzle-orm';
-import { and, count, eq, inArray } from 'drizzle-orm';
+import { and, count, eq, inArray, isNull } from 'drizzle-orm';
 import {
   buildOrderClause,
   buildWhereClause,
@@ -48,7 +48,7 @@ export function createCrudOperations<TTable extends Table>(
     }
 
     if (config.softDelete && !options.includeDeleted) {
-      conditions.push(eq(tableAny[config.softDelete.field], null));
+      conditions.push(isNull(tableAny[config.softDelete.field]));
     }
 
     return conditions;
@@ -262,7 +262,7 @@ export function createCrudOperations<TTable extends Table>(
       const conditions: any[] = [eq(tableAny.id, id)];
       // Apply soft delete filter if configured and not explicitly including deleted
       if (config.softDelete && !options.includeDeleted) {
-        conditions.push(eq(tableAny[config.softDelete.field], null));
+        conditions.push(isNull(tableAny[config.softDelete.field]));
       }
       // Build select object for field projection
       const selectObj = buildSelectObject(options.select);
@@ -328,7 +328,7 @@ export function createCrudOperations<TTable extends Table>(
       const conditions: any[] = [inArray(tableAny.id, ids)];
       // Apply soft delete filter if configured and not explicitly including deleted
       if (config.softDelete && !options.includeDeleted) {
-        conditions.push(eq(tableAny[config.softDelete.field], null));
+        conditions.push(isNull(tableAny[config.softDelete.field]));
       }
       // Build select object for field projection
       const selectObj = buildSelectObject(options.select);
