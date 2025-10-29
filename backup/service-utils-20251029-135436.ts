@@ -2,15 +2,15 @@ import { z } from 'zod';
 import { newServiceActionsFactory } from '../../core/actions-factory';
 import type { PublicAction, Service, Services } from '../../types/actions';
 import { sanitizeForUrlSafety } from '../../utils/url-safety';
-import type { ServerConfig } from '../rest/rest-server';
+import { getAutoConfig, type ServerConfig } from '../rest/rest-server';
 import type { ResultsMode, RPCResult } from './types';
 
 /**
  * Process services with the same logic as rest-rpc.ts
  * Handles auto-generation, metadata merging, and final processing
  */
-export const processServices = (serverConfig: ServerConfig): Service[] => {
-  const config = serverConfig;
+export const processServices = (serverConfig?: ServerConfig): Service[] => {
+  const config = serverConfig || getAutoConfig();
   if (!config) {
     throw new Error('REST-RPC not configured');
   }
@@ -81,7 +81,7 @@ export const processServices = (serverConfig: ServerConfig): Service[] => {
   return finalServices;
 };
 
-const getFinalServices = (serverConfig: ServerConfig): Service[] => {
+const getFinalServices = (serverConfig?: ServerConfig): Service[] => {
   return processServices(serverConfig);
 };
 
@@ -121,10 +121,10 @@ const formatError = <TMode extends ResultsMode>(
 };
 
 export const getServices = <TMode extends ResultsMode = 'data'>(
-  serverConfig: ServerConfig,
-  resultsMode: TMode = 'data' as TMode
+  resultsMode: TMode = 'data' as TMode,
+  serverConfig?: ServerConfig
 ): RPCResult<TMode> => {
-  const config = serverConfig;
+  const config = serverConfig || getAutoConfig();
   if (!config) {
     throw new Error('REST-RPC not configured');
   }
@@ -141,8 +141,8 @@ export const getServices = <TMode extends ResultsMode = 'data'>(
 
 export const getServiceDetails = <TMode extends ResultsMode = 'data'>(
   serviceName: string,
-  serverConfig: ServerConfig,
-  resultsMode: TMode = 'data' as TMode
+  resultsMode: TMode = 'data' as TMode,
+  serverConfig?: ServerConfig
 ): RPCResult<TMode> => {
   const finalServices = getFinalServices(serverConfig);
   const service = finalServices.find(
@@ -171,8 +171,8 @@ export const getServiceDetails = <TMode extends ResultsMode = 'data'>(
 export const getActionDetails = <TMode extends ResultsMode = 'data'>(
   serviceName: string,
   actionName: string,
-  serverConfig: ServerConfig,
-  resultsMode: TMode = 'data' as TMode
+  resultsMode: TMode = 'data' as TMode,
+  serverConfig?: ServerConfig
 ): RPCResult<TMode> => {
   const finalServices = getFinalServices(serverConfig);
   const service = finalServices.find(
@@ -225,10 +225,10 @@ export const getActionDetails = <TMode extends ResultsMode = 'data'>(
 };
 
 export const getSchemas = <TMode extends ResultsMode = 'data'>(
-  serverConfig: ServerConfig,
-  resultsMode: TMode = 'data' as TMode
+  resultsMode: TMode = 'data' as TMode,
+  serverConfig?: ServerConfig
 ): RPCResult<TMode> => {
-  const config = serverConfig;
+  const config = serverConfig || getAutoConfig();
   if (!config) {
     throw new Error('REST-RPC not configured');
   }

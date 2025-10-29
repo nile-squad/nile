@@ -102,7 +102,7 @@ export const executeServiceAction = async <
   const processedPayload =
     agentMode || organizationId
       ? payload
-      : await attachAgentAuth(payload, false, serverConfig);
+      : await attachAgentAuth(payload, false);
 
   const executionResult = await executeUnified({
     serviceName,

@@ -1,14 +1,14 @@
 import { sign } from 'hono/jwt';
 import type { AuthResult } from '../../types/auth-handler';
-import type { ServerConfig } from '../rest/rest-server';
+import { getAutoConfig } from '../rest/rest-server';
 
 /**
  * Create an agent authentication token
  *
- * @param config - Server configuration containing auth secret
  * @returns A long-lived JWT token for agent authentication
  */
-export async function createAgentToken(config: ServerConfig): Promise<string> {
+export async function createAgentToken(): Promise<string> {
+  const config = getAutoConfig();
   if (!config) {
     throw new Error('REST-RPC not configured');
   }
@@ -33,20 +33,18 @@ export async function createAgentToken(config: ServerConfig): Promise<string> {
  *
  * @param payload - The original payload
  * @param agentMode - Whether agent mode is enabled
- * @param config - Server configuration containing auth secret
  * @returns The payload with or without agent auth attached
  */
 export async function attachAgentAuth(
   payload: any,
-  agentMode: boolean,
-  config: ServerConfig
+  agentMode: boolean
 ): Promise<any> {
   if (!agentMode) {
     return payload;
   }
 
   // Auto-attach agent authentication
-  const token = await createAgentToken(config);
+  const token = await createAgentToken();
   return {
     ...payload,
     auth: {

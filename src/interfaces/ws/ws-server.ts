@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { newServiceActionsFactory } from '../../core/actions-factory';
 import { cleanResponse } from '../../core/engine/response-cleaner';
 import { executeUnified } from '../../core/unified-executor';
-import type { Services } from '../../types/actions';
+import type { Action, Service, Services } from '../../types/actions';
 import { sanitizeForUrlSafety } from '../../utils';
 import type {
   WSExecuteActionRequest,
@@ -20,7 +20,7 @@ import {
   handleWSError,
 } from './ws-utils';
 
-function findService(finalServices: any[], serviceName: string) {
+function findService(finalServices: Service[], serviceName: string) {
   return finalServices.find(
     (s) => sanitizeForUrlSafety(s.name) === sanitizeForUrlSafety(serviceName)
   );
@@ -65,6 +65,10 @@ export function createWSRPCServer(options: WSServerOptions): void {
 
   // Reuse service preparation logic from rest-rpc.ts
   const services = serverConfig.services;
+  if (!services) {
+    throw new Error('Services not configured');
+  }
+
   const generatedServices: Services = [];
   const db = serverConfig.db?.instance || null;
   const db_tables = serverConfig.db?.tables || null;
@@ -156,7 +160,7 @@ export function createWSRPCServer(options: WSServerOptions): void {
           const serviceDetails = {
             name: targetService.name,
             description: targetService.description,
-            availableActions: targetService.actions.map((a: any) => a.name),
+            availableActions: targetService.actions.map((a: Action) => a.name),
           };
 
           ack(createSuccessResponse('Service Details', serviceDetails));
@@ -180,7 +184,7 @@ export function createWSRPCServer(options: WSServerOptions): void {
           }
 
           const targetAction = targetService.actions.find(
-            (a: any) => a.name === action
+            (a: Action) => a.name === action
           );
           if (!targetAction) {
             ack(
@@ -223,7 +227,7 @@ export function createWSRPCServer(options: WSServerOptions): void {
       (request: WSGetSchemasRequest, ack: (response: any) => void) => {
         try {
           const schemas = finalServices.map((finalService) => ({
-            [finalService.name]: finalService.actions.map((a) => ({
+            [finalService.name]: finalService.actions.map((a: Action) => ({
               name: a.name,
               description: a.description,
               validation: a.validation?.zodSchema

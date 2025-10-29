@@ -10,7 +10,7 @@ import { type DiagnosticsConfig, logDiagnostic } from './diagnostics';
 import { validateHandlerSignature } from './engine/handler-validation';
 
 type ServerConfig = {
-  services: Services;
+  services?: Services;
   betterAuth?: {
     instance: any;
   };
@@ -464,7 +464,8 @@ export async function executeUnified(
   const nileContext = createNileContext(interfaceContext);
 
   tracker.startStage('service-action-lookup');
-  const service = serverConfig.services.find((s) => s.name === serviceName);
+  // services exists after validateServerConfig(), but TS doesn't track this
+  const service = serverConfig.services?.find((s) => s.name === serviceName);
   if (!service) {
     const error_id = log({
       atFunction: 'executeUnified',

@@ -26,23 +26,18 @@ export const createRPC = <TMode extends 'data' | 'json' = 'data'>(
     serverConfig,
   } = config;
 
-  // Ensure serverConfig is provided
-  if (!serverConfig) {
-    throw new Error('serverConfig is required for RPC operations');
-  }
-
   return {
     getServices: () =>
       Promise.resolve(
-        getServices(serverConfig, resultsMode) as RPCResult<TMode>
+        getServices(resultsMode, serverConfig) as RPCResult<TMode>
       ),
 
     getServiceDetails: (serviceName: string) =>
       Promise.resolve(
         getServiceDetails(
           serviceName,
-          serverConfig,
-          resultsMode
+          resultsMode,
+          serverConfig
         ) as RPCResult<TMode>
       ),
 
@@ -51,14 +46,14 @@ export const createRPC = <TMode extends 'data' | 'json' = 'data'>(
         getActionDetails(
           serviceName,
           actionName,
-          serverConfig,
-          resultsMode
+          resultsMode,
+          serverConfig
         ) as RPCResult<TMode>
       ),
 
     getSchemas: () =>
       Promise.resolve(
-        getSchemas(serverConfig, resultsMode) as RPCResult<TMode>
+        getSchemas(resultsMode, serverConfig) as RPCResult<TMode>
       ),
 
     executeServiceAction: (serviceName: string, payload: ActionPayload) =>

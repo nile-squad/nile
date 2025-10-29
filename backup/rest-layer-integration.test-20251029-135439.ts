@@ -93,7 +93,7 @@ describe("REST Layer Integration Tests - Unified Execution", () => {
 			allowedOrigins: ["*"],
 		};
 
-		const { app } = createRestRPC(serverConfig);
+		const app = createRestRPC(serverConfig);
 
 		console.log(
 			"FINAL SERVICES:",

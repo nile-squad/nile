@@ -4,7 +4,7 @@ import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { serve } from "@hono/node-server";
-import { createRestRPC } from "./rest-server";
+import { createRestRPC, useAppInstance } from "./rest-server";
 import type { SubService } from "../../types/actions";
 import type { ServerConfig } from "./rest-server";
 
@@ -97,7 +97,7 @@ describe("REST Layer JWT Authentication Tests", () => {
 
 		baseUrl = `http://localhost:${TEST_PORT}/test/v1/services`;
 
-		const { app } = createRestRPC(serverConfig);
+		const app = createRestRPC(serverConfig);
 
 		server = serve(
 			{
@@ -391,7 +391,7 @@ describe("REST Layer JWT Authentication Tests", () => {
 				},
 			};
 
-			const { app } = createRestRPC(cookieConfig);
+			const app = createRestRPC(cookieConfig);
 
 			cookieServer = serve({
 				fetch: app.fetch,
@@ -562,7 +562,7 @@ describe("REST Layer JWT Authentication Tests", () => {
 				},
 			};
 
-			const { app } = createRestRPC(payloadConfig);
+			const app = createRestRPC(payloadConfig);
 
 			payloadServer = serve({
 				fetch: app.fetch,
@@ -839,7 +839,7 @@ describe("REST Layer JWT Authentication Tests", () => {
 				},
 			};
 
-			const { app } = createRestRPC(publicConfig);
+			const app = createRestRPC(publicConfig);
 
 			publicServer = serve({
 				fetch: app.fetch,
@@ -921,7 +921,7 @@ describe("REST Layer JWT Authentication Tests", () => {
 		});
 	});
 
-	describe("Custom Routes Integration", () => {
+	describe("useAppInstance() Integration", () => {
 		let db: Database.Database;
 		let drizzleDb: any;
 		let server: any;
@@ -978,19 +978,20 @@ describe("REST Layer JWT Authentication Tests", () => {
 				},
 			};
 
-		baseUrl = `http://localhost:${CUSTOM_PORT}`;
+			baseUrl = `http://localhost:${CUSTOM_PORT}`;
 
-		const { app } = createRestRPC(serverConfig);
+			const app = createRestRPC(serverConfig);
 
-		app.get("/custom-route", (c) => {
-			return c.json({
-				status: true,
-				message: "Custom route works!",
-				data: { custom: true },
+			const appInstance = useAppInstance();
+			appInstance?.get("/custom-route", (c) => {
+				return c.json({
+					status: true,
+					message: "Custom route works!",
+					data: { custom: true },
+				});
 			});
-		});
 
-		server = serve({ fetch: app.fetch, port: CUSTOM_PORT });
+			server = serve({ fetch: app.fetch, port: CUSTOM_PORT });
 			console.log(`Custom route test server running on ${baseUrl}`);
 		});
 
@@ -1003,7 +1004,7 @@ describe("REST Layer JWT Authentication Tests", () => {
 			}
 		});
 
-		it("should allow adding custom routes directly to the app instance", async () => {
+		it("should allow adding custom routes via useAppInstance", async () => {
 			const response = await fetch(`${baseUrl}/custom-route`, {
 				method: "GET",
 			});

@@ -1,22 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createRPC } from "./index";
-import type { ServerConfig } from "../rest/rest-server";
-
-// Mock server config for testing
-const mockServerConfig: ServerConfig = {
-	serverName: "Test RPC Server",
-	baseUrl: "/test",
-	apiVersion: "v1",
-	services: [],
-	host: "localhost",
-	port: "9999",
-	allowedOrigins: ["*"],
-};
 
 describe("RPC Utils Core Functionality", () => {
 	describe("createRPC function creation", () => {
 		it("should create RPC utils with default config", () => {
-			const rpc = createRPC({ serverConfig: mockServerConfig });
+			const rpc = createRPC();
 
 			expect(rpc).toBeDefined();
 			expect(typeof rpc.getServices).toBe("function");
@@ -30,7 +18,6 @@ describe("RPC Utils Core Functionality", () => {
 			const rpc = createRPC({
 				resultsMode: "json",
 				agentMode: true,
-				serverConfig: mockServerConfig,
 			});
 
 			expect(rpc).toBeDefined();
@@ -40,28 +27,16 @@ describe("RPC Utils Core Functionality", () => {
 
 	describe("Configuration handling", () => {
 		it("should accept different result modes", () => {
-			const dataRpc = createRPC({
-				resultsMode: "data",
-				serverConfig: mockServerConfig,
-			});
-			const jsonRpc = createRPC({
-				resultsMode: "json",
-				serverConfig: mockServerConfig,
-			});
+			const dataRpc = createRPC({ resultsMode: "data" });
+			const jsonRpc = createRPC({ resultsMode: "json" });
 
 			expect(dataRpc).toBeDefined();
 			expect(jsonRpc).toBeDefined();
 		});
 
 		it("should accept agent mode configuration", () => {
-			const userRpc = createRPC({
-				agentMode: false,
-				serverConfig: mockServerConfig,
-			});
-			const agentRpc = createRPC({
-				agentMode: true,
-				serverConfig: mockServerConfig,
-			});
+			const userRpc = createRPC({ agentMode: false });
+			const agentRpc = createRPC({ agentMode: true });
 
 			expect(userRpc).toBeDefined();
 			expect(agentRpc).toBeDefined();

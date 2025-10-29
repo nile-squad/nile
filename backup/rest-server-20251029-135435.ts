@@ -26,12 +26,8 @@ export type AppContext = {
 
 export const app = new Hono<AppContext>();
 
-export interface RestRPCInstance {
-  app: Hono<AppContext>;
-  config: ServerConfig;
-  getConfig: () => ServerConfig;
-  getApp: () => Hono<AppContext>;
-}
+let CONFIG: ServerConfig | null = null;
+let CURRENT_APP: Hono<AppContext> | null = null;
 
 export type AgenticHandler = (payload: {
   input: string;
@@ -115,8 +111,10 @@ const JOIN_EDGE_SLASHES_REGEX = /^\/+|\/+$/g;
  * Main configuration function for REST-RPC server
  * Sets up routes, authentication, and service handlers
  */
-export const createRestRPC = (config: ServerConfig): RestRPCInstance => {
+export const createRestRPC = (config: ServerConfig) => {
+  CONFIG = config;
   const restApp = new Hono<AppContext>();
+  CURRENT_APP = restApp;
   const createdRoutes: Record<string, any>[] = [];
   const prefix = `${config.baseUrl}/${config.apiVersion}/services`;
   const host = config.host || '0.0.0.0';
@@ -130,11 +128,11 @@ export const createRestRPC = (config: ServerConfig): RestRPCInstance => {
     throw new Error('Either services or servicesEngine must be provided');
   }
 
-  config.services = config.services
+  CONFIG.services = config.services
     ? config.services
     : config.servicesEngine?.getServices() || [];
 
-  if (!config.services) {
+  if (!CONFIG.services) {
     throw new Error('Either services or servicesEngine must be provided');
   }
 
@@ -376,7 +374,7 @@ export const createRestRPC = (config: ServerConfig): RestRPCInstance => {
         serviceName: sanitizeForUrlSafety(s.name),
         actionName,
         payload,
-        serverConfig: config as ServerConfig & { services: Services },
+        serverConfig: CONFIG as ServerConfig & { services: Services },
         authInput: {
           headers: c.req.raw.headers,
           cookies: getCookie(c),
@@ -627,12 +625,15 @@ export const createRestRPC = (config: ServerConfig): RestRPCInstance => {
     );
   });
 
-  return {
-    app: restApp,
-    config,
-    getConfig: () => config,
-    getApp: () => restApp,
-  };
+  return restApp;
 };
 
+/** Get the main Hono app instance */
+export const useAppInstance = () => CURRENT_APP || app;
+
+/** Get the current server configuration */
+export const getAutoConfig = () => CONFIG;
+
+/** Execute onStart callback if configured */
+export const onAppStart = () => CONFIG?.onStart?.();
 export type AppInstance = typeof app;
