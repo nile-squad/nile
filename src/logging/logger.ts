@@ -12,11 +12,14 @@ export type Log = {
   log_id?: string;
 };
 
-const mode = process.env.MODE
-  ? process.env.MODE
-  : (() => {
-      throw new Error('Missing MODE environment variable');
-    })();
+// Lazy evaluation of MODE - only check when logging is actually used
+const getMode = () => {
+  if (!process.env.MODE) {
+    throw new Error('Missing MODE environment variable');
+  }
+  return process.env.MODE;
+};
+
 const logDir = join(process.cwd(), 'logs');
 
 if (!existsSync(logDir)) {
@@ -105,6 +108,8 @@ export const createLog = (log: Log) => {
     level: type,
     time: new Date().toISOString(),
   };
+
+  const mode = getMode();
 
   if (mode === 'prod' || process.env.NODE_ENV === 'test') {
     if (process.env.NODE_ENV === 'test') {

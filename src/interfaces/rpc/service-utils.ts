@@ -15,8 +15,20 @@ export const processServices = (serverConfig: ServerConfig): Service[] => {
     throw new Error('REST-RPC not configured');
   }
 
-  const services = config.services;
-  if (!services) {
+  // Handle both services and servicesEngine patterns (same as rest-server.ts)
+  if (config.services && config.servicesEngine) {
+    throw new Error('Both services and servicesEngine cannot be provided');
+  }
+  if (!(config.services || config.servicesEngine)) {
+    throw new Error('Either services or servicesEngine must be provided');
+  }
+
+  // Normalize: extract services from servicesEngine if needed
+  const services = config.services
+    ? config.services
+    : config.servicesEngine?.getServices() || [];
+
+  if (!services || services.length === 0) {
     throw new Error('Services not configured');
   }
 

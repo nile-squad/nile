@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { newServiceActionsFactory } from '../../core/actions-factory';
 import { cleanResponse } from '../../core/engine/response-cleaner';
 import { executeUnified } from '../../core/unified-executor';
-import type { Action, Service, Services } from '../../types/actions';
+import type { Action, Service } from '../../types/actions';
 import { sanitizeForUrlSafety } from '../../utils';
+import { processServices } from '../rpc/service-utils';
 import type {
   WSExecuteActionRequest,
   WSGetActionDetailsRequest,
@@ -63,46 +63,9 @@ export function createWSRPCServer(options: WSServerOptions): void {
   const { io, namespace = '/ws/rpc', serverConfig } = options;
   const nsp = io.of(namespace);
 
-  // Reuse service preparation logic from rest-rpc.ts
-  const services = serverConfig.services;
-  if (!services) {
-    throw new Error('Services not configured');
-  }
-
-  const generatedServices: Services = [];
-  const db = serverConfig.db?.instance || null;
-  const db_tables = serverConfig.db?.tables || null;
-
-  // Build finalServices with auto-generated services (reuse from rest-rpc.ts lines 170-201)
-  services.forEach((s) => {
-    if (s.autoService && s.subs?.length) {
-      if (!(db && db_tables)) {
-        throw new Error(
-          'No database instance or tables provided for auto services to work properly!'
-        );
-      }
-      s.subs.forEach((sub) => {
-        const { actions: newActions, errors: newErrors } =
-          newServiceActionsFactory(sub, db, db_tables);
-
-        if (newErrors.length) {
-          throw new Error(
-            `Error while generating actions for service ${
-              sub.name
-            }: ${newErrors.join(', ')}`
-          );
-        }
-        generatedServices.push({
-          ...sub,
-          actions: [...sub.actions, ...newActions],
-        });
-      });
-    }
-  });
-
-  const finalServices = [...services, ...generatedServices].filter(
-    (s) => s.actions.length
-  );
+  // Reuse service processing logic from RPC layer
+  // This handles both services and servicesEngine patterns
+  const finalServices = processServices(serverConfig);
 
   // Authentication middleware
   nsp.use(async (socket: WSSocket, next: (err?: Error) => void) => {
