@@ -12,8 +12,10 @@ import { sql } from "drizzle-orm";
 describe("Enhanced Filter System", () => {
 	let userModel: any;
 	let testUserData: TestUser[] = [];
+	let testStartTime: Date;
 
 	beforeEach(async () => {
+		testStartTime = new Date();
 		const { db } = await setupTestDb();
 		userModel = createModel({
 			table: testUsers,
@@ -95,48 +97,48 @@ describe("Enhanced Filter System", () => {
 			expect(users?.every((u: any) => u.status !== "active")).toBe(true);
 		});
 
-		it("should filter with greaterThan operator", async () => {
-			const { data: users } = await userModel.findMany({
-				filters: [
-					{ where: "createdAt", greaterThan: new Date(Date.now() - 1000) },
-				],
-			});
-
-			expect(users).toHaveLength(5);
+	it("should filter with greaterThan operator", async () => {
+		const { data: users } = await userModel.findMany({
+			filters: [
+				{ where: "createdAt", greaterThan: new Date(testStartTime.getTime() - 1000) },
+			],
 		});
 
-		it("should filter with greaterThanOrEqual operator", async () => {
-			const { data: users } = await userModel.findMany({
-				filters: [
-					{
-						where: "createdAt",
-						greaterThanOrEqual: new Date(Date.now() - 1000),
-					},
-				],
-			});
+		expect(users).toHaveLength(5);
+	});
 
-			expect(users).toHaveLength(5);
+	it("should filter with greaterThanOrEqual operator", async () => {
+		const { data: users } = await userModel.findMany({
+			filters: [
+				{
+					where: "createdAt",
+					greaterThanOrEqual: new Date(testStartTime.getTime() - 1000),
+				},
+			],
 		});
 
-		it("should filter with lessThan operator", async () => {
-			const { data: users } = await userModel.findMany({
-				filters: [
-					{ where: "createdAt", lessThan: new Date(Date.now() + 1000) },
-				],
-			});
+		expect(users).toHaveLength(5);
+	});
 
-			expect(users).toHaveLength(5);
+	it("should filter with lessThan operator", async () => {
+		const { data: users } = await userModel.findMany({
+			filters: [
+				{ where: "createdAt", lessThan: new Date(testStartTime.getTime() + 10000) },
+			],
 		});
 
-		it("should filter with lessThanOrEqual operator", async () => {
-			const { data: users } = await userModel.findMany({
-				filters: [
-					{ where: "createdAt", lessThanOrEqual: new Date(Date.now() + 1000) },
-				],
-			});
+		expect(users).toHaveLength(5);
+	});
 
-			expect(users).toHaveLength(5);
+	it("should filter with lessThanOrEqual operator", async () => {
+		const { data: users } = await userModel.findMany({
+			filters: [
+				{ where: "createdAt", lessThanOrEqual: new Date(testStartTime.getTime() + 10000) },
+			],
 		});
+
+		expect(users).toHaveLength(5);
+	});
 
 		it("should filter with like operator", async () => {
 			const { data: users } = await userModel.findMany({

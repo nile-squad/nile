@@ -1,5 +1,12 @@
-import Database from 'better-sqlite3';
 import type { TaskExecution, TaskRecord } from './types';
+
+// Dynamic import to make better-sqlite3 optional
+let Database: any;
+try {
+  Database = require('better-sqlite3');
+} catch {
+  // Will throw helpful error when createTaskStorage is called
+}
 
 export interface TaskStorage {
   tasks: {
@@ -47,6 +54,13 @@ export interface TaskStorage {
  * ```
  */
 export const createTaskStorage = (dbPath = ':memory:'): TaskStorage => {
+  if (!Database) {
+    throw new Error(
+      'Task storage requires better-sqlite3. Install it with: pnpm add better-sqlite3@^9.6.0\n' +
+        'Or use npm/yarn: npm install better-sqlite3@^9.6.0'
+    );
+  }
+
   const db = new Database(dbPath);
 
   // Create tables first

@@ -18,4 +18,11 @@ export default defineConfig({
   clean: true,
   platform: 'node',
   splitting: false,
+  external: [
+    'better-sqlite3',
+    '@electric-sql/pglite',
+    '@neondatabase/serverless',
+    'drizzle-orm',
+    'drizzle-kit',
+  ],
 });
