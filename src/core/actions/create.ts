@@ -46,10 +46,7 @@ export const generateCreateAction = (
     isProtected: !sub.publicActions?.includes('create'),
     handler: createActionHandler,
     validation: {
-      inferTable: table,
-      context: {
-        operation: 'create',
-      },
+      zodSchema: model.getSchema('create'),
     },
   };
 

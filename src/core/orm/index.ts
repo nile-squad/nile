@@ -1,11 +1,14 @@
 import type { InferInsertModel, InferSelectModel, Table } from 'drizzle-orm';
+import type { ZodObject, ZodRawShape } from 'zod';
 import type { SafeResult } from '../../utils/safe-try';
+import { getValidationSchema } from '../../utils/validation-utils';
 import { createAggregationOperations } from './aggregation';
 import { createAtomicOperations } from './atomic';
 import { createBulkOperations } from './bulk';
 import { createCrudOperations } from './crud';
 import { createSoftDeleteOperations } from './soft-delete';
-import type { Model, ModelConfig, ModelResult } from './types';
+import type { Model, ModelAction, ModelConfig, ModelResult } from './types';
+import { ACTION_OPERATION_MAP } from './types';
 import { createUtilityOperations } from './utils';
 
 /**
@@ -62,6 +65,11 @@ export function createModel<
   const dialect = config.dialect || 'postgresql';
   const jsonMode = config.jsonMode || 'auto';
 
+  // Lazy schema generation with caching
+  // Schemas are generated on-demand when getSchema() is called
+  // This reduces initial memory footprint and only generates what's used
+  const schemaMap = new Map<ModelAction, ZodObject<ZodRawShape>>();
+
   // Create all operation modules (no generic parameters to simplify)
   const crudOps = createCrudOperations(
     table,
@@ -110,9 +118,44 @@ export function createModel<
     // Soft delete operations
     ...softDeleteOps,
 
+    // Schema retrieval method
+    /**
+     * Retrieves the validation schema for a given action.
+     * Schemas are lazily generated and cached for performance.
+     *
+     * @param actionName - The name of the model action (type-safe)
+     * @returns The Zod schema for the action, or null if action is unknown
+     */
+    getSchema: (actionName: ModelAction) => {
+      // Check cache first
+      const cached = schemaMap.get(actionName);
+      if (cached) {
+        return cached;
+      }
+
+      // Determine operation type for this action
+      const operation = ACTION_OPERATION_MAP[actionName];
+      if (!operation) {
+        // Unknown action name
+        return null;
+      }
+
+      // Generate schema on-demand
+      const schema = getValidationSchema({
+        inferTable: table,
+        ...config,
+        context: { operation },
+      });
+
+      // Cache for next time
+      schemaMap.set(actionName, schema);
+
+      return schema;
+    },
+
     // Table reference
     table,
-  };
+  } as Model<InferSelectModel<TTable>, InferInsertModel<TTable>, TConfig>;
 }
 
 /**

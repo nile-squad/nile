@@ -1607,5 +1607,147 @@ describe("Enhanced Model Interface", () => {
 				expect(user?.profile).toBeDefined();
 			});
 		});
+
+		describe("Schema Retrieval", () => {
+			it("should have getSchema method", () => {
+				expect(userModel.getSchema).toBeDefined();
+				expect(typeof userModel.getSchema).toBe("function");
+			});
+
+			it("should return schema for create action", () => {
+				const schema = userModel.getSchema("create");
+				expect(schema).toBeDefined();
+				expect(schema).not.toBeNull();
+
+				// Test schema with valid data
+				const validData = {
+					username: "newuser",
+					email: "new@example.com",
+					status: "active",
+				};
+				const result = schema.safeParse(validData);
+				expect(result.success).toBe(true);
+			});
+
+			it("should return schema for update action", () => {
+				const schema = userModel.getSchema("update");
+				expect(schema).toBeDefined();
+				expect(schema).not.toBeNull();
+
+				// Update schemas should allow partial data
+				const partialData = { username: "updated" };
+				const result = schema.safeParse(partialData);
+				expect(result.success).toBe(true);
+			});
+
+			it("should return schema for read actions", () => {
+				const findByIdSchema = userModel.getSchema("findById");
+				const findManySchema = userModel.getSchema("findMany");
+				const findFirstSchema = userModel.getSchema("findFirst");
+
+				expect(findByIdSchema).toBeDefined();
+				expect(findManySchema).toBeDefined();
+				expect(findFirstSchema).toBeDefined();
+
+				// Read schemas should validate column existence
+				const validColumn = { username: "test" };
+				const result = findManySchema.safeParse(validColumn);
+				expect(result.success).toBe(true);
+
+				// Should reject invalid columns
+				const invalidColumn = { nonExistentColumn: "test" };
+				const result2 = findManySchema.safeParse(invalidColumn);
+				expect(result2.success).toBe(false);
+			});
+
+			it("should return schema for bulk operations", () => {
+				const createManySchema = userModel.getSchema("createMany");
+				const updateManySchema = userModel.getSchema("updateMany");
+
+				expect(createManySchema).toBeDefined();
+				expect(updateManySchema).toBeDefined();
+			});
+
+			it("should return schema for atomic operations", () => {
+				const incrementSchema = userModel.getSchema("increment");
+				const decrementSchema = userModel.getSchema("decrement");
+
+				expect(incrementSchema).toBeDefined();
+				expect(decrementSchema).toBeDefined();
+			});
+
+			it("should return schema for utility operations", () => {
+				const countSchema = userModel.getSchema("count");
+				const existsSchema = userModel.getSchema("exists");
+				const distinctSchema = userModel.getSchema("distinct");
+
+				expect(countSchema).toBeDefined();
+				expect(existsSchema).toBeDefined();
+				expect(distinctSchema).toBeDefined();
+			});
+
+			it("should return null for unknown action", () => {
+				const schema = userModel.getSchema("nonExistentAction");
+				expect(schema).toBeNull();
+			});
+
+			it("should respect model config in schemas", () => {
+				const modelWithConfig = createModel({
+					table: testUsers,
+					dbInstance: userModel.table,
+					config: {
+						dialect: "sqlite",
+						omitFields: ["id", "createdAt", "updatedAt"],
+					},
+				});
+
+			const schema = modelWithConfig.getSchema("create");
+			expect(schema).toBeDefined();
+			expect(schema).not.toBeNull();
+
+			// Omitted fields should not be in schema
+			if (schema) {
+				const shape = schema.shape;
+				expect(shape.id).toBeUndefined();
+				expect(shape.createdAt).toBeUndefined();
+				expect(shape.updatedAt).toBeUndefined();
+
+				// Other fields should still exist
+				expect(shape.username).toBeDefined();
+				expect(shape.email).toBeDefined();
+			}
+			});
+
+			it("should handle soft delete operations", () => {
+				const restoreSchema = postModel.getSchema("restore");
+				const forceDeleteSchema = postModel.getSchema("forceDelete");
+
+				expect(restoreSchema).toBeDefined();
+				expect(forceDeleteSchema).toBeDefined();
+			});
+
+			it("should return different schemas for different operations", () => {
+				const createSchema = userModel.getSchema("create");
+				const updateSchema = userModel.getSchema("update");
+				const readSchema = userModel.getSchema("findMany");
+
+				// All should be defined but different
+				expect(createSchema).toBeDefined();
+				expect(updateSchema).toBeDefined();
+				expect(readSchema).toBeDefined();
+
+				// Create should be strict, update should be partial
+				const incompleteData = { username: "test" }; // Missing required email
+
+				const createResult = createSchema.safeParse(incompleteData);
+				expect(createResult.success).toBe(false); // Strict - requires all fields
+
+				const updateResult = updateSchema.safeParse(incompleteData);
+				expect(updateResult.success).toBe(true); // Partial - allows incomplete
+
+				const readResult = readSchema.safeParse(incompleteData);
+				expect(readResult.success).toBe(true); // Partial.strict - allows valid columns
+			});
+		});
 	});
 });

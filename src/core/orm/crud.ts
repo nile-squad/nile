@@ -163,21 +163,20 @@ export function createCrudOperations<TTable extends Table>(
   }
 
   function getUpdateValidator(options: ModelOptions) {
-    const baseValidation = getValidationSchema({
-      inferTable: table,
-      validationMode: 'auto',
-      context: { operation: 'update' },
-    });
-
     if (options.validation) {
       return getValidationSchema({
-        ...options.validation,
         inferTable: table,
+        ...config,
+        ...options.validation,
         context: { operation: 'update' },
       });
     }
 
-    return baseValidation;
+    return getValidationSchema({
+      inferTable: table,
+      ...config,
+      context: { operation: 'update' },
+    });
   }
 
   const buildSelectObject = (fields?: (keyof any)[]) => {
@@ -536,13 +535,14 @@ export function createCrudOperations<TTable extends Table>(
     // Validate data with Zod schema
     let validator = getValidationSchema({
       inferTable: table,
-      validationMode: 'auto',
+      ...config,
       context: { operation: 'create' },
     });
     if (options.validation) {
       validator = getValidationSchema({
-        ...options.validation,
         inferTable: table,
+        ...config,
+        ...options.validation,
         context: { operation: 'create' },
       });
     }

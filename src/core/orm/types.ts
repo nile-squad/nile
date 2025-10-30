@@ -2,6 +2,82 @@ import type { SQL, Table } from 'drizzle-orm';
 import type { Validation } from '../../utils/validation-utils';
 
 /**
+ * Valid action names for model operations
+ * Used for type-safe schema retrieval
+ */
+export type ModelAction =
+  // Write operations
+  | 'create'
+  | 'createMany'
+  | 'upsert'
+  | 'upsertMany'
+  | 'update'
+  | 'updateMany'
+  // Read operations
+  | 'findById'
+  | 'findByIds'
+  | 'findMany'
+  | 'findFirst'
+  | 'findWithRelations'
+  // Delete operations
+  | 'delete'
+  | 'deleteById'
+  | 'deleteMany'
+  // Atomic operations
+  | 'increment'
+  | 'decrement'
+  // Utility operations
+  | 'count'
+  | 'exists'
+  | 'distinct'
+  | 'aggregate'
+  | 'groupBy'
+  // Soft delete operations
+  | 'restore'
+  | 'restoreMany'
+  | 'forceDelete'
+  | 'forceDeleteMany';
+
+/**
+ * Maps action names to their validation operation types
+ */
+export const ACTION_OPERATION_MAP: Record<
+  ModelAction,
+  'create' | 'update' | 'read' | 'other'
+> = {
+  // Writers
+  create: 'create',
+  createMany: 'create',
+  upsert: 'create',
+  upsertMany: 'create',
+  update: 'update',
+  updateMany: 'update',
+
+  // Readers
+  findById: 'read',
+  findByIds: 'read',
+  findMany: 'read',
+  findFirst: 'read',
+  findWithRelations: 'read',
+
+  // Deleters & Others
+  delete: 'other',
+  deleteById: 'other',
+  deleteMany: 'other',
+  increment: 'other',
+  decrement: 'other',
+  count: 'other',
+  exists: 'other',
+  distinct: 'other',
+  aggregate: 'other',
+  groupBy: 'other',
+  restore: 'other',
+  restoreMany: 'other',
+  forceDelete: 'other',
+  forceDeleteMany: 'other',
+};
+
+/**
  * Result pattern types for consistent error handling
  */
 export interface ModelError {
@@ -625,6 +701,27 @@ export type BaseModel<TSelect, TInsert> = {
     filters: Filter<TSelect>[],
     options?: ModelOptions
   ) => Promise<ModelResult<TSelect[]>>;
+
+  /**
+   * Retrieves the validation schema for a given action.
+   * Schemas are lazily generated and cached for performance.
+   * Returns null if the action name is not recognized.
+   *
+   * @param actionName - The name of the model action (type-safe)
+   * @returns The Zod schema for the action, or null if not found
+   *
+   * @example
+   * ```typescript
+   * const createSchema = userModel.getSchema('create');
+   * const result = createSchema.safeParse(data);
+   * if (!result.success) {
+   *   console.error('Validation failed:', result.error);
+   * }
+   * ```
+   */
+  getSchema: (
+    actionName: ModelAction
+  ) => import('zod').ZodObject<import('zod').ZodRawShape> | null;
 
   /**
    * Table reference for advanced usage

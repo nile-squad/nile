@@ -1,4 +1,5 @@
 import { log } from '@nile/src/internal.config';
+import { z } from 'zod';
 import type { Action, ActionHandler, SubService } from '../../types/actions';
 import { Ok, safeError } from '../../utils';
 import type { Model } from '../orm';
@@ -45,7 +46,11 @@ export const generateDeleteByIdAction = ({
     description: `Delete a record by id in ${sub.tableName}`,
     isProtected: !sub.publicActions?.includes('deleteById'),
     handler: deleteByIdActionHandler,
-    validation: undefined as any,
+    validation: {
+      zodSchema: z.object({
+        [sub.idName]: z.string().min(1, `${sub.idName} is required`),
+      }),
+    },
   };
 
   return newAction;
@@ -86,7 +91,11 @@ export const generateDeleteManyAction = ({
     description: `Delete all records in ${sub.tableName}`,
     isProtected: !sub.publicActions?.includes('deleteMany'),
     handler: deleteManyActionHandler,
-    validation: undefined as any,
+    validation: {
+      zodSchema: z.object({
+        filters: z.array(z.any()).optional(),
+      }),
+    },
   };
 
   return newAction;

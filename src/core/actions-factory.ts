@@ -43,9 +43,29 @@ export const newServiceActionsFactory = (
     return returnValue;
   }
 
+  // Extract Model-specific config from sub.validation
+  // Sub.validation contains Validation properties that need to be mapped to ModelConfig
+  const modelConfig: any = {};
+  if (sub.validation) {
+    if (sub.validation.omitFields) {
+      modelConfig.omitFields = sub.validation.omitFields;
+    }
+    if (sub.validation.validationMode) {
+      modelConfig.validationMode = sub.validation.validationMode;
+    }
+    if (sub.validation.customValidations) {
+      modelConfig.customValidations = sub.validation.customValidations;
+    }
+    if (sub.validation.validationModifierHandler) {
+      modelConfig.validationModifierHandler =
+        sub.validation.validationModifierHandler;
+    }
+  }
+
   const model = createModel({
     table,
     dbInstance: db,
+    config: modelConfig,
   });
 
   // Generate all actions

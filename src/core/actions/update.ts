@@ -58,10 +58,7 @@ export const generateUpdateAction = (
     isProtected: !sub.publicActions?.includes('update'),
     handler: updateActionHandler,
     validation: {
-      inferTable: table,
-      context: {
-        operation: 'update',
-      },
+      zodSchema: model.getSchema('update'),
     },
   };
 

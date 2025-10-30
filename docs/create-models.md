@@ -1220,9 +1220,126 @@ interface FindManyOptions<TSelect> {
 }
 ```
 
-## 14. Best Practices
+## 14. Schema Retrieval
 
-### 14.1 General Guidelines
+### 14.1 Accessing Validation Schemas
+
+All `createModel` instances expose a `getSchema(actionName)` method that returns the pre-generated validation schema for any model operation. This is useful when you need to validate data before performing operations, or when integrating with external systems that need schema information.
+
+**Available action schemas:**
+
+- **CRUD Operations**: `'create'`, `'update'`, `'deleteById'`, `'deleteMany'`
+- **Find Operations**: `'findById'`, `'findByIds'`, `'findFirst'`, `'findMany'`
+- **Bulk Operations**: `'createMany'`, `'updateMany'`
+- **Atomic Operations**: `'increment'`, `'decrement'`
+- **Utility Operations**: `'count'`, `'exists'`, `'distinct'`
+- **Soft Delete** (when enabled): `'restore'`, `'forceDelete'`
+
+**Basic usage:**
+
+```typescript
+const userModel = createModel({
+  table: users,
+  dbInstance: db
+});
+
+// Get the schema for create operation
+const createSchema = userModel.getSchema('create');
+
+// Validate data before creating
+const result = createSchema.safeParse({
+  username: 'john_doe',
+  email: 'john@example.com'
+});
+
+if (!result.success) {
+  console.error('Validation failed:', result.error);
+  return;
+}
+
+// Data is valid, proceed with creation
+const { data: user } = await userModel.create(result.data);
+```
+
+**Schema behavior by operation:**
+
+```typescript
+// Create schema - strict mode (all required fields, no extra fields)
+const createSchema = userModel.getSchema('create');
+createSchema.safeParse({ username: 'john' }); // ❌ Missing required email
+createSchema.safeParse({ username: 'john', email: 'john@example.com', extra: 'field' }); // ❌ Extra field not allowed
+
+// Update schema - partial mode (all fields optional)
+const updateSchema = userModel.getSchema('update');
+updateSchema.safeParse({ username: 'john' }); // ✅ Partial update allowed
+updateSchema.safeParse({ email: 'new@example.com' }); // ✅ Any single field
+
+// Read schema - partial.strict mode (all fields optional, only valid columns)
+const findManySchema = userModel.getSchema('findMany');
+findManySchema.safeParse({ username: 'john' }); // ✅ Valid column
+findManySchema.safeParse({ invalidColumn: 'value' }); // ❌ Invalid column rejected
+```
+
+**Using schemas with custom validation:**
+
+```typescript
+// Model with custom validation config
+const userModel = createModel({
+  table: users,
+  dbInstance: db,
+  config: {
+    omitFields: ['id', 'created_at', 'updated_at']
+  }
+});
+
+// Schema respects the omitFields configuration
+const createSchema = userModel.getSchema('create');
+const shape = createSchema.shape;
+
+console.log(shape.id); // undefined - field was omitted
+console.log(shape.username); // ZodString - field is available
+```
+
+**Converting to JSON Schema:**
+
+```typescript
+import { zodToJsonSchema } from 'zod-to-json-schema';
+
+const createSchema = userModel.getSchema('create');
+const jsonSchema = zodToJsonSchema(createSchema);
+
+// Use JSON schema for API documentation, frontend validation, etc.
+console.log(JSON.stringify(jsonSchema, null, 2));
+```
+
+**Null return for unknown actions:**
+
+```typescript
+const schema = userModel.getSchema('nonExistentAction');
+console.log(schema); // null
+
+// Always check for null before using
+const customSchema = userModel.getSchema('customAction');
+if (customSchema) {
+  const result = customSchema.safeParse(data);
+  // ... use result
+}
+```
+
+### 14.2 Pre-Generated Schemas
+
+Schemas are generated once during model initialization, which provides:
+
+- **Performance**: No schema generation overhead on each operation
+- **Consistency**: Same validation logic across all layers (ORM, Actions, RPC, REST, WebSocket)
+- **Type Safety**: Schemas match the exact table structure
+- **Configuration Respect**: All model config options (omitFields, validationMode, etc.) are reflected in schemas
+
+The schemas are stored internally in a schema map and retrieved on demand via `getSchema()`.
+
+## 15. Best Practices
+
+### 15.1 General Guidelines
 
 1. **Always use indexes** for frequently queried fields
 2. **Use bulk operations** instead of loops
@@ -1235,7 +1352,7 @@ interface FindManyOptions<TSelect> {
 9. **Avoid N+1 queries** by using relations
 10. **Handle errors gracefully** with proper error handling
 
-### 14.2 Common Patterns
+### 15.2 Common Patterns
 
 **Functional Service Pattern:**
 

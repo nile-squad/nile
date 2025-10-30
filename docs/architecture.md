@@ -87,6 +87,9 @@ The flow of a request is always top-down. Each layer can only call the layer dir
   };
   ```
 
+**Schema Access:**
+Models created with `createModel` expose a `getSchema(actionName)` method that returns the pre-generated validation schema for any operation (`'create'`, `'update'`, `'findMany'`, etc.). This is useful when you need to access validation schemas programmatically, or when integrating with external systems that need schema information. See the [Database Models documentation](./create-models.md#14-schema-retrieval) for details.
+
 ### Layer 2: The Service Layer (Business Logic)
 
 This is where all business processes are defined. It has two components:

@@ -30,21 +30,20 @@ export function createBulkOperations<TTable extends Table>(
   const bulkLimit = config.bulkOperationLimit || 1000;
 
   function buildUpdateValidator(options: ModelOptions) {
-    const baseValidation = getValidationSchema({
-      inferTable: table,
-      validationMode: 'auto',
-      context: { operation: 'update' },
-    });
-
     if (options.validation) {
       return getValidationSchema({
-        ...options.validation,
         inferTable: table,
+        ...config,
+        ...options.validation,
         context: { operation: 'update' },
       });
     }
 
-    return baseValidation;
+    return getValidationSchema({
+      inferTable: table,
+      ...config,
+      context: { operation: 'update' },
+    });
   }
 
   function applyTimestampAutoUpdate(data: any): any {
@@ -145,14 +144,15 @@ export function createBulkOperations<TTable extends Table>(
     // Validate all items with Zod schema
     let validator = getValidationSchema({
       inferTable: table,
-      validationMode: 'auto',
+      ...config,
       context: { operation: 'create' },
     });
 
     if (options.validation) {
       validator = getValidationSchema({
-        ...options.validation,
         inferTable: table,
+        ...config,
+        ...options.validation,
         context: { operation: 'create' },
       });
     }
