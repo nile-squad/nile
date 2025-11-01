@@ -1,5 +1,5 @@
 import { log } from '@nile/src/internal.config';
-import type { InferSelectModel, Table } from 'drizzle-orm';
+import type { InferSelectModel } from 'drizzle-orm';
 import { and, count as drizzleCount, eq, type SQL } from 'drizzle-orm';
 import { buildWhereClause } from './filters';
 import type { Filter, ModelOptions, ModelResult } from './types';
@@ -7,14 +7,14 @@ import type { Filter, ModelOptions, ModelResult } from './types';
 /**
  * Creates utility operations for a model
  */
-export function createUtilityOperations<TTable extends Table>(
+export function createUtilityOperations<TTable>(
   table: TTable,
   db: any,
   config: any,
   dialect: 'postgresql' | 'sqlite' = 'postgresql'
 ) {
-  type SelectType = InferSelectModel<typeof table>;
   const tableAny = table as any;
+  type SelectType = InferSelectModel<typeof tableAny>;
 
   function buildCountConditions(
     filters: Filter<SelectType>[] | undefined,

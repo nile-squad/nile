@@ -2,7 +2,7 @@ import { log } from '@nile/src/internal.config';
 import { formatError } from '@nile/src/utils/erorr-formatter';
 import { mergeChanges } from '@nile/src/utils/merge-changes';
 import { getValidationSchema } from '@nile/src/utils/validation-utils';
-import type { InferInsertModel, InferSelectModel, Table } from 'drizzle-orm';
+import type { InferInsertModel, InferSelectModel } from 'drizzle-orm';
 import { and, eq, sql } from 'drizzle-orm';
 import {
   buildWhereClause,
@@ -14,7 +14,7 @@ import type { Filter, ModelOptions, ModelResult } from './types';
 /**
  * Creates bulk operations for a model
  */
-export function createBulkOperations<TTable extends Table>(
+export function createBulkOperations<TTable>(
   table: TTable,
   db: any,
   returnShape: Record<string, any> | null,
@@ -22,9 +22,9 @@ export function createBulkOperations<TTable extends Table>(
   dialect: 'postgresql' | 'sqlite' = 'postgresql',
   jsonMode: 'auto' | 'stringify' = 'auto'
 ) {
-  type InsertType = InferInsertModel<typeof table>;
-  type SelectType = InferSelectModel<typeof table>;
   const tableAny = table as any;
+  type InsertType = InferInsertModel<typeof tableAny>;
+  type SelectType = InferSelectModel<typeof tableAny>;
 
   // Get bulk operation limit from config or use default
   const bulkLimit = config.bulkOperationLimit || 1000;

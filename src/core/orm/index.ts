@@ -1,4 +1,3 @@
-import type { InferInsertModel, InferSelectModel, Table } from 'drizzle-orm';
 import type { ZodObject, ZodRawShape } from 'zod';
 import type { SafeResult } from '../../utils/safe-try';
 import { getValidationSchema } from '../../utils/validation-utils';
@@ -44,7 +43,7 @@ import { createUtilityOperations } from './utils';
  * ```
  */
 export function createModel<
-  TTable extends Table,
+  TTable,
   TConfig extends ModelConfig = Record<string, never>,
 >({
   table,
@@ -60,7 +59,7 @@ export function createModel<
   dbInstance: any;
   returnShape?: Record<string, any> | null;
   config?: TConfig;
-}): Model<InferSelectModel<TTable>, InferInsertModel<TTable>, TConfig> {
+}): Model<any, any, TTable, TConfig> {
   const db = dbInstance;
   const dialect = config.dialect || 'postgresql';
   const jsonMode = config.jsonMode || 'auto';
@@ -155,7 +154,7 @@ export function createModel<
 
     // Table reference
     table,
-  } as Model<InferSelectModel<TTable>, InferInsertModel<TTable>, TConfig>;
+  } as any as Model<any, any, TTable, TConfig>;
 }
 
 /**

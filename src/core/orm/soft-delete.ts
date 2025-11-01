@@ -1,5 +1,5 @@
 import { log } from '@nile/src/internal.config';
-import type { InferSelectModel, Table } from 'drizzle-orm';
+import type { InferSelectModel } from 'drizzle-orm';
 import { and, eq } from 'drizzle-orm';
 import { buildWhereClause, processJsonColumns } from './filters';
 import type { Filter, ModelOptions, ModelResult } from './types';
@@ -9,15 +9,15 @@ import type { Filter, ModelOptions, ModelResult } from './types';
 /**
  * Creates soft delete operations for a model
  */
-export function createSoftDeleteOperations<TTable extends Table>(
+export function createSoftDeleteOperations<TTable>(
   table: TTable,
   db: any,
   returnShape: Record<string, any> | null,
   config: any,
   dialect: 'postgresql' | 'sqlite' = 'postgresql'
 ) {
-  type SelectType = InferSelectModel<typeof table>;
   const tableAny = table as any;
+  type SelectType = InferSelectModel<typeof tableAny>;
 
   const restore = async (
     id: string,

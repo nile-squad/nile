@@ -1,5 +1,5 @@
 import { log } from '@nile/src/internal.config';
-import type { InferSelectModel, Table } from 'drizzle-orm';
+import type { InferSelectModel } from 'drizzle-orm';
 import { and, asc, avg, count, desc, max, min, sum } from 'drizzle-orm';
 import { buildWhereClause, processJsonColumns } from './filters';
 import type {
@@ -14,13 +14,13 @@ import type {
 /**
  * Creates aggregation operations for a model
  */
-export function createAggregationOperations<TTable extends Table>(
+export function createAggregationOperations<TTable>(
   table: TTable,
   db: any,
   dialect: 'postgresql' | 'sqlite' = 'postgresql'
 ) {
-  type SelectType = InferSelectModel<typeof table>;
   const tableAny = table as any;
+  type SelectType = InferSelectModel<typeof tableAny>;
 
   function buildSelectObjectForGroupBy(
     field: keyof SelectType,

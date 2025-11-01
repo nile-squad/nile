@@ -1,4 +1,3 @@
-import type { Table } from 'drizzle-orm';
 import {
   and,
   asc,
@@ -25,7 +24,7 @@ import type { Filter, PropertyFilter } from './types';
 /**
  * Builds SQL condition from a single filter
  */
-export function buildFilterCondition<TTable extends Table>(
+export function buildFilterCondition<TTable>(
   table: TTable,
   filter: Filter<any>,
   dialect: 'postgresql' | 'sqlite' = 'postgresql'
@@ -146,7 +145,7 @@ export function buildFilterCondition<TTable extends Table>(
 /**
  * Builds WHERE clause from array of filters
  */
-export function buildWhereClause<TTable extends Table>(
+export function buildWhereClause<TTable>(
   table: TTable,
   filters: Filter<any>[],
   dialect: 'postgresql' | 'sqlite' = 'postgresql'
@@ -165,13 +164,13 @@ export function buildWhereClause<TTable extends Table>(
 /**
  * Builds ORDER BY clause from order options
  */
-export function buildOrderClause<TTable extends Table>(
+export function buildOrderClause<TTable>(
   table: TTable,
   orderBy: any[] | undefined
 ): SQL[] {
   if (!orderBy || orderBy.length === 0) {
     // Default ordering by createdAt if available
-    if ('createdAt' in table) {
+    if ('createdAt' in (table as any)) {
       return [desc((table as any).createdAt)];
     }
     return [];
@@ -199,7 +198,7 @@ export function buildOrderClause<TTable extends Table>(
 /**
  * Detects JSON columns in a table schema
  */
-export function detectJsonColumns<TTable extends Table>(
+export function detectJsonColumns<TTable>(
   table: TTable,
   dialect: 'postgresql' | 'sqlite' = 'postgresql',
   jsonMode: 'auto' | 'stringify' = 'auto'
@@ -253,7 +252,7 @@ export function detectJsonColumns<TTable extends Table>(
 /**
  * Processes JSON columns for database operations
  */
-export function processJsonColumns<TTable extends Table>(
+export function processJsonColumns<TTable>(
   data: any,
   table: TTable,
   operation: 'stringify' | 'parse',

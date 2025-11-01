@@ -1,5 +1,5 @@
 import { log } from '@nile/src/internal.config';
-import type { InferSelectModel, Table } from 'drizzle-orm';
+import type { InferSelectModel } from 'drizzle-orm';
 import { eq, sql } from 'drizzle-orm';
 import { processJsonColumns } from './filters';
 import type { AtomicOptions, ModelResult } from './types';
@@ -7,13 +7,13 @@ import type { AtomicOptions, ModelResult } from './types';
 /**
  * Creates atomic operations for a model
  */
-export function createAtomicOperations<TTable extends Table>(
+export function createAtomicOperations<TTable>(
   table: TTable,
   db: any,
   returnShape: Record<string, any> | null
 ) {
-  type SelectType = InferSelectModel<typeof table>;
   const tableAny = table as any;
+  type SelectType = InferSelectModel<typeof tableAny>;
 
   const increment = async (
     id: string,

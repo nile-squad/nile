@@ -1,4 +1,4 @@
-import type { SQL, Table } from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
 import type { Validation } from '../../utils/validation-utils';
 
 /**
@@ -361,7 +361,7 @@ export interface ModelConfig {
 /**
  * Base model interface
  */
-export type BaseModel<TSelect, TInsert> = {
+export type BaseModel<TSelect, TInsert, TTable = any> = {
   /**
    * Finds a single record by its ID.
    * @param id - The unique identifier of the record
@@ -726,7 +726,7 @@ export type BaseModel<TSelect, TInsert> = {
   /**
    * Table reference for advanced usage
    */
-  table: Table;
+  table: TTable;
 };
 
 /**
@@ -735,8 +735,9 @@ export type BaseModel<TSelect, TInsert> = {
 export type Model<
   TSelect,
   TInsert,
+  TTable = any,
   _TConfig extends ModelConfig = Record<string, never>,
-> = BaseModel<TSelect, TInsert> & {
+> = BaseModel<TSelect, TInsert, TTable> & {
   // Table reference
-  table: Table;
+  table: TTable;
 };

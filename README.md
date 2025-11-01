@@ -50,8 +50,27 @@ For detailed guides and specifications, see the `docs` directory:
 To get started, add Nile to your project using your favorite package manager:
 
 ```bash
-pnpm install @nile-squad/nile
+pnpm install @nile-squad/nile typescript drizzle-orm
 ```
+
+**Peer Dependencies:**
+- `typescript` (^5.0.0) - Required
+- `drizzle-orm` (^0.44.0) - Required
+
+**Optional Peer Dependencies** (install based on your database needs):
+- `better-sqlite3` - For SQLite databases
+- `@electric-sql/pglite` - For PGLite databases
+- `@neondatabase/serverless` - For Neon serverless Postgres
+
+Example with optional dependencies:
+```bash
+# For PostgreSQL with Neon
+pnpm install @nile-squad/nile typescript drizzle-orm @neondatabase/serverless
+
+# For SQLite
+pnpm install @nile-squad/nile typescript drizzle-orm better-sqlite3
+```
+And any drizzle orm supported db can be supported.
 
 ## ✅ Project Status
 

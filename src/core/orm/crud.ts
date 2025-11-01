@@ -3,7 +3,7 @@ import { formatError } from '@nile/src/utils/erorr-formatter';
 import { getChanges } from '@nile/src/utils/get-changes';
 import { mergeChanges } from '@nile/src/utils/merge-changes';
 import { getValidationSchema } from '@nile/src/utils/validation-utils';
-import type { InferInsertModel, InferSelectModel, Table } from 'drizzle-orm';
+import type { InferInsertModel, InferSelectModel } from 'drizzle-orm';
 import { and, count, eq, inArray, isNull } from 'drizzle-orm';
 import {
   buildOrderClause,
@@ -25,7 +25,7 @@ import type {
  * @note `db` parameter is `any` to support multiple Drizzle adapters (PostgreSQL, SQLite, MySQL).
  * Model types (TSelect, TInsert) remain strongly typed for end-user safety.
  */
-export function createCrudOperations<TTable extends Table>(
+export function createCrudOperations<TTable>(
   table: TTable,
   db: any, // Simplified to any for multi-driver support
   returnShape: Record<string, any> | null,
@@ -33,9 +33,9 @@ export function createCrudOperations<TTable extends Table>(
   dialect: 'postgresql' | 'sqlite' = 'postgresql',
   jsonMode: 'auto' | 'stringify' = 'auto'
 ) {
-  type InsertType = InferInsertModel<typeof table>;
-  type SelectType = InferSelectModel<typeof table>;
   const tableAny = table as any;
+  type InsertType = InferInsertModel<typeof tableAny>;
+  type SelectType = InferSelectModel<typeof tableAny>;
 
   function buildQueryConditions(
     filters: Filter<SelectType>[],
