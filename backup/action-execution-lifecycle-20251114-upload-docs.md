@@ -10,7 +10,6 @@
 - **[rest-rpc.spec.md](./rest-rpc.spec.md)** - REST-RPC protocol specification and API design
 - **[action-hooks.md](./action-hooks.md)** - Action hook system and authorization patterns
 - **[create-models.md](./create-models.md)** - ORM and database model operations
-- **[uploads-handling.md](./uploads-handling.md)** - File upload handling and validation
 - **[ws-rpc.spec.md](./ws-rpc.spec.md)** - WebSocket RPC implementation
 
 **Audience:** Framework developers, implementers, and those debugging action execution issues.
@@ -203,7 +202,7 @@ uploads: {
 }
 ```
 
-**See Also:** For complete file upload documentation including configuration, error responses, security best practices, and handler examples, see [File Upload Handling Documentation](./uploads-handling.md).
+**See Also:** For complete file upload documentation including error responses and handler examples, see [REST-RPC Specification - File Uploads](./rest-rpc.spec.md#36-file-uploads).
 
 ---
 

@@ -4,6 +4,7 @@ export { formatError } from './erorr-formatter';
 export { getChanges } from './get-changes';
 export { generateSimilarHandles } from './handle-generator';
 export { hasExpired } from './has-expired';
+export { mergeChanges } from './merge-changes';
 export { mergeTwoObjects } from './merge-two-objects';
 export {
   createPerformanceTracker,
@@ -20,4 +21,8 @@ export {
   safeTry,
 } from './safe-try';
 export { sanitizeForUrlSafety } from './url-safety';
-export { getValidationSchema, type Validation } from './validation-utils';
+export {
+  getValidationSchema,
+  getZodSchema,
+  type Validation,
+} from './validation-utils';

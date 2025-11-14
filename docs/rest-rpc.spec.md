@@ -25,6 +25,7 @@ This document provides a protocol-level specification. For implementation detail
 - [Action-Level Hooks](./action-level-hooks.md) - Per-action data transformations
 - [Authentication](./auth.md) - Multi-mode auth and context injection
 - [Database Models](./create-models.md) - Auto-generated CRUD services
+- [File Upload Handling](./uploads-handling.md) - Multipart/form-data upload configuration and security
 - [Agentic System](./agentic.spec.md) - AI integration patterns
 - See [Section 20](#20-related-documentation) for complete documentation index
 
@@ -138,7 +139,7 @@ The agentic system provides conversational access to backend services with natur
 
 ## 7. Database Model System
 
-The framework automatically generates CRUD services from database schemas with built-in validation and error handling. For complete details on database models, auto-generated operations, and validation strategies, see [Database Models Documentation](./create-models.md).
+Nile automatically generates CRUD services from database schemas with built-in validation and error handling. For complete details on database models, auto-generated operations, and validation strategies, see [Database Models Documentation](./create-models.md).
 
 **Quick Reference:**
 - **Auto-Generated CRUD:** create, getAll, getOne, update, delete, getMany, getEvery, getManyWith, getOneWith, getOneWithRelations, deleteAll
@@ -224,7 +225,7 @@ const result = await rpc.executeServiceAction('users', {
 
 ## 9. Authentication & Authorization
 
-The framework implements a security-by-default architecture where all actions are protected by default unless explicitly marked as public. For complete details on authentication modes, context injection, and permission strategies, see [Authentication Documentation](./auth.md).
+Nile implements a security-by-default architecture where all actions are protected by default unless explicitly marked as public. For complete details on authentication modes, context injection, and permission strategies, see [Authentication Documentation](./auth.md).
 
 **Quick Reference:**
 - **Security-by-Default:** All actions require authentication unless `isProtected: false` or listed in `publicActions`
@@ -792,15 +793,11 @@ The server responds with the standard JSON structure (`status`, `message`, `data
 
 #### 3.5.3. Validation Errors
 
-When the client’s request payload fails validation:
+When the client's request payload fails validation:
 
 - **`status`**: `false`
 - **`message`**: `invalid request format`
 - **`data`**: An object detailing any missing or malformed fields.
-- For `multipart/form-data` is also accepted on top of JSON, and with it still we pass `action` name and then `file` or `files` in form fields.
-- Pagination and filtering that can be passed in payload.
-- Versioning though not so much needed in this case since new actions can just be added into a services without removing old ones or breaking anything but for any thing a new version can be exposed under new version eg from v1 to v2 and both can be run in parallel yes.
-
 **Example Validation Failure Response:**
 
 ```json
@@ -816,11 +813,26 @@ When the client’s request payload fails validation:
 }
 ```
 
-### 3.6. Schema Endpoint
+### 3.6. File Uploads
+
+Nile provides comprehensive support for handling multipart/form-data file uploads with configurable validation, size limits, and security controls.
+
+For complete details on file upload configuration, validation strategies, security best practices, and handler implementation, see [File Upload Handling Documentation](./uploads-handling.md).
+
+**Quick Reference:**
+
+- **Payload Structure:** Always uses structured mode - separates `{ fields: {...}, files: {...} }`
+- **Array Aggregation:** Duplicate keys automatically become arrays
+- **Configuration:** `uploads` block in server config with `limits`, `allow`, and `enforceContentType` options
+- **6-Layer Validation:** Filename length, zero-byte files, file count, individual file size, total size, allowlist
+- **Content-Type Enforcement:** Actions must declare `isSpecial.contentType: 'multipart/form-data'` to receive file uploads
+- **Client Support:** Works with browser FormData API, curl, and other HTTP clients
+
+### 3.7. Schema Endpoint
 
 For client-side type generation, tooling, or documentation, a single endpoint can be used to retrieve the entire API schema, including all services and their actions.
 
-#### 3.6.1. Request
+#### 3.7.1. Request
 
 A `GET` request is made to the `/schema` endpoint.
 
@@ -832,7 +844,7 @@ A `GET` request is made to the `/schema` endpoint.
 curl localhost:9000/testing/api/v1/services/schema
 ```
 
-#### 3.6.2. Response
+#### 3.7.2. Response
 
 The server responds with the standard JSON structure. On success, the `data` field contains an array of all services. Each service object in the array contains a list of its actions and their corresponding validation schemas.
 
@@ -1007,7 +1019,7 @@ The agentic endpoint is particularly useful for:
 
 ### 3.9. RPC Utilities
 
-The REST-RPC framework provides a set of utilities for direct programmatic interaction with services, bypassing the HTTP layer. These utilities are particularly useful for internal service communication, testing, and agent-based interactions.
+Nile provides a set of utilities for direct programmatic interaction with services, bypassing the HTTP layer. These utilities are particularly useful for internal service communication, testing, and agent-based interactions.
 
 #### 3.9.1. Basic Usage
 
@@ -1164,14 +1176,14 @@ The response’s `data` field will include:
 
 Hooks let you run other actions before and after your main action. Think of them as a assembly line where each step can transform your data.
 
-#### 3.9.1. How Hooks Work
+#### 3.11.1. How Hooks Work
 
 - **Hook = Another Action**: Every hook is just a reference to another action you've already defined
 - **Before Hooks**: Run before your main action (like validation, data cleanup)
 - **After Hooks**: Run after your main action (like logging, sending emails)
 - **Data Flows Forward**: Each successful hook passes its output to the next hook
 
-#### 3.9.2. Hook Failure Behavior
+#### 3.11.2. Hook Failure Behavior
 
 **Critical Hooks (`canFail: false`)**
 
@@ -1184,7 +1196,7 @@ Hooks let you run other actions before and after your main action. Think of them
 - Next hook gets the last successful output (failed hook output is thrown away)
 - Use for nice-to-have features like notifications, logging
 
-#### 3.9.3. Pipeline Results
+#### 3.11.3. Pipeline Results
 
 **`pipeline: false` (default)**
 
@@ -1197,7 +1209,7 @@ Hooks let you run other actions before and after your main action. Think of them
 - Shows which hooks ran, what they received/returned
 - Useful for debugging and audit trails
 
-#### 3.9.4. Simple Example
+#### 3.11.4. Simple Example
 
 ```json
 {
@@ -1222,7 +1234,7 @@ Hooks let you run other actions before and after your main action. Think of them
 3. `createUser` (main action) runs with the latest good data
 4. `sendWelcomeEmail` tries to run - if it fails, we still return success
 
-#### 3.9.5. Data Flow
+#### 3.11.5. Data Flow
 
 ```
 Input: { email: "john@example.com" }
@@ -1393,6 +1405,7 @@ This REST-RPC specification is part of a comprehensive documentation suite. For 
 - **[Authentication & Authorization](./auth.md)** - Multi-mode authentication, context injection, permission strategies
 - **[Database Models](./create-models.md)** - Auto-generated CRUD services, validation strategies, database schemas
 - **[Agentic System](./agentic.spec.md)** - Natural language interface, agent authentication, AI integration patterns
+- **[File Upload Handling](./uploads-handling.md)** - Multipart/form-data uploads, validation, security best practices
 
 ### Architecture & Design
 - **[Architecture Overview](./architecture.md)** - System architecture, component relationships, design decisions

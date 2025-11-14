@@ -66,13 +66,11 @@ export type ServerConfig = {
     standardHeaders?: boolean;
     limitingHeader: string;
     store?: any;
-    diagnostics?: boolean;
   };
   allowedOrigins: string[];
   middlewares?: any[];
   agenticConfig?: {
     handler: AgenticHandler;
-    diagnostics?: boolean;
   };
   betterAuth?: {
     instance: {
@@ -95,14 +93,12 @@ export type ServerConfig = {
       | import('../../types/auth-handler.js').AuthHandler
       | 'betterauth'
       | 'jwt';
-    diagnostics?: boolean;
   };
   uploads?: {
     enforceContentType?: boolean;
     limits?: {
       maxFiles?: number;
       maxFileSize?: number;
-      minFileSize?: number;
       maxTotalSize?: number;
       maxFilenameLength?: number;
     };
@@ -267,7 +263,9 @@ export const createRestRPC = (config: ServerConfig): RestRPCInstance => {
   const handleFormRequest = async (c: Context<AppContext>, service: any) => {
     const parseStart = performance.now();
 
-    // Use Hono's parseBody to get action first
+    console.log('[EXPERIMENT] Using Hono parseBody instead of formData');
+
+    // EXPERIMENT: Use Hono's parseBody to get action first
     const tempBody = await c.req.parseBody({ all: true }).catch(() => null);
     if (!tempBody) {
       return {
@@ -300,7 +298,7 @@ export const createRestRPC = (config: ServerConfig): RestRPCInstance => {
     const action = service.actions.find((a: any) => a.name === requestAction);
     const uploadMode = action?.isSpecial?.uploadMode ?? 'flat';
 
-    // Parse multipart form data using Hono's parseBody for better HTTP client compatibility
+    // EXPERIMENT: Use parseBodyToStructured which internally uses Hono's parseBody
     const parseResult = await parseBodyToStructured(c);
     if (!parseResult.status) {
       return {
@@ -329,6 +327,8 @@ export const createRestRPC = (config: ServerConfig): RestRPCInstance => {
         files.push(value);
       }
     }
+
+    console.log('[EXPERIMENT] Files collected after parseBody:', files.length);
 
     // Validate files if upload config exists and files are present
     if (files.length > 0 && config.uploads) {

@@ -3,6 +3,16 @@
 ## [Unreleased]
 
 ### Added
+- **File upload enhancements for REST interface**: Comprehensive multipart/form-data handling with configurable validation, size limits, and security controls. See [File Upload Handling Documentation](./docs/uploads-handling.md) for complete details.
+  - New `uploads` configuration block in `ServerConfig` with modes, limits, and allowlists
+  - **Flat mode (default):** Backward compatible - files and fields merged into single payload
+  - **Structured mode (opt-in):** Separate `fields` and `files` objects with array aggregation
+  - Fail-fast validation sequence: filename length, zero-byte files, file count, file size, total size, allowlist (mime + extension)
+  - Content-type enforcement via `isSpecial.contentType` action metadata
+  - Optional diagnostics for upload operations
+  - Comprehensive error responses (415 for content-type mismatch, 400 for validation failures)
+  - Security: Prevents memory exhaustion, filesystem attacks, and unauthorized file types
+  - Zero breaking changes: Existing flat mode preserved as default
 - **New 'read' operation for validation**: Added support for `operation: 'read'` in validation context, which uses `createSelectSchema` with `.partial().strict()` to validate that only valid table columns are provided, with all fields optional.
 - **New `getSchema()` method on models**: Models now expose a `getSchema(actionName: string)` method that returns the pre-generated Zod validation schema for any action (e.g., 'create', 'update', 'findMany', etc.).
 - **Schema pre-generation**: Validation schemas are now pre-generated at model creation time for all operations, improving performance and enabling proper type generation.

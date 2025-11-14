@@ -14,11 +14,6 @@ import { formatError } from '../../utils/erorr-formatter';
 import { sanitizeForUrlSafety } from '../../utils/url-safety';
 import { processServices } from '../rpc/service-utils';
 import type { WSConfig } from '../ws/types';
-import {
-  parseBodyToStructured,
-  type StructuredPayload,
-  validateFiles,
-} from './uploads/parse-formdata';
 
 // Extend Hono context type to include custom variables
 export type AppContext = {
@@ -66,13 +61,11 @@ export type ServerConfig = {
     standardHeaders?: boolean;
     limitingHeader: string;
     store?: any;
-    diagnostics?: boolean;
   };
   allowedOrigins: string[];
   middlewares?: any[];
   agenticConfig?: {
     handler: AgenticHandler;
-    diagnostics?: boolean;
   };
   betterAuth?: {
     instance: {
@@ -95,22 +88,6 @@ export type ServerConfig = {
       | import('../../types/auth-handler.js').AuthHandler
       | 'betterauth'
       | 'jwt';
-    diagnostics?: boolean;
-  };
-  uploads?: {
-    enforceContentType?: boolean;
-    limits?: {
-      maxFiles?: number;
-      maxFileSize?: number;
-      minFileSize?: number;
-      maxTotalSize?: number;
-      maxFilenameLength?: number;
-    };
-    allow?: {
-      mimeTypes?: string[];
-      extensions?: string[];
-    };
-    diagnostics?: boolean;
   };
   websocket?: WSConfig;
   onBeforeActionHandler?: import('../../types/action-hook.js').OnBeforeActionHandler;
@@ -264,12 +241,9 @@ export const createRestRPC = (config: ServerConfig): RestRPCInstance => {
   // Update config to use processed services so executeUnified() sees the generated actions
   config.services = finalServices;
 
-  const handleFormRequest = async (c: Context<AppContext>, service: any) => {
-    const parseStart = performance.now();
-
-    // Use Hono's parseBody to get action first
-    const tempBody = await c.req.parseBody({ all: true }).catch(() => null);
-    if (!tempBody) {
+  const handleFormRequest = async (c: Context<AppContext>) => {
+    const formData = await c.req.formData().catch(() => null);
+    if (!formData) {
       return {
         actionName: null,
         payload: null,
@@ -282,7 +256,7 @@ export const createRestRPC = (config: ServerConfig): RestRPCInstance => {
       };
     }
 
-    const requestAction = tempBody.action;
+    const requestAction = formData.get('action');
     if (!requestAction || typeof requestAction !== 'string') {
       return {
         actionName: null,
@@ -296,78 +270,15 @@ export const createRestRPC = (config: ServerConfig): RestRPCInstance => {
       };
     }
 
-    // Find the action to check uploadMode
-    const action = service.actions.find((a: any) => a.name === requestAction);
-    const uploadMode = action?.isSpecial?.uploadMode ?? 'flat';
-
-    // Parse multipart form data using Hono's parseBody for better HTTP client compatibility
-    const parseResult = await parseBodyToStructured(c);
-    if (!parseResult.status) {
-      return {
-        actionName: null,
-        payload: null,
-        payloadAuthToken: null,
-        error: c.json(
-          {
-            status: false,
-            message: parseResult.message,
-            data: parseResult.data,
-          },
-          400
-        ),
-      };
-    }
-
-    const payload: StructuredPayload = parseResult.data;
-
-    // Collect files for validation from parsed payload
-    const files: File[] = [];
-    for (const value of Object.values(payload.files)) {
-      if (Array.isArray(value)) {
-        files.push(...value);
-      } else {
-        files.push(value);
+    // Convert FormData to payload object
+    const payload: Record<string, any> = {};
+    formData.forEach((value, key) => {
+      if (key !== 'action') {
+        payload[key] = value;
       }
-    }
+    });
 
-    // Validate files if upload config exists and files are present
-    if (files.length > 0 && config.uploads) {
-      const validationResult = validateFiles(files, config.uploads);
-      if (!validationResult.status) {
-        return {
-          actionName: null,
-          payload: null,
-          payloadAuthToken: null,
-          error: c.json(
-            {
-              status: false,
-              message: validationResult.message,
-              data: validationResult.data,
-            },
-            400
-          ),
-        };
-      }
-    }
-
-    const parseEnd = performance.now();
-
-    // Diagnostics logging
-    if (
-      files.length > 0 &&
-      (config as any).diagnostics?.enabled &&
-      config.uploads?.diagnostics !== false
-    ) {
-      const totalSize = files.reduce((sum, f) => sum + f.size, 0);
-      console.debug('[uploads]', {
-        fileCount: files.length,
-        totalSize,
-        parseDuration: parseEnd - parseStart,
-        uploadMode,
-      });
-    }
-
-    const authToken = tempBody.auth_token;
+    const authToken = formData.get('auth_token');
     return {
       actionName: requestAction,
       payload,
@@ -428,7 +339,7 @@ export const createRestRPC = (config: ServerConfig): RestRPCInstance => {
         contentType.includes('application/x-www-form-urlencoded');
 
       const requestDetails = isFormData
-        ? await handleFormRequest(c, s)
+        ? await handleFormRequest(c)
         : await handleJsonRequest(c);
 
       const { actionName, payload, payloadAuthToken, error } = requestDetails;

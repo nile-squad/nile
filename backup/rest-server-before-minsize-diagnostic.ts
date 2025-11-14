@@ -66,13 +66,11 @@ export type ServerConfig = {
     standardHeaders?: boolean;
     limitingHeader: string;
     store?: any;
-    diagnostics?: boolean;
   };
   allowedOrigins: string[];
   middlewares?: any[];
   agenticConfig?: {
     handler: AgenticHandler;
-    diagnostics?: boolean;
   };
   betterAuth?: {
     instance: {
@@ -95,14 +93,12 @@ export type ServerConfig = {
       | import('../../types/auth-handler.js').AuthHandler
       | 'betterauth'
       | 'jwt';
-    diagnostics?: boolean;
   };
   uploads?: {
     enforceContentType?: boolean;
     limits?: {
       maxFiles?: number;
       maxFileSize?: number;
-      minFileSize?: number;
       maxTotalSize?: number;
       maxFilenameLength?: number;
     };

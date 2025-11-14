@@ -1,4 +1,8 @@
-import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
+import {
+  createInsertSchema,
+  createSelectSchema,
+  createUpdateSchema,
+} from 'drizzle-zod';
 import { type ZodObject, type ZodRawShape, z } from 'zod';
 
 export type Validation = {
@@ -104,3 +108,27 @@ const handleValidationMode = (
       return schema; // Default for other operations
   }
 };
+
+/**
+ * Gets the Zod schema for a table
+ * @param table - The drizzle schema table to get the schema for
+ * @returns The (create, select and update) Zod schemas for the table
+ */
+export function getZodSchema<T>(table: T) {
+  // check if not relations schema
+  const isRelation =
+    Object.hasOwn(table as object, 'config') &&
+    Object.hasOwn(table as object, 'table');
+  if (isRelation) {
+    throw new Error(`${table} is a relation schema, not a table schema`);
+  }
+
+  const insertSchema = createInsertSchema(table as any);
+  const updateSchema = createUpdateSchema(table as any);
+  const selectSchema = createSelectSchema(table as any);
+  return {
+    insert: insertSchema,
+    update: updateSchema,
+    select: selectSchema,
+  };
+}

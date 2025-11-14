@@ -43,6 +43,7 @@ export type Action = {
   };
   isSpecial?: {
     contentType: 'multipart/form-data' | 'application/json' | 'other';
+    uploadMode?: 'flat' | 'structured';
   };
   handler: ActionHandler;
   validation: Validation;

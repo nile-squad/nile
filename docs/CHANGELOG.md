@@ -1,5 +1,93 @@
 # Nile Framework Changelog
 
+## [Unreleased] - Next Major Version
+
+### Added
+
+#### Diagnostics System Enhancements
+- **New:** Added `diagnostics` option to `auth` configuration for authentication debugging
+- **New:** Added `diagnostics` option to `rateLimiting` configuration for rate limit monitoring
+- **New:** Added `diagnostics` option to `agenticConfig` for agentic handler debugging
+- **New:** Comprehensive diagnostics documentation in `/docs/monitoring.md`
+- **Feature:** Environment-based diagnostic configuration support
+- **Feature:** Production-safe diagnostic logging patterns
+
+#### Minimum File Size Validation
+- **New:** Added `minFileSize` option to `uploads.limits` configuration
+- **Default:** 1 byte (prevents empty file uploads)
+- **Feature:** Prevents accidental empty or corrupted file uploads
+- **Feature:** Configurable per-application requirements (e.g., avatars must be at least 5KB)
+- **Validation:** Fails fast with detailed error messages
+- **Documentation:** Complete usage guide in uploads-handling.md and monitoring.md
+
+### Documentation
+
+#### New Files
+- `/docs/monitoring.md` - Comprehensive diagnostics and monitoring guide
+  - Authentication diagnostics configuration and usage
+  - Upload diagnostics with minFileSize validation details
+  - Rate limiting diagnostics
+  - Agentic handler diagnostics
+  - Best practices for production environments
+  - Security considerations for diagnostic logging
+  - Performance impact analysis
+  - Troubleshooting guides
+
+#### Updated Files
+- `/docs/uploads-handling.md` - Added minFileSize validation documentation
+
+### Test Coverage
+
+#### New Tests
+- `src/interfaces/rest/__tests__/parse-formdata.test.ts` - Added 3 tests for `validateMinFileSize()`
+  - Minimum size validation enforcement
+  - Default 1 byte minimum
+  - Error response structure validation
+- **Total:** 512 tests passing (including 3 new minFileSize tests)
+
+### Breaking Changes
+
+#### File Upload System Simplification
+- **BREAKING:** Removed flat mode - all file uploads now use structured mode exclusively
+- **BREAKING:** Removed `uploads.mode` configuration option
+- **BREAKING:** File upload payloads always use `{ fields: {...}, files: {...} }` structure
+- **BREAKING:** Duplicate keys automatically aggregate into arrays
+
+**Migration Required:**
+```typescript
+// Before (flat mode)
+handler: async (data) => {
+  const file = data.avatar;
+  const name = data.name;
+}
+
+// After (structured mode - required)
+handler: async (data) => {
+  const { fields, files } = data;
+  const file = files.avatar;
+  const name = fields.name;
+}
+```
+
+**Actions must declare content-type for file uploads:**
+```typescript
+const action: Action = {
+  name: 'uploadFile',
+  isSpecial: {
+    contentType: 'multipart/form-data'  // REQUIRED
+  },
+  handler: async (data) => { /* ... */ }
+};
+```
+
+**Benefits:**
+- Eliminates mode switching and backward compatibility complexity
+- Predictable, consistent payload structure
+- Clear separation between form fields and file data
+- Better support for multiple file uploads
+
+See [File Upload Handling Documentation](./uploads-handling.md) for complete migration guide.
+
 ## [1.4.6] - 2024-10-30
 
 ### Added
