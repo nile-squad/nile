@@ -1,3 +1,9 @@
+export type {
+  CorsConfig,
+  CorsOptions,
+  CorsResolver,
+  CorsRouteRule,
+} from './cors-types';
 export {
   type AgenticHandler,
   type AppContext,

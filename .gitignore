@@ -8,3 +8,4 @@ logs
 .deleted.*
 *.local
 .deleted.npmrc
+backup

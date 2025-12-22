@@ -828,6 +828,140 @@ For complete details on file upload configuration, validation strategies, securi
 - **Content-Type Enforcement:** Actions must declare `isSpecial.contentType: 'multipart/form-data'` to receive file uploads
 - **Client Support:** Works with browser FormData API, curl, and other HTTP clients
 
+### 3.6.1. CORS Configuration
+
+Cross-Origin Resource Sharing (CORS) can be configured globally and per-route to control which origins can access your REST-RPC server.
+
+#### Basic Configuration
+
+**Default Behavior (Legacy):**
+
+```typescript
+const config: ServerConfig = {
+  // ... other config
+  allowedOrigins: ['https://app.example.com', 'https://admin.example.com'],
+};
+```
+
+When `cors` config is not provided, the server uses the legacy `allowedOrigins` array. If empty, defaults to `'*'` (allow all origins).
+
+#### Enable/Disable CORS
+
+```typescript
+const config: ServerConfig = {
+  // ... other config
+  cors: {
+    enabled: false, // Disable CORS middleware entirely
+  },
+};
+```
+
+#### Custom Global CORS Options
+
+```typescript
+const config: ServerConfig = {
+  // ... other config
+  cors: {
+    enabled: true,
+    defaults: {
+      origin: ['https://app.example.com', 'https://partner.example.com'],
+      credentials: true,
+      allowHeaders: ['Content-Type', 'Authorization', 'X-Custom-Header'],
+      allowMethods: ['POST', 'GET', 'OPTIONS', 'DELETE'],
+      exposeHeaders: ['Content-Length', 'X-Request-ID'],
+      maxAge: 600,
+    },
+  },
+};
+```
+
+#### Route-Specific CORS with Static Options
+
+Add different CORS rules for specific paths:
+
+```typescript
+const config: ServerConfig = {
+  // ... other config
+  cors: {
+    enabled: 'default',
+    addCors: [
+      {
+        path: '/assets/*',
+        options: {
+          origin: '*',
+          allowMethods: ['GET', 'HEAD'],
+          maxAge: 86400,
+        },
+      },
+      {
+        path: '/api/upload/*',
+        options: {
+          origin: 'https://trusted-uploader.com',
+          credentials: true,
+          allowHeaders: ['Content-Type', 'X-Upload-Key'],
+        },
+      },
+    ],
+  },
+};
+```
+
+#### Route-Specific CORS with Resolver
+
+Use a resolver function for dynamic CORS logic:
+
+```typescript
+const config: ServerConfig = {
+  // ... other config
+  cors: {
+    enabled: true,
+    addCors: [
+      {
+        path: '/partner/*',
+        resolver: (origin, c) => {
+          // Allow specific partner origins
+          if (origin === 'https://trusted-partner.com') {
+            return true; // Allow with default options
+          }
+          return false; // Reject
+        },
+      },
+      {
+        path: '/uploads/*',
+        resolver: (origin) => {
+          // Custom options for corporate domains
+          if (origin.endsWith('.corp.example')) {
+            return {
+              origin,
+              allowMethods: ['POST', 'PUT'],
+              allowHeaders: ['Content-Type', 'X-Upload-Key'],
+              maxAge: 300,
+            };
+          }
+          return false;
+        },
+      },
+    ],
+  },
+};
+```
+
+**Resolver Return Values:**
+
+- `true`: Allow the request origin with default/global CORS options
+- `false`: Reject the request (no CORS headers sent)
+- `CorsOptions` object: Override CORS options for this specific request
+- `undefined`: Fall back to default behavior
+
+**Quick Reference:**
+
+- **Toggle:** Set `cors.enabled` to `true`, `false`, or `'default'`
+- **Global Defaults:** Use `cors.defaults` to override default CORS options
+- **Route Rules:** Add path-specific rules with `cors.addCors`
+- **Static Options:** Provide fixed CORS options via `options` property
+- **Dynamic Logic:** Use `resolver` function for request-based CORS decisions
+- **Backward Compatible:** Legacy `allowedOrigins` still works when `cors` config is absent
+
 ### 3.7. Schema Endpoint
 
 For client-side type generation, tooling, or documentation, a single endpoint can be used to retrieve the entire API schema, including all services and their actions.

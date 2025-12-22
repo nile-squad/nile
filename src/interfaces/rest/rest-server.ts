@@ -2,7 +2,6 @@ import path from 'node:path';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { type Context, Hono } from 'hono';
 import { getCookie } from 'hono/cookie';
-import { cors } from 'hono/cors';
 import { createMiddleware } from 'hono/factory';
 import { rateLimiter } from 'hono-rate-limiter';
 import { z } from 'zod';
@@ -14,6 +13,8 @@ import { formatError } from '../../utils/erorr-formatter';
 import { sanitizeForUrlSafety } from '../../utils/url-safety';
 import { processServices } from '../rpc/service-utils';
 import type { WSConfig } from '../ws/types';
+import { applyCorsConfig } from './cors-helpers';
+import type { CorsConfig } from './cors-types';
 import {
   parseBodyToStructured,
   type StructuredPayload,
@@ -69,6 +70,7 @@ export type ServerConfig = {
     diagnostics?: boolean;
   };
   allowedOrigins: string[];
+  cors?: CorsConfig;
   middlewares?: any[];
   agenticConfig?: {
     handler: AgenticHandler;
@@ -185,24 +187,8 @@ export const createRestRPC = (config: ServerConfig): RestRPCInstance => {
       )
       .join('/');
 
-  restApp.use(
-    '*',
-    cors({
-      origin: (reqOrigin) => {
-        if (config.allowedOrigins.length > 0) {
-          return config.allowedOrigins.includes(reqOrigin ?? '')
-            ? reqOrigin
-            : '';
-        }
-        return '*';
-      },
-      credentials: true,
-      allowHeaders: ['Content-Type', 'Authorization'],
-      allowMethods: ['POST', 'GET', 'OPTIONS'],
-      exposeHeaders: ['Content-Length'],
-      maxAge: 600,
-    })
-  );
+  // Apply CORS configuration
+  applyCorsConfig(restApp, config);
 
   const authMiddleware = createMiddleware<{
     Variables: {
